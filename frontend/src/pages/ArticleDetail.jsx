@@ -90,7 +90,7 @@ export default function ArticleDetail() {
         // Fetch related articles from the same category
         if (articleData.categories && articleData.categories.length > 0) {
           const categoryName = articleData.categories[0].name;
-          const relatedResponse = await axios.get('/api/articles', {
+          const relatedResponse = await axios.get('/api/articles/public', {
             params: { category: categoryName.toLowerCase(), limit: 6 }
           });
           const filtered = relatedResponse.data.data.filter(a => a.id !== articleData.id).slice(0, 6);

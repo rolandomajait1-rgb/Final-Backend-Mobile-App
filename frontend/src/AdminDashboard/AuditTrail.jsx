@@ -29,6 +29,9 @@ export default function AuditTrail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const sidebarLinks = [
     { label: "Statistics",        icon: <FiBarChart size={16} />,  to: "/admin/statistics" },
@@ -43,13 +46,21 @@ export default function AuditTrail() {
     fetchAuditLogs();
   }, []);
 
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [page]);
+
   const fetchAuditLogs = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('/api/admin/audit-logs');
-      // Backend now returns paginated response; extract data array
-      setAuditLogs(response.data?.data || response.data || []);
+      const response = await axios.get('/api/admin/audit-logs', {
+        params: { page, per_page: 20 },
+      });
+      const data = response.data;
+      setAuditLogs(data?.data || data || []);
+      setLastPage(data?.last_page || 1);
+      setTotal(data?.total || 0);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
       setError('Failed to load audit logs. Please try again.');
@@ -104,7 +115,7 @@ export default function AuditTrail() {
                 Refresh
               </button>
               <span className="text-sm text-gray-500 ml-auto">
-                {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
+                {search ? `${filtered.length} results` : `${total} total entries`}
               </span>
             </div>
 
@@ -150,6 +161,27 @@ export default function AuditTrail() {
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {lastPage > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <span className="text-sm text-gray-600">Page {page} of {lastPage}</span>
+                <button
+                  onClick={() => setPage(p => Math.min(lastPage, p + 1))}
+                  disabled={page === lastPage}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

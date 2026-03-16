@@ -56,6 +56,7 @@ export default function EditArticle() {
         setTags(tagsString);
         setContent(DOMPurify.sanitize(article.content || ""));
         setCurrentImage(article.featured_image || null);
+        setStatus(article.status || 'published');
       } catch (error) {
         console.error('Error fetching article:', error);
         alert(`Failed to load article: ${error.response?.status || 'network error'}`);
@@ -103,6 +104,7 @@ export default function EditArticle() {
       formData.append('content', content);
       formData.append('tags', tags);
       formData.append('author', author);
+      formData.append('status', status);
       if (image) {
         formData.append('featured_image', image);
       }

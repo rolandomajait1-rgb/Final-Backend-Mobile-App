@@ -40,24 +40,25 @@ class DashboardController extends Controller
 
     public function apiRecentActivity(Request $request): JsonResponse
     {
-        $activities = [];
-
-        $recentArticles = \App\Models\Article::with('author.user')
-            ->where('status', 'published')
-            ->latest('published_at')
+        $logs = \App\Models\Log::with('user')
+            ->orderBy('created_at', 'desc')
             ->take(20)
-            ->get();
+            ->get()
+            ->map(function ($log) {
+                $title = null;
+                if ($log->model_type === 'App\\Models\\Article') {
+                    $title = \App\Models\Article::find($log->model_id)?->title
+                        ?? ($log->old_values['title'] ?? null);
+                }
+                return [
+                    'action'    => ucfirst($log->action),
+                    'title'     => $title ?? $log->model_type ? class_basename($log->model_type) : 'N/A',
+                    'user'      => $log->user?->email ?? 'Unknown',
+                    'timestamp' => $log->created_at->format('n/j/Y g:i A'),
+                ];
+            });
 
-        foreach ($recentArticles as $article) {
-            $activities[] = [
-                'action' => 'Published',
-                'title' => $article->title,
-                'user' => $article->author->user->email ?? 'Unknown',
-                'timestamp' => $article->published_at->format('n/j/Y g:i A'),
-            ];
-        }
-
-        return response()->json($activities);
+        return response()->json($logs);
     }
 
     public function apiAuditLogs(Request $request): JsonResponse

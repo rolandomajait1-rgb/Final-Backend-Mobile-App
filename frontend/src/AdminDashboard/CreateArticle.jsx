@@ -30,6 +30,7 @@ export default function CreateArticle() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [categories, setCategories] = useState([]);
+  const imagePreviewUrl = useRef(null);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -46,9 +47,17 @@ export default function CreateArticle() {
 
   // Cleanup image object URL on unmount or image change
   useEffect(() => {
+    if (image) {
+      // Revoke previous URL if any
+      if (imagePreviewUrl.current) {
+        URL.revokeObjectURL(imagePreviewUrl.current);
+      }
+      imagePreviewUrl.current = URL.createObjectURL(image);
+    }
     return () => {
-      if (image) {
-        URL.revokeObjectURL(URL.createObjectURL(image));
+      if (imagePreviewUrl.current) {
+        URL.revokeObjectURL(imagePreviewUrl.current);
+        imagePreviewUrl.current = null;
       }
     };
   }, [image]);
@@ -329,7 +338,7 @@ export default function CreateArticle() {
               >
                 {image ? (
                   <img
-                    src={URL.createObjectURL(image)}
+                    src={imagePreviewUrl.current || URL.createObjectURL(image)}
                     alt="Cover Preview"
                     className="max-w-full max-h-64 rounded-lg object-cover"
                   />

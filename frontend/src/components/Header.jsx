@@ -1,6 +1,8 @@
 import { FaUser } from 'react-icons/fa';
+import { FiLogOut } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import axios from '../utils/axiosConfig';
 
 function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -13,6 +15,20 @@ function Header() {
     setIsLoggedIn(!!token);
     setUserRole(role);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('/api/logout');
+    } catch (err) {
+      // proceed regardless
+    } finally {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_name');
+      navigate('/login');
+    }
+  };
 
 
 
@@ -83,15 +99,21 @@ function Header() {
           </button>
         )}
         {isLoggedIn ? (
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
             <button
               onClick={() => navigate('/dashboard')}
               className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-white/90 shadow-md hover:bg-white transition-colors"
+              title="My Account"
             >
               <FaUser className="text-2xl text-[#2a5a82]" />
             </button>
-
-
+            <button
+              onClick={handleLogout}
+              className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-white/90 shadow-md hover:bg-red-100 transition-colors"
+              title="Log Out"
+            >
+              <FiLogOut className="text-2xl text-red-500" />
+            </button>
           </div>
         ) : (
           <Link to="/login">

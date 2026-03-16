@@ -200,7 +200,7 @@ function AnimatedRoutes() {
         <Route
           path="/admin/manage-moderators"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="admin">
               <motion.div
                 initial="initial"
                 animate="in"
