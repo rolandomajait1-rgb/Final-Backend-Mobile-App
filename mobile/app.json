@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "La Verdad Herald",
+    "slug": "laverdadherald",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.laverdadherald.app"
+    },
+    "android": {
+      "package": "com.laverdadherald.app"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
