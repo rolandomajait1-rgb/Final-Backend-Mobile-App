@@ -60,9 +60,11 @@ services:
         sync: false
       - key: MAIL_FROM_NAME
         sync: false
+    healthCheckPath: /api/health
 
 databases:
   - name: laverdad-herald-db
     plan: free
     databaseName: laverdad_herald_db
     user: laverdad_herald_user
+    postgresMajorVersion: 15
