@@ -189,26 +189,29 @@ class AuthController extends Controller
         $attempts = Cache::get($cacheKey, 0);
 
         if ($attempts >= 10) {
-            return redirect(config('app.frontend_url').'/login?error=too_many_attempts');
+            $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+            return redirect($frontendUrl.'/login?error=too_many_attempts');
         }
 
         $result = $this->authService->verifyUserEmail($token);
+
+        $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
 
         if (! $result['success']) {
             Cache::put($cacheKey, $attempts + 1, now()->addMinutes(15));
 
             $errorMessage = $result['message'];
             if ($errorMessage === 'already_verified') {
-                return redirect(config('app.frontend_url').'/login?verified=1&message=already_verified');
+                return redirect($frontendUrl.'/login?verified=1&message=already_verified');
             }
 
-            return redirect(config('app.frontend_url').'/login?error='.$errorMessage);
+            return redirect($frontendUrl.'/login?error='.$errorMessage);
         }
 
         // Clear rate limit on successful verification
         Cache::forget($cacheKey);
 
-        return redirect(config('app.frontend_url').'/login?verified=1');
+        return redirect($frontendUrl.'/login?verified=1');
     }
 
     public function resendVerificationEmail(Request $request): JsonResponse
