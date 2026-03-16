@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: laverdad-herald-backend
+    runtime: docker
+    plan: free
+    envVars:
+      - key: APP_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: laverdad-herald-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: laverdad-herald-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: laverdad-herald-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: laverdad-herald-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: laverdad-herald-db
+          property: password
+      - key: DB_SSLMODE
+        value: require
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        sync: false
+
+databases:
+  - name: laverdad-herald-db
+    plan: free
+    databaseName: laverdad_herald_db
+    user: laverdad_herald_user
