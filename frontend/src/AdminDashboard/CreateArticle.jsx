@@ -343,7 +343,7 @@ export default function CreateArticle() {
               <div>
                 <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">Article Content</label>
                 <Editor
-                  apiKey="no-api-key"
+                  apiKey={import.meta.env.VITE_TINYMCE_API_KEY || 'no-api-key'}
                   onInit={(evt, editor) => editorRef.current = editor}
                   value={content}
                   onEditorChange={(newContent) => setContent(newContent)}

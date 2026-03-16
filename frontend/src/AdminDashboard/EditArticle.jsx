@@ -81,7 +81,6 @@ export default function EditArticle() {
     
     try {
       const formData = new FormData();
-      formData.append('_method', 'PUT');
       formData.append('title', title);
       formData.append('category', category);
       formData.append('content', content);
@@ -91,7 +90,7 @@ export default function EditArticle() {
         formData.append('featured_image', image);
       }
 
-      const response = await axios.post(`/api/articles/${id}`, formData);
+      const response = await axios.put(`/api/articles/${id}`, formData);
 
       if (response.status >= 200 && response.status < 300) {
         alert("Article updated successfully!");
