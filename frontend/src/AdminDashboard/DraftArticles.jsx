@@ -131,13 +131,13 @@ export default function DraftArticles() {
           return;
         }
 
-        const category = draft.categories?.[0]?.name || '';
+        const categoryId = draft.categories?.[0]?.id;
         const authorName = draft.author?.user?.name || draft.author?.name || '';
         const tags = Array.isArray(draft.tags)
           ? draft.tags.map((tag) => tag.name || tag).join(', ')
           : '';
 
-        if (!category || !authorName || !tags) {
+        if (!categoryId || !authorName || !tags) {
           alert('Draft is missing category, author, or tags. Open edit first, then publish.');
           return;
         }
@@ -145,7 +145,7 @@ export default function DraftArticles() {
         const response = await axios.put(`/api/articles/${id}`, {
           title: draft.title,
           content: draft.content,
-          category,
+          category: draft.categories?.[0]?.name || '',
           tags,
           author: authorName,
           status: 'published',
