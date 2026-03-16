@@ -22,9 +22,13 @@ class ArticlePolicy
             return true;
         }
 
-        // Moderators can update any article
+        // Moderators can only update articles they created or articles in their moderation queue
         if ($user->isModerator()) {
-            return true;
+            // For now, restrict to articles they created
+            if ($article->author && $article->author->user_id === $user->id) {
+                return true;
+            }
+            return false;
         }
 
         // Users with author records can update their own articles

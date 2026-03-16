@@ -403,7 +403,15 @@ class ArticleController extends Controller
             $article->tags()->sync($tagIds);
         }
 
-        // Logging removed as Log model is not available
+        // Log the update
+        Log::create([
+            'user_id' => Auth::id(),
+            'action' => 'update',
+            'model_type' => 'App\\Models\\Article',
+            'model_id' => $article->id,
+            'old_values' => json_encode($oldValues),
+            'new_values' => json_encode($article->fresh()->toArray()),
+        ]);
 
         return response()->json($article->load('author.user', 'categories', 'tags'));
     }

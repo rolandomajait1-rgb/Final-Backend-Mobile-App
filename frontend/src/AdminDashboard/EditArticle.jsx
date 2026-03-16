@@ -24,7 +24,21 @@ export default function EditArticle() {
   const [isFormValid, setIsFormValid] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
   const fallbackImage = 'https://via.placeholder.com/300x200/e2e8f0/64748b?text=No+Image';
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get('/api/categories');
+        setCategories(response.data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -212,13 +226,11 @@ export default function EditArticle() {
                     className="w-full p-2 border border-gray-400 rounded-md text-gray-800 appearance-none bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all cursor-pointer"
                  >
                    <option value="">Select Category</option>
-                   <option value="Literary">Literary</option>
-                   <option value="News">News</option>
-                   <option value="Sports">Sports</option>
-                   <option value="Features">Features</option>
-                   <option value="Opinion">Opinion</option>
-                   <option value="Art">Art</option>
-                   <option value="Specials">Specials</option>
+                   {categories.map((cat) => (
+                     <option key={cat.id} value={cat.name}>
+                       {cat.name}
+                     </option>
+                   ))}
                  </select>
                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                     <ChevronDown className="text-gray-500" size={24} strokeWidth={1.5} />

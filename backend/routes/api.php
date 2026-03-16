@@ -140,4 +140,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role:author'])->group(function () {
         Route::apiResource('drafts', DraftController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     });
+
+    // Admin Routes - Full draft access
+    Route::middleware(['role:admin'])->group(function () {
+        Route::apiResource('drafts', DraftController::class);
+    });
 });
