@@ -422,12 +422,27 @@ class ArticleController extends Controller
             // Ensure user is authorized to delete (policy allows only admins)
             $this->authorize('delete', $article);
 
+            $articleId = $article->id;
+            $articleTitle = $article->title;
+
             $article->delete();
 
-            return response()->json(['message' => 'Article deleted successfully']);
+            Log::create([
+                'user_id' => Auth::id(),
+                'action' => 'delete',
+                'model_type' => 'App\\Models\\Article',
+                'model_id' => $articleId,
+                'old_values' => json_encode(['id' => $articleId, 'title' => $articleTitle]),
+            ]);
+
+            return response()->json(['message' => 'Article deleted successfully', 'id' => $articleId]);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             return response()->json(['error' => 'Unauthorized'], 403);
         } catch (\Exception $e) {
+            Log::error('Article deletion failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['error' => 'Failed to delete article: '.$e->getMessage()], 500);
         }
     }
