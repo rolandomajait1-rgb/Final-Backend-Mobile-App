@@ -12,6 +12,7 @@ export default function ManageModerators() {
   const [moderators, setModerators] = useState([]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
 
   const sidebarLinks = [
     { label: "Statistics", icon: <FiBarChart size={16} />, to: "/admin/statistics" },
@@ -46,6 +47,7 @@ export default function ManageModerators() {
       return;
     }
 
+    setIsAdding(true);
     try {
       await axios.post('/api/admin/moderators', { email });
       setEmail('');
@@ -54,6 +56,8 @@ export default function ManageModerators() {
     } catch (error) {
       console.error('Error adding moderator:', error);
       alert(error.response?.data?.message || error.response?.data?.error || 'Failed to add moderator');
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -77,7 +81,7 @@ export default function ManageModerators() {
     <div className="flex flex-col min-h-screen bg-gray-100">
       <Header />
       <Navigation/>
-      <div className="relative h-15 flex items-center justify-center bg-linear-to-b from-blue-600 to-blue-800">
+      <div className="relative h-15 flex items-center justify-center bg-gradient-to-b from-blue-600 to-blue-800">
         <h1 className="text-white font-serif font-bold tracking-widest leading-none text-2xl drop-shadow-lg">
           {getUserRole() === 'moderator' ? 'MODERATOR | Dashboard' : 'ADMIN | Dashboard'}
         </h1>
@@ -99,9 +103,10 @@ export default function ManageModerators() {
             <div className="flex items-center gap-4 mb-6">
               <button 
                 onClick={addModerator}
-                className="flex items-center gap-2 bg-[#E1E1E1] hover:bg-[#d1d1d1] px-4 py-2 rounded-sm text-black font-medium transition-colors shadow-sm border border-gray-300"
+                disabled={isAdding || !email.trim()}
+                className="flex items-center gap-2 bg-[#E1E1E1] hover:bg-[#d1d1d1] disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-sm text-black font-medium transition-colors shadow-sm border border-gray-300"
               >
-                Add moderator
+                {isAdding ? 'Adding...' : 'Add moderator'}
                 <Plus size={20} className="stroke-2" />
               </button>
               <input 

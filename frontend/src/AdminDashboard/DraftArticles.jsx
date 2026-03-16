@@ -6,13 +6,22 @@ import { AdminSidebar } from "../components/AdminSidebar";
 import { getUserRole } from '../utils/auth';
 import Navigation from "../components/HeaderLink";
 import axios from '../utils/axiosConfig';
+import { getStorageUrl } from '../utils/apiConfig';
+import { sanitizeImageSrc } from '../utils/safeUrl';
 
-const DraftItem = ({ id, title, category, date, summary, author, featuredImage, onEdit, onDelete, onPublish }) => (
+const DraftItem = ({ id, title, category, date, summary, author, featuredImage, onEdit, onDelete, onPublish }) => {
+  const fallbackImage = 'https://placehold.co/600x350/333/FFF?text=NO+IMAGE';
+  const imageUrl = sanitizeImageSrc(
+    featuredImage ? getStorageUrl(featuredImage) : fallbackImage,
+    fallbackImage
+  );
+  
+  return (
   <div className="flex flex-col lg:flex-row gap-4 mb-6">
     <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col sm:flex-row">
       <div className="sm:w-1/3 relative bg-gray-200">
         <img 
-          src={featuredImage || "https://placehold.co/600x350/333/FFF?text=NO+IMAGE"} 
+          src={imageUrl} 
           alt="Article Banner" 
           className="w-full h-full object-cover"
         />
@@ -61,7 +70,8 @@ const DraftItem = ({ id, title, category, date, summary, author, featuredImage, 
       </button>
     </div>
   </div>
-);
+  );
+};
 
 export default function DraftArticles() {
   const [drafts, setDrafts] = useState([]);
