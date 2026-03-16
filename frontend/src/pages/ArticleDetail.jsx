@@ -143,6 +143,21 @@ export default function ArticleDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/articles/${article.id}`);
+      alert('Article deleted successfully!');
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting article:', error);
+      alert(`Error: ${error.response?.data?.error || error.response?.data?.message || error.message}`);
+    }
+  };
+
   const handleShare = (platform) => {
     const url = window.location.href;
     const title = article.title;
@@ -197,7 +212,10 @@ export default function ArticleDetail() {
                     Edit
                   </button>
                   {isAdmin() && (
-                    <button className="flex items-center bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors">
+                    <button 
+                      onClick={handleDelete}
+                      className="flex items-center bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors"
+                    >
                       <Trash2 size={16} className="mr-1.5" />
                       Delete
                     </button>
@@ -290,6 +308,9 @@ export default function ArticleDetail() {
               >
                 {likeCount} {liked ? 'Liked' : 'Like'}
               </button>
+              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-sm font-bold text-gray-700">
+                {article.view_count || 0} Views
+              </div>
               <button 
                 onClick={() => handleShare('facebook')}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-200 transition-colors"

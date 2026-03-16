@@ -141,6 +141,14 @@ class ArticleController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
+        // Increment view count
+        $article->increment('view_count');
+
+        // Load like counts
+        $article->loadCount(['interactions as likes_count' => function ($query) {
+            $query->where('type', 'liked');
+        }]);
+
         return response()->json($article);
     }
 
@@ -150,6 +158,14 @@ class ArticleController extends Controller
         if (! $article) {
             return response()->json(['message' => 'Article not found'], 404);
         }
+
+        // Increment view count
+        $article->increment('view_count');
+
+        // Load like counts
+        $article->loadCount(['interactions as likes_count' => function ($query) {
+            $query->where('type', 'liked');
+        }]);
 
         return response()->json($article);
     }
@@ -343,6 +359,7 @@ class ArticleController extends Controller
             'title' => $request->title,
             'content' => $request->input('content'),
             'author_id' => $author->id,
+            'author_name' => $request->author,
             'excerpt' => Str::limit($request->input('content'), 150),
         ];
 

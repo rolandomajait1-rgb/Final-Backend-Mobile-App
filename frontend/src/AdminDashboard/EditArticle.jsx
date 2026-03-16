@@ -20,6 +20,7 @@ export default function EditArticle() {
   const [image, setImage] = useState(null);
   const [currentImage, setCurrentImage] = useState(null);
   const [author, setAuthor] = useState("");
+  const [status, setStatus] = useState("published");
   const [isFormValid, setIsFormValid] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
