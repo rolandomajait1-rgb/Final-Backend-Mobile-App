@@ -9,6 +9,7 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -181,7 +182,7 @@ class AuthController extends Controller
         }
     }
 
-    public function verifyEmailToken(Request $request): JsonResponse|Response
+    public function verifyEmailToken(Request $request): JsonResponse|RedirectResponse|Response
     {
         try {
             $token = $request->query('token');
