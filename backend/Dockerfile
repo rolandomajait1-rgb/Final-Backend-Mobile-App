@@ -30,13 +30,38 @@ RUN composer install --no-dev --optimize-autoloader
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 755 /var/www/storage
 
+# Create startup script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Wait for database to be ready\n\
+echo "Waiting for database..."\n\
+for i in {1..30}; do\n\
+  if php artisan db:show > /dev/null 2>&1; then\n\
+    echo "Database is ready!"\n\
+    break\n\
+  fi\n\
+  echo "Database not ready, waiting... ($i/30)"\n\
+  sleep 2\n\
+done\n\
+\n\
+# Run migrations\n\
+php artisan migrate --force\n\
+\n\
+# Cache configuration\n\
+php artisan config:cache\n\
+php artisan route:cache\n\
+php artisan view:cache\n\
+\n\
+# Create storage link\n\
+php artisan storage:link || true\n\
+\n\
+# Start server\n\
+php artisan serve --host=0.0.0.0 --port=${PORT:-10000}\n\
+' > /var/www/start.sh && chmod +x /var/www/start.sh
+
 # Expose port
 EXPOSE ${PORT:-10000}
 
 # Start command
-CMD php artisan migrate --force && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    php artisan storage:link && \
-    php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+CMD ["/var/www/start.sh"]
