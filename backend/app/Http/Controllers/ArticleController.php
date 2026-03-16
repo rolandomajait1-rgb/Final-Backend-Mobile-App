@@ -41,8 +41,8 @@ class ArticleController extends Controller
             // Require authentication for draft articles
             if ($request->status === 'draft') {
                 $user = Auth::user();
-                if (! $user || ! $user->isAdmin()) {
-                    return response()->json(['error' => 'Admin access required for drafts'], 403);
+                if (! $user || (! $user->isAdmin() && ! $user->isModerator())) {
+                    return response()->json(['error' => 'Admin or moderator access required for drafts'], 403);
                 }
             }
             $query->where('status', $request->status);
@@ -201,7 +201,7 @@ class ArticleController extends Controller
             'category_id' => 'required|exists:categories,id',
             'tags' => 'array',
             'tags.*' => 'string',
-            'featured_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'author_name' => 'required|string',
         ]);
 
@@ -332,8 +332,8 @@ class ArticleController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'category' => 'required|string',
-            'tags' => 'required|string',
-            'featured_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'tags' => 'nullable|string',
+            'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'author' => 'required|string|min:1',
         ]);
 
@@ -404,14 +404,18 @@ class ArticleController extends Controller
         }
 
         // Log the update
-        \App\Models\Log::create([
-            'user_id'    => Auth::id(),
-            'action'     => 'update',
-            'model_type' => 'App\\Models\\Article',
-            'model_id'   => $article->id,
-            'old_values' => $oldValues,
-            'new_values' => $article->fresh()->toArray(),
-        ]);
+        try {
+            \App\Models\Log::create([
+                'user_id'    => Auth::id(),
+                'action'     => 'update',
+                'model_type' => 'App\\Models\\Article',
+                'model_id'   => $article->id,
+                'old_values' => ['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null],
+                'new_values' => ['title' => $article->title, 'status' => $article->status],
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to write audit log: ' . $e->getMessage());
+        }
 
         return response()->json($article->load('author.user', 'categories', 'tags'));
     }
