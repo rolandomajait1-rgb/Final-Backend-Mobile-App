@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, LogOut, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, Lock, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axiosConfig';
 import Header from '../components/Header';
@@ -39,10 +39,7 @@ const ProfileSidebar = ({ user, onLogout, onChangePassword }) => (
           <span>••••••••••••••</span>
         </div>
       </div>
-      <hr className="my-4 border-gray-200 pt-50" />
-      <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50 transition">
-        <LogOut size={18} /> Log Out
-      </button>
+
     </div>
   </div>
 );
