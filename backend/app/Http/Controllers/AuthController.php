@@ -14,6 +14,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class AuthController extends Controller
@@ -182,48 +183,63 @@ class AuthController extends Controller
 
     public function verifyEmailToken(Request $request): JsonResponse|Response
     {
-        $token = $request->query('token');
+        try {
+            $token = $request->query('token');
 
-        // Check for rate limiting by IP
-        $cacheKey = 'verify_attempts_'.$request->ip();
-        $attempts = Cache::get($cacheKey, 0);
-
-        if ($attempts >= 10) {
-            if ($request->wantsJson()) {
-                return response()->json(['message' => 'Too many verification attempts. Please try again later.'], 429);
+            if (!$token) {
+                $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+                return redirect($frontendUrl.'/login?error=invalid_token');
             }
+
+            // Check for rate limiting by IP
+            $cacheKey = 'verify_attempts_'.$request->ip();
+            $attempts = Cache::get($cacheKey, 0);
+
+            if ($attempts >= 10) {
+                if ($request->wantsJson()) {
+                    return response()->json(['message' => 'Too many verification attempts. Please try again later.'], 429);
+                }
+                $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+                return redirect($frontendUrl.'/login?error=too_many_attempts');
+            }
+
+            $result = $this->authService->verifyUserEmail($token);
+
             $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
-            return redirect($frontendUrl.'/login?error=too_many_attempts');
-        }
 
-        $result = $this->authService->verifyUserEmail($token);
+            if (! $result['success']) {
+                Cache::put($cacheKey, $attempts + 1, now()->addMinutes(15));
 
-        $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+                $errorMessage = $result['message'];
+                
+                if ($request->wantsJson()) {
+                    return response()->json(['message' => 'Email verification failed: '.$errorMessage], 400);
+                }
+                
+                if ($errorMessage === 'already_verified') {
+                    return redirect($frontendUrl.'/login?verified=1&message=already_verified');
+                }
 
-        if (! $result['success']) {
-            Cache::put($cacheKey, $attempts + 1, now()->addMinutes(15));
+                return redirect($frontendUrl.'/login?error='.$errorMessage);
+            }
 
-            $errorMessage = $result['message'];
-            
+            // Clear rate limit on successful verification
+            Cache::forget($cacheKey);
+
             if ($request->wantsJson()) {
-                return response()->json(['message' => 'Email verification failed: '.$errorMessage], 400);
+                return response()->json(['message' => 'Email verified successfully!', 'verified' => true], 200);
             }
+
+            return redirect($frontendUrl.'/login?verified=1');
+        } catch (\Exception $e) {
+            Log::error('Email verification error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             
-            if ($errorMessage === 'already_verified') {
-                return redirect($frontendUrl.'/login?verified=1&message=already_verified');
-            }
-
-            return redirect($frontendUrl.'/login?error='.$errorMessage);
+            $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+            return redirect($frontendUrl.'/login?error=verification_error');
         }
-
-        // Clear rate limit on successful verification
-        Cache::forget($cacheKey);
-
-        if ($request->wantsJson()) {
-            return response()->json(['message' => 'Email verified successfully!', 'verified' => true], 200);
-        }
-
-        return redirect($frontendUrl.'/login?verified=1');
     }
 
     public function resendVerificationEmail(Request $request): JsonResponse
