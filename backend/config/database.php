@@ -95,7 +95,10 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => [
+                'connect_timeout' => 10,
+            ],
         ],
 
         'sqlsrv' => [

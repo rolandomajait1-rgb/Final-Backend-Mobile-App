@@ -17,25 +17,15 @@ services:
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
-        fromDatabase:
-          name: laverdad-herald-db
-          property: host
+        value: dpg-d6rmquma2pns73fqqcl0-a.oregon-postgres.render.com
       - key: DB_PORT
-        fromDatabase:
-          name: laverdad-herald-db
-          property: port
+        value: "5432"
       - key: DB_DATABASE
-        fromDatabase:
-          name: laverdad-herald-db
-          property: database
+        value: amberdatabase
       - key: DB_USERNAME
-        fromDatabase:
-          name: laverdad-herald-db
-          property: user
+        value: amberbackend
       - key: DB_PASSWORD
-        fromDatabase:
-          name: laverdad-herald-db
-          property: password
+        sync: false
       - key: DB_SSLMODE
         value: require
       - key: SESSION_DRIVER
@@ -61,10 +51,3 @@ services:
       - key: MAIL_FROM_NAME
         sync: false
     healthCheckPath: /api/health
-
-databases:
-  - name: laverdad-herald-db
-    plan: free
-    databaseName: laverdad_herald_db
-    user: laverdad_herald_user
-    postgresMajorVersion: 15
