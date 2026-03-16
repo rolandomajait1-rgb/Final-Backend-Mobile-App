@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Upload, ChevronDown } from 'lucide-react';
 import DOMPurify from 'dompurify';
+import { Editor } from '@tinymce/tinymce-react';
 import Header from "../components/Header";
 import Navigation from '../components/HeaderLink';
 
@@ -12,6 +13,7 @@ import { sanitizeImageSrc } from '../utils/safeUrl';
 export default function EditArticle() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const editorRef = useRef(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -252,13 +254,26 @@ export default function EditArticle() {
 
             <div className="space-y-2">
               <label htmlFor="content" className="block text-md font-normal text-left text-gray-800">Article Content</label>
-              <textarea 
-                id="content"
-                rows={8}
+              <Editor
+                apiKey={import.meta.env.VITE_TINYMCE_API_KEY || 'no-api-key'}
+                onInit={(evt, editor) => editorRef.current = editor}
                 value={content}
-                placeholder="Write your article content here..."
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full p-2 border border-gray-400 rounded-md text-gray-800 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all leading-relaxed resize-y"
+                onEditorChange={(newContent) => setContent(newContent)}
+                init={{
+                  height: 500,
+                  menubar: true,
+                  plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                  ],
+                  toolbar: 'undo redo | blocks | ' +
+                    'bold italic forecolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | help',
+                  content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                  placeholder: 'Write your article content here...',
+                }}
               />
             </div>
 
