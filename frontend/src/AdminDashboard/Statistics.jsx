@@ -17,7 +17,9 @@ export default function Statistics({ onResetData }) {
 
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activityError, setActivityError] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -48,11 +50,15 @@ export default function Statistics({ onResetData }) {
   };
 
   const fetchRecentActivity = async () => {
+    setActivityLoading(true);
     try {
       const response = await axios.get('/api/admin/recent-activity');
-      setRecentActivity(response.data);
+      setRecentActivity(response.data || []);
     } catch (error) {
       console.error('Error fetching recent activity:', error);
+      setActivityError('Failed to load recent activity.');
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -141,22 +147,22 @@ export default function Statistics({ onResetData }) {
                 </tr>
               </thead>
               <tbody>
-                {recentActivity.map((a, index) => (
-                  <tr key={index}>
-                    <td className="text-center text-blue-900 border border-blue-300 p-3">
-                      {a.action}
-                    </td>
-                    <td className="text-center border border-blue-300 p-3">
-                      {a.title}
-                    </td>
-                    <td className="text-center border border-blue-300 p-3">
-                      {a.user}
-                    </td>
-                    <td className="text-center border border-blue-300 p-3">
-                      {a.timestamp}
-                    </td>
-                  </tr>
-                ))}
+                {activityLoading ? (
+                  <tr><td colSpan={4} className="text-center p-4 text-gray-500">Loading activity...</td></tr>
+                ) : activityError ? (
+                  <tr><td colSpan={4} className="text-center p-4 text-red-500">{activityError}</td></tr>
+                ) : recentActivity.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center p-4 text-gray-500">No recent activity found.</td></tr>
+                ) : (
+                  recentActivity.map((a, index) => (
+                    <tr key={index}>
+                      <td className="text-center text-blue-900 border border-blue-300 p-3">{a.action}</td>
+                      <td className="text-center border border-blue-300 p-3">{a.title}</td>
+                      <td className="text-center border border-blue-300 p-3">{a.user}</td>
+                      <td className="text-center border border-blue-300 p-3">{a.timestamp}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

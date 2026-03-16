@@ -9,7 +9,7 @@ import axios from '../utils/axiosConfig';
 import { getStorageUrl } from '../utils/apiConfig';
 import { sanitizeImageSrc } from '../utils/safeUrl';
 
-const DraftItem = ({ id, title, category, date, summary, author, featuredImage, onEdit, onDelete, onPublish }) => {
+const DraftItem = ({ id, title, category, date, summary, author, featuredImage, onEdit, onDelete, onPublish, disabled }) => {
   const fallbackImage = 'https://placehold.co/600x350/333/FFF?text=NO+IMAGE';
   const imageUrl = sanitizeImageSrc(
     featuredImage ? getStorageUrl(featuredImage) : fallbackImage,
@@ -50,19 +50,19 @@ const DraftItem = ({ id, title, category, date, summary, author, featuredImage, 
       </div>
     </div>
     <div className="w-full lg:w-48 bg-gray-100 rounded-lg border border-gray-200 flex lg:flex-col items-center justify-center gap-6 p-4 shadow-sm">
-      <button onClick={() => onEdit(id)} className="flex items-center gap-3 text-gray-800 hover:text-black transition-colors font-medium group">
+      <button disabled={disabled} onClick={() => onEdit(id)} className="flex items-center gap-3 text-gray-800 hover:text-black transition-colors font-medium group disabled:opacity-50">
         <div className="bg-transparent group-hover:bg-gray-200 p-1 rounded">
           <Pencil size={24} strokeWidth={2} />
         </div>
         <span className="text-lg">Edit</span>
       </button>
-      <button onClick={() => onDelete(id)} className="flex items-center gap-3 text-red-500 hover:text-red-700 transition-colors font-medium group">
+      <button disabled={disabled} onClick={() => onDelete(id)} className="flex items-center gap-3 text-red-500 hover:text-red-700 transition-colors font-medium group disabled:opacity-50">
         <div className="bg-transparent group-hover:bg-red-100 p-1 rounded">
           <Trash2 size={24} strokeWidth={2} />
         </div>
         <span className="text-lg">Delete</span>
       </button>
-      <button onClick={() => onPublish(id)} className="flex items-center gap-3 text-sky-500 hover:text-sky-700 transition-colors font-medium group">
+      <button disabled={disabled} onClick={() => onPublish(id)} className="flex items-center gap-3 text-sky-500 hover:text-sky-700 transition-colors font-medium group disabled:opacity-50">
         <div className="bg-transparent group-hover:bg-sky-100 p-1 rounded">
           <Upload size={24} strokeWidth={2} />
         </div>
@@ -76,6 +76,8 @@ const DraftItem = ({ id, title, category, date, summary, author, featuredImage, 
 export default function DraftArticles() {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const sidebarLinks = [
     { label: "Statistics", icon: <FiBarChart size={16} />, to: "/admin/statistics" },
@@ -94,20 +96,26 @@ export default function DraftArticles() {
   }, []);
 
   const fetchDrafts = async () => {
+    setError(null);
     try {
       const response = await axios.get('/api/articles', {
-        params: {
-          status: 'draft',
-          limit: 50,
-        },
+        params: { status: 'draft', limit: 50 },
       });
       setDrafts(response.data?.data || []);
-    } catch (error) {
-      console.error('Error fetching drafts:', error);
+    } catch (err) {
+      console.error('Error fetching drafts:', err);
+      setError('Failed to load drafts. Please try again.');
       setDrafts([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Strip HTML tags for plain text summary
+  const stripHtml = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html || '';
+    return tmp.textContent || tmp.innerText || '';
   };
 
   const handleEdit = (id) => {
@@ -116,9 +124,9 @@ export default function DraftArticles() {
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this draft?')) {
+      setActionLoading(true);
       try {
         const response = await axios.delete(`/api/articles/${id}`);
-
         if (response.status >= 200 && response.status < 300) {
           fetchDrafts();
           alert('Draft deleted successfully!');
@@ -128,35 +136,38 @@ export default function DraftArticles() {
       } catch (error) {
         console.error('Error deleting draft:', error);
         alert('Failed to delete draft');
+      } finally {
+        setActionLoading(false);
       }
     }
   };
 
   const handlePublish = async (id) => {
     if (window.confirm('Are you sure you want to publish this article?')) {
+      const draft = drafts.find((item) => item.id === id);
+      if (!draft) {
+        alert('Draft not found.');
+        return;
+      }
+
+      const categoryName = draft.categories?.[0]?.name;
+      const authorName = draft.author?.user?.name || draft.author?.name || '';
+      const tags = Array.isArray(draft.tags)
+        ? draft.tags.map((tag) => tag.name || tag).join(', ')
+        : '';
+
+      if (!categoryName || !authorName) {
+        alert('Draft is missing category or author. Open edit first, then publish.');
+        return;
+      }
+
+      setActionLoading(true);
       try {
-        const draft = drafts.find((item) => item.id === id);
-        if (!draft) {
-          alert('Draft not found.');
-          return;
-        }
-
-        const categoryId = draft.categories?.[0]?.id;
-        const authorName = draft.author?.user?.name || draft.author?.name || '';
-        const tags = Array.isArray(draft.tags)
-          ? draft.tags.map((tag) => tag.name || tag).join(', ')
-          : '';
-
-        if (!categoryId || !authorName || !tags) {
-          alert('Draft is missing category, author, or tags. Open edit first, then publish.');
-          return;
-        }
-
         const response = await axios.put(`/api/articles/${id}`, {
           title: draft.title,
           content: draft.content,
-          category: draft.categories?.[0]?.name || '',
-          tags,
+          category: categoryName,
+          tags: tags || 'general',
           author: authorName,
           status: 'published',
         });
@@ -170,6 +181,8 @@ export default function DraftArticles() {
       } catch (error) {
         console.error('Error publishing article:', error);
         alert(error.response?.data?.error || error.response?.data?.message || `Failed to publish article: ${error.message}`);
+      } finally {
+        setActionLoading(false);
       }
     }
   };
@@ -200,7 +213,9 @@ export default function DraftArticles() {
             </div>
             <div className={`flex-1 ${loading ? 'flex justify-center items-center' : ''}`}>
               {loading ? (
-                <div className="text-center">Loading drafts...</div>
+                <div className="text-center py-12 text-gray-500">Loading drafts...</div>
+              ) : error ? (
+                <div className="text-center py-12 text-red-500">{error}</div>
               ) : drafts.length > 0 ? (
                 <div className="space-y-2">
                   {drafts.map((draft) => (
@@ -209,10 +224,11 @@ export default function DraftArticles() {
                       id={draft.id}
                       title={draft.title}
                       category={draft.categories?.[0]?.name || 'Uncategorized'}
-                      date={new Date(draft.created_at).toLocaleDateString()}
-                      summary={draft.content?.substring(0, 200) + '...' || 'No content available'}
+                      date={new Date(draft.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      summary={stripHtml(draft.content).substring(0, 200) + '...'}
                       author={draft.author?.user?.name || 'Unknown Author'}
                       featuredImage={draft.featured_image}
+                      disabled={actionLoading}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       onPublish={handlePublish}
@@ -220,7 +236,7 @@ export default function DraftArticles() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center">
+                <div className="text-center py-12">
                   <p className="text-gray-500">No drafts found.</p>
                 </div>
               )}

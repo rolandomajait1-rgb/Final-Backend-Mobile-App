@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -21,7 +22,7 @@ class DashboardController extends Controller
             'users'    => \App\Models\User::count(),
             'articles' => \App\Models\Article::where('status', 'published')->count(),
             'drafts'   => \App\Models\Article::where('status', 'draft')->count(),
-            'views'    => \App\Models\ArticleInteraction::where('type', 'shared')->count(),
+            'views'    => (int) \App\Models\Article::sum('view_count'),
             'likes'    => \App\Models\ArticleInteraction::where('type', 'liked')->count(),
         ]);
     }
@@ -31,7 +32,7 @@ class DashboardController extends Controller
         return response()->json([
             'totalArticles'  => \App\Models\Article::count(),
             'totalUsers'     => \App\Models\User::count(),
-            'totalViews'     => \App\Models\ArticleInteraction::where('type', 'shared')->count(),
+            'totalViews'     => (int) \App\Models\Article::sum('view_count'),
             'recentArticles' => \App\Models\Article::with('author.user', 'categories')
                 ->latest('published_at')->take(5)->get(),
         ]);
@@ -59,20 +60,33 @@ class DashboardController extends Controller
         return response()->json($activities);
     }
 
-    public function apiAuditLogs(Request $request)
+    public function apiAuditLogs(Request $request): JsonResponse
     {
-        $logs = \App\Models\Log::with('user')
-            ->orderBy('created_at', 'desc')
-            ->take(50)
-            ->get()
-            ->map(function ($log) {
-                return [
-                    'action' => $log->action,
-                    'article_title' => $log->model_type === 'App\\Models\\Article' ? \App\Models\Article::find($log->model_id)?->title : null,
-                    'user_email' => $log->user?->email,
-                    'created_at' => $log->created_at,
-                ];
+        $perPage = min(max((int) $request->get('per_page', 50), 1), 200);
+        $search  = trim($request->get('search', ''));
+
+        $query = \App\Models\Log::with('user')
+            ->orderBy('created_at', 'desc');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+                $like   = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+                $q->where('action', $like, "%{$search}%")
+                  ->orWhereHas('user', fn ($u) => $u->where('email', $like, "%{$search}%"));
             });
+        }
+
+        $logs = $query->paginate($perPage)->through(function ($log) {
+            return [
+                'action'        => $log->action,
+                'article_title' => $log->model_type === 'App\\Models\\Article'
+                    ? \App\Models\Article::find($log->model_id)?->title
+                    : null,
+                'user_email'    => $log->user?->email,
+                'created_at'    => $log->created_at,
+            ];
+        });
 
         return response()->json($logs);
     }

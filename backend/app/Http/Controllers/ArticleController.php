@@ -205,10 +205,10 @@ class ArticleController extends Controller
             'author_name' => 'required|string',
         ]);
 
-        // Admin creates articles and assigns to authors
+        // Admins and moderators can create articles
         $user = Auth::user();
-        if (! $user || ! $user->isAdmin()) {
-            return response()->json(['error' => 'Admin access required'], 403);
+        if (! $user || (! $user->isAdmin() && ! $user->isModerator())) {
+            return response()->json(['error' => 'Admin or moderator access required'], 403);
         }
 
         // Find or create author by name
@@ -404,13 +404,13 @@ class ArticleController extends Controller
         }
 
         // Log the update
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'update',
+        \App\Models\Log::create([
+            'user_id'    => Auth::id(),
+            'action'     => 'update',
             'model_type' => 'App\\Models\\Article',
-            'model_id' => $article->id,
-            'old_values' => json_encode($oldValues),
-            'new_values' => json_encode($article->fresh()->toArray()),
+            'model_id'   => $article->id,
+            'old_values' => $oldValues,
+            'new_values' => $article->fresh()->toArray(),
         ]);
 
         return response()->json($article->load('author.user', 'categories', 'tags'));
@@ -427,12 +427,12 @@ class ArticleController extends Controller
 
             $article->delete();
 
-            Log::create([
-                'user_id' => Auth::id(),
-                'action' => 'delete',
+            \App\Models\Log::create([
+                'user_id'    => Auth::id(),
+                'action'     => 'delete',
                 'model_type' => 'App\\Models\\Article',
-                'model_id' => $articleId,
-                'old_values' => json_encode(['id' => $articleId, 'title' => $articleTitle]),
+                'model_id'   => $articleId,
+                'old_values' => ['id' => $articleId, 'title' => $articleTitle],
             ]);
 
             return response()->json(['message' => 'Article deleted successfully', 'id' => $articleId]);
