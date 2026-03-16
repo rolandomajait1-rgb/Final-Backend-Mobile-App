@@ -24,14 +24,25 @@ export default function VerifyEmail() {
     })
     .then(response => {
       setStatus('success');
-      setMessage('Your email has been verified successfully!');
+      setMessage('Your email has been verified successfully! Redirecting to login...');
       setTimeout(() => navigate('/login?verified=1'), 2000);
     })
     .catch(error => {
+      console.error('Verification error:', error);
       setStatus('error');
-      setMessage(error.response?.data?.message || 'Verification failed. The link may have expired.');
+      
+      // Handle different error types
+      if (error.response?.status === 429) {
+        setMessage('Too many verification attempts. Please try again later.');
+      } else if (error.response?.data?.message) {
+        setMessage(error.response.data.message);
+      } else if (error.message === 'Network Error') {
+        setMessage('Network error. Please check your connection and try again.');
+      } else {
+        setMessage('Verification failed. The link may have expired or is invalid.');
+      }
     });
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -39,6 +50,11 @@ export default function VerifyEmail() {
         <div className="mb-4">
           {status === 'verifying' && (
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          )}
+          {status === 'success' && (
+            <svg className="h-12 w-12 text-green-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
           )}
           {status === 'error' && (
             <svg className="h-12 w-12 text-red-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">

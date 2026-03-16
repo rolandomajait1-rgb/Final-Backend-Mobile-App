@@ -180,7 +180,7 @@ class AuthController extends Controller
         }
     }
 
-    public function verifyEmailToken(Request $request): Response
+    public function verifyEmailToken(Request $request): JsonResponse|Response
     {
         $token = $request->query('token');
 
@@ -189,6 +189,9 @@ class AuthController extends Controller
         $attempts = Cache::get($cacheKey, 0);
 
         if ($attempts >= 10) {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Too many verification attempts. Please try again later.'], 429);
+            }
             $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
             return redirect($frontendUrl.'/login?error=too_many_attempts');
         }
@@ -201,6 +204,11 @@ class AuthController extends Controller
             Cache::put($cacheKey, $attempts + 1, now()->addMinutes(15));
 
             $errorMessage = $result['message'];
+            
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Email verification failed: '.$errorMessage], 400);
+            }
+            
             if ($errorMessage === 'already_verified') {
                 return redirect($frontendUrl.'/login?verified=1&message=already_verified');
             }
@@ -210,6 +218,10 @@ class AuthController extends Controller
 
         // Clear rate limit on successful verification
         Cache::forget($cacheKey);
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Email verified successfully!', 'verified' => true], 200);
+        }
 
         return redirect($frontendUrl.'/login?verified=1');
     }

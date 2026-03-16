@@ -54,6 +54,10 @@ done\n\
 echo "Running migrations..."\n\
 php artisan migrate --force || echo "Migration failed, continuing..."\n\
 \n\
+# Run seeders\n\
+echo "Running seeders..."\n\
+php artisan db:seed --force || echo "Seeding failed, continuing..."\n\
+\n\
 # Cache configuration\n\
 echo "Caching configuration..."\n\
 php artisan config:cache\n\
