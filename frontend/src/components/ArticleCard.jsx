@@ -33,7 +33,7 @@ const ArticleCard = ({
   const finalDate = date || (published_at ? new Date(published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '');
   const finalTime = published_at ? new Date(published_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
   const finalSnippet = DOMPurify.sanitize(snippet || excerpt || '');
-  const finalAuthor = author?.user ? author.user.name : (typeof author === 'string' ? author : 'Unknown Author');
+  const finalAuthor = typeof author === 'string' ? author : (author?.display_author_name || author?.user?.name || author?.name || 'Unknown Author');
 
   useEffect(() => {
     if (!expanded || !showRelated || !finalCategory) return;
@@ -197,7 +197,7 @@ const ArticleCard = ({
                     {article.categories?.length > 0 ? article.categories[0].name : 'Uncategorized'}
                   </span>
                   <h4 className="text-sm font-serif font-bold text-gray-900 mt-2 line-clamp-2">{article.title}</h4>
-                  <p className="text-xs text-gray-500 mt-1">{article.author?.user?.name || 'Unknown Author'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{article.display_author_name || article.author?.user?.name || article.author?.name || 'Unknown Author'}</p>
                 </div>
               </div>
             ))}

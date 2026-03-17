@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from '../utils/axiosConfig';
 import ArticleCard from './ArticleCard';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholder';
+import { getAuthorName } from '../utils/auth';
 
 export default function LatestSection({ onEdit, onDelete }) {
   const location = useLocation();
@@ -62,7 +63,7 @@ export default function LatestSection({ onEdit, onDelete }) {
     date: new Date(latestArticles[0].published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + ' at ' + new Date(latestArticles[0].published_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
     title: latestArticles[0].title,
     snippet: latestArticles[0].excerpt,
-    author: latestArticles[0].author && latestArticles[0].author.user ? latestArticles[0].author.user.name : 'Unknown Author',
+    author: getAuthorName(latestArticles[0]),
     published_at: latestArticles[0].published_at,
     isLarge: true,
     slug: latestArticles[0].slug,
@@ -78,7 +79,7 @@ export default function LatestSection({ onEdit, onDelete }) {
     date: new Date(article.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + ' at ' + new Date(article.published_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
     title: article.title,
     snippet: article.excerpt,
-    author: article.author && article.author.user ? article.author.user.name : 'Unknown Author',
+    author: getAuthorName(article),
     published_at: article.published_at,
     isMedium: true,
     slug: article.slug,

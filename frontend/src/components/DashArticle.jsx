@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import DOMPurify from "dompurify";
-import { isAdmin, getUserRole } from "../utils/auth";
+import { isAdmin, getUserRole, getAuthorName } from "../utils/auth";
 import { FaCalendar } from "react-icons/fa";
 import axios from "../utils/axiosConfig";
 import getCategoryColor from "../utils/getCategoryColor";
@@ -177,20 +177,11 @@ export default function ArticleCard({
                     className="text-xs text-gray-500 mt-1 hover:underline cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const authorName =
-                        article.author && article.author.user
-                          ? article.author.user.name
-                          : article.author
-                            ? article.author.name
-                            : "Unknown Author";
+                      const authorName = getAuthorName(article);
                       navigate(`/author/${encodeURIComponent(authorName)}`);
                     }}
                   >
-                    {article.author && article.author.user
-                      ? article.author.user.name
-                      : article.author
-                        ? article.author.name
-                        : "Unknown Author"}
+                    {getAuthorName(article)}
                   </p>
                 </div>
               </div>

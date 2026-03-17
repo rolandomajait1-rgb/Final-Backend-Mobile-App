@@ -30,7 +30,17 @@ class Article extends Model
         'published_at' => 'datetime',
     ];
 
-    protected $appends = ['featured_image_url', 'is_liked', 'likes_count'];
+    protected $appends = ['featured_image_url', 'is_liked', 'likes_count', 'display_author_name'];
+
+    public function getDisplayAuthorNameAttribute(): string
+    {
+        // Prefer the explicitly stored author_name (set at creation/edit time)
+        if (! empty($this->attributes['author_name'])) {
+            return $this->attributes['author_name'];
+        }
+        // Fall back to the linked user's name
+        return $this->author?->user?->name ?? 'Unknown Author';
+    }
 
     public function getLikesCountAttribute()
     {

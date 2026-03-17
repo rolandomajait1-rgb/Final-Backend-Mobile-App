@@ -42,3 +42,16 @@ export const deleteArticle = async (articleId) => {
     return false;
   }
 };
+
+/**
+ * Returns the display author name for an article.
+ * Prefers article.display_author_name (set by backend),
+ * then article.author_name, then author.user.name.
+ */
+export const getAuthorName = (article) => {
+  return article?.display_author_name
+    || article?.author_name
+    || article?.author?.user?.name
+    || article?.author?.name
+    || 'Unknown Author';
+};

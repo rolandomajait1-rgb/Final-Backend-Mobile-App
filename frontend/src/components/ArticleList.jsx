@@ -1,5 +1,6 @@
 import React from 'react';
 import ArticleCard from './ArticleCard';
+import { getAuthorName } from '../utils/auth';
 
 const ArticleList = ({ title, articles, showOnlyPublished = true }) => {
   // Filter articles to show only published ones
@@ -26,7 +27,7 @@ const ArticleList = ({ title, articles, showOnlyPublished = true }) => {
             key={article.id}
             category={article.categories && article.categories.length > 0 ? article.categories[0].name : 'Uncategorized'}
             title={article.title}
-            author={article.author && article.author.user ? article.author.user.name : 'Unknown Author'}
+            author={getAuthorName(article)}
             date={new Date(article.published_at).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',

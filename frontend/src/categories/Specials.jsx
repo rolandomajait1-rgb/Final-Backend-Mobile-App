@@ -6,7 +6,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import HeaderLink from '../components/HeaderLink';
 import ArticleCard from '../components/ArticleCard';
-import { isAdmin } from '../utils/auth';
+import { isAdmin, getAuthorName } from '../utils/auth';
 import getCategoryColor from '../utils/getCategoryColor';
 
 import logo from '../assets/images/logo.svg';
@@ -289,7 +289,7 @@ export default function Specials() {
                     title={articles[0].title}
                     snippet={articles[0].excerpt}
                     category={articles[0].categories && articles[0].categories.length > 0 ? articles[0].categories[0].name : 'Specials'}
-                    author={articles[0].author && articles[0].author.user ? articles[0].author.user.name : 'Unknown Author'}
+                    author={getAuthorName(articles[0])}
                     date={new Date(articles[0].published_at).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
@@ -317,7 +317,7 @@ export default function Specials() {
                       title={article.title}
                       snippet={article.excerpt}
                       category={article.categories && article.categories.length > 0 ? article.categories[0].name : 'Specials'}
-                      author={article.author && article.author.user ? article.author.user.name : 'Unknown Author'}
+                      author={getAuthorName(article)}
                       date={new Date(article.published_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
@@ -352,7 +352,7 @@ export default function Specials() {
                       title={article.title}
                       snippet={article.excerpt}
                       category={article.categories && article.categories.length > 0 ? article.categories[0].name : 'Specials'}
-                      author={article.author && article.author.user ? article.author.user.name : 'Unknown Author'}
+                      author={getAuthorName(article)}
                       date={article.published_at ? new Date(article.published_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
@@ -378,7 +378,7 @@ export default function Specials() {
                         title: article.title,
                         excerpt: article.excerpt,
                         category: article.categories && article.categories.length > 0 ? article.categories[0].name : 'Specials',
-                        author: article.author && article.author.user ? article.author.user.name : 'Unknown Author',
+                        author: getAuthorName(article),
                         date: new Date(article.published_at).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
@@ -409,7 +409,7 @@ export default function Specials() {
                             month: 'long',
                             day: 'numeric'
                           }),
-                          author: relatedArticle.author && relatedArticle.author.user ? relatedArticle.author.user.name : 'Unknown Author',
+                          author: getAuthorName(relatedArticle),
                           imageUrl: relatedArticle.featured_image || 'https://placehold.co/400x250/e2e8f0/64748b?text=No+Image',
                           excerpt: relatedArticle.excerpt
                         }}

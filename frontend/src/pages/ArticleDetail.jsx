@@ -6,7 +6,7 @@ import { Pencil, Trash2, Heart, Share2, Link } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import HeaderLink from '../components/HeaderLink';
-import { isAdmin, isModerator, getUserRole } from '../utils/auth';
+import { isAdmin, isModerator, getUserRole, getAuthorName } from '../utils/auth';
 import getCategoryColor from '../utils/getCategoryColor';
 import { getStorageUrl } from '../utils/apiConfig';
 import { sanitizeImageSrc } from '../utils/safeUrl';
@@ -349,7 +349,7 @@ export default function ArticleDetail() {
                         minute: '2-digit',
                         hour12: true
                       }),
-                      author: relatedArticle.author && relatedArticle.author.user ? relatedArticle.author.user.name : 'Unknown Author',
+                      author: getAuthorName(relatedArticle),
                       imageUrl: sanitizeImageSrc(getStorageUrl(relatedArticle.featured_image), fallbackImage),
                       excerpt: relatedArticle.excerpt
                     }}
