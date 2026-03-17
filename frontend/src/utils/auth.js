@@ -33,6 +33,11 @@ export const deleteArticle = async (articleId) => {
     return false;
   } catch (error) {
     console.error('Error deleting article:', error);
+    if (error.response?.status === 404) {
+      alert('Article not found. It may have already been deleted.');
+      window.location.reload();
+      return true;
+    }
     alert('Error deleting article');
     return false;
   }

@@ -13,8 +13,7 @@ import DraftArticles from './AdminDashboard/DraftArticles';
 import ManageModerators from './AdminDashboard/ManageModerators';
 import AuditTrail from './AdminDashboard/AuditTrail';
 import ArticlePage from './AdminDashboard/ArticlePage';
-import EditArticle from './AdminDashboard/EditArticle';
-import Login from './authentication/Login';
+import EditArticle from './AdminDashboard/EditArticle';import Login from './authentication/Login';
 import Register from './authentication/Register';
 import ForgotPasswordPage from './authentication/ForgotPasswordPage';
 import ResetPasswordPage from './authentication/ResetPasswordPage';
@@ -233,14 +232,18 @@ function AnimatedRoutes() {
           path="/admin/edit-article/:id"
           element={
             <ProtectedRoute>
-              <motion.div
-                initial="initial"
-                animate="in"
-                exit="out"
-                variants={pageVariants}
-                transition={pageTransition}
-              >
+              <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition}>
                 <EditArticle />
+              </motion.div>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/article/:id"
+          element={
+            <ProtectedRoute>
+              <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition}>
+                <ArticlePage />
               </motion.div>
             </ProtectedRoute>
           }

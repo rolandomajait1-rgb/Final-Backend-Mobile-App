@@ -27,6 +27,7 @@ export default function EditArticle() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
+  const [authors, setAuthors] = useState([]);
   const fallbackImage = 'https://via.placeholder.com/300x200/e2e8f0/64748b?text=No+Image';
 
   // Fetch categories on mount
@@ -39,7 +40,16 @@ export default function EditArticle() {
         console.error('Error fetching categories:', error);
       }
     };
+    const fetchAuthors = async () => {
+      try {
+        const response = await axios.get('/api/authors', { params: { per_page: 50 } });
+        setAuthors(response.data?.data || []);
+      } catch (error) {
+        console.error('Error fetching authors:', error);
+      }
+    };
     fetchCategories();
+    fetchAuthors();
   }, []);
 
   useEffect(() => {
@@ -99,6 +109,7 @@ export default function EditArticle() {
     
     try {
       const formData = new FormData();
+      formData.append('_method', 'PUT');
       formData.append('title', title);
       formData.append('category', category);
       formData.append('content', content);
@@ -109,11 +120,13 @@ export default function EditArticle() {
         formData.append('featured_image', image);
       }
 
-      const response = await axios.put(`/api/articles/${id}`, formData);
+      const response = await axios.post(`/api/articles/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       if (response.status >= 200 && response.status < 300) {
         alert("Article updated successfully!");
-        navigate(-1);
+        navigate('/admin');
       } else {
         throw new Error(`Failed to update article: ${response.status}`);
       }
@@ -164,14 +177,17 @@ export default function EditArticle() {
 
             <div className="space-y-2">
               <label htmlFor="author" className="block text-md font-normal text-left text-gray-800">Author</label>
-              <input 
+              <select
                 id="author"
-                type="text" 
                 value={author}
-                placeholder="Enter author name"
                 onChange={(e) => setAuthor(e.target.value)}
-                className="w-full p-2 border border-gray-400 rounded-md text-gray-800 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
-              />
+                className="w-full p-2 border border-gray-400 rounded-md text-gray-800 bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
+              >
+                <option value="">Select Author</option>
+                {authors.map((a) => (
+                  <option key={a.id} value={a.name}>{a.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">

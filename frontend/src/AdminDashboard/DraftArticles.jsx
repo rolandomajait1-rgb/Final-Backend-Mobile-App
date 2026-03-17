@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { FiBarChart, FiPlus, FiFileText as FiFile, FiUsers, FiActivity } from 'react-icons/fi';
 import { Plus, Pencil, Trash2, Upload, Calendar } from 'lucide-react';
 import Header from "../components/Header";
@@ -122,6 +123,8 @@ export default function DraftArticles() {
     window.location.href = `/admin/edit-article/${id}`;
   };
 
+  const navigate = useNavigate();
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this draft?')) {
       setActionLoading(true);
@@ -151,36 +154,38 @@ export default function DraftArticles() {
       }
 
       const categoryName = draft.categories?.[0]?.name;
-      const authorName = draft.author?.user?.name || draft.author?.name || '';
+      const authorName = draft.author?.user?.name || draft.author?.name || draft.author_name || '';
       const tags = Array.isArray(draft.tags)
         ? draft.tags.map((tag) => tag.name || tag).join(', ')
         : '';
 
       if (!categoryName || !authorName) {
-        alert('Draft is missing category or author. Open edit first, then publish.');
+        alert('Draft is missing category or author. Please edit the draft first.');
         return;
       }
 
       setActionLoading(true);
       try {
-        const response = await axios.put(`/api/articles/${id}`, {
-          title: draft.title,
-          content: draft.content,
-          category: categoryName,
-          tags: tags || 'general',
-          author: authorName,
-          status: 'published',
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('title', draft.title);
+        formData.append('content', draft.content);
+        formData.append('category', categoryName);
+        formData.append('tags', tags || 'general');
+        formData.append('author', authorName);
+        formData.append('status', 'published');
+
+        const response = await axios.post(`/api/articles/${id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
 
         if (response.status >= 200 && response.status < 300) {
           fetchDrafts();
           alert('Article published successfully!');
-        } else {
-          alert(`Publish failed: ${response.status}`);
         }
       } catch (error) {
         console.error('Error publishing article:', error);
-        alert(error.response?.data?.error || error.response?.data?.message || `Failed to publish article: ${error.message}`);
+        alert(error.response?.data?.error || error.response?.data?.message || `Failed to publish: ${error.message}`);
       } finally {
         setActionLoading(false);
       }
@@ -207,7 +212,11 @@ export default function DraftArticles() {
           <div className="p-8 flex flex-col flex-1">
             <div className="flex items-center gap-4 mb-6">
               <h1 className="text-4xl font-serif font-bold text-black">Drafts</h1>
-              <button className="hover:bg-gray-200 p-2 rounded-full transition-colors">
+              <button
+                onClick={() => navigate('/admin/create-article')}
+                className="hover:bg-gray-200 p-2 rounded-full transition-colors"
+                title="Create new article"
+              >
                 <Plus size={32} className="text-black stroke-[2.5]" />
               </button>
             </div>

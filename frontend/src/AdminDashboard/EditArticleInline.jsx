@@ -5,7 +5,6 @@ import { FiBarChart, FiPlus, FiFileText as FiFile, FiUsers, FiActivity } from 'r
 import Header from "../components/Header";
 import { AdminSidebar } from "../components/AdminSidebar";
 import { getUserRole } from '../utils/auth';
-
 import axios from '../utils/axiosConfig';
 
 export default function EditArticleInline() {
@@ -18,9 +17,12 @@ export default function EditArticleInline() {
   const [content, setContent] = useState("");
   const [image, setImage] = useState(null);
   const [author, setAuthor] = useState("");
+  const [status, setStatus] = useState("published");
   const [isFormValid, setIsFormValid] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [authors, setAuthors] = useState([]);
 
   const sidebarLinks = [
     { label: "Statistics", icon: <FiBarChart size={16} />, to: "/admin/statistics" },
@@ -31,41 +33,53 @@ export default function EditArticleInline() {
   ];
 
   useEffect(() => {
+    document.title = getUserRole() === 'moderator' ? 'MODERATOR | Dashboard' : 'ADMIN | Dashboard';
+  }, []);
+
+  useEffect(() => {
+    const fetchMeta = async () => {
+      try {
+        const [catRes, authRes] = await Promise.all([
+          axios.get('/api/categories'),
+          axios.get('/api/authors', { params: { per_page: 50 } }),
+        ]);
+        setCategories(catRes.data || []);
+        setAuthors(authRes.data?.data || []);
+      } catch (err) {
+        console.error('Error fetching meta:', err);
+      }
+    };
+    fetchMeta();
+  }, []);
+
+  useEffect(() => {
     const fetchArticle = async () => {
       try {
         const response = await axios.get(`/api/articles/${id}`);
         const article = response.data;
         setTitle(article.title || '');
         setContent(article.content || '');
-        setAuthor(article.author?.name || article.author?.user?.name || '');
+        setAuthor(article.author?.user?.name || article.author?.name || article.author_name || '');
         setCategory(article.categories?.[0]?.name || '');
         setTags(article.tags?.map(tag => tag.name).join(', ') || '');
+        setStatus(article.status || 'published');
       } catch (error) {
         console.error('Error fetching article:', error);
+        alert('Failed to load article.');
       } finally {
         setLoading(false);
       }
     };
-
-    if (id) {
-      fetchArticle();
-    }
+    if (id) fetchArticle();
   }, [id]);
 
   useEffect(() => {
-    document.title = getUserRole() === 'moderator' ? 'Moderator | Dashboard' : 'Admin | Dashboard';
-  }, []);
-
-  useEffect(() => {
-    const valid = title.trim() && category && content.trim() && tags.trim() && author.trim();
-    setIsFormValid(valid);
+    setIsFormValid(!!(title.trim() && category && content.trim() && tags.trim() && author.trim()));
   }, [title, category, content, tags, author]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-    }
+    if (file) setImage(file);
   };
 
   const handleUpdate = async () => {
@@ -83,19 +97,15 @@ export default function EditArticleInline() {
       formData.append('content', content);
       formData.append('tags', tags);
       formData.append('author', author);
+      formData.append('status', status);
+      if (image) formData.append('featured_image', image);
 
-      if (image) {
-        formData.append('featured_image', image);
-      }
-
-      const response = await axios.post(`/api/articles/${id}`, formData);
-
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error('Failed to update article');
-      }
+      await axios.post(`/api/articles/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       alert("Article updated successfully!");
-      navigate(-1); // Go back to previous page
+      navigate('/admin');
     } catch (error) {
       console.error('Update error:', error);
       alert(`Error: ${error.response?.data?.error || error.response?.data?.message || error.message}`);
@@ -108,9 +118,9 @@ export default function EditArticleInline() {
     return (
       <div className="flex flex-col min-h-screen bg-gray-100">
         <Header />
-        <Navigation/>
+        <Navigation />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-xl">Loading...</div>
+          <div className="text-xl text-gray-500">Loading...</div>
         </div>
       </div>
     );
@@ -119,10 +129,10 @@ export default function EditArticleInline() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       <Header />
-      <Navigation/>
-      <div className="relative h-15 flex items-center justify-center bg-gradient-to-right from-blue-600 to-blue-800">
+      <Navigation />
+      <div className={`relative h-15 flex items-center justify-center ${getUserRole() === 'moderator' ? 'bg-gradient-to-r from-orange-500 to-yellow-500' : 'bg-gradient-to-b from-blue-600 to-blue-800'}`}>
         <h1 className="text-white font-serif font-bold tracking-widest leading-none text-2xl drop-shadow-lg">
-          {getUserRole() === 'moderator' ? 'Moderator | Dashboard' : 'Admin | Dashboard'}
+          {getUserRole() === 'moderator' ? 'MODERATOR | Dashboard' : 'ADMIN | Dashboard'}
         </h1>
       </div>
 
@@ -135,9 +145,7 @@ export default function EditArticleInline() {
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-6xl mx-auto text-left">
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold">
-                Edit Article
-              </h2>
+              <h2 className="text-2xl font-semibold">Edit Article</h2>
             </div>
 
             <div className="p-8 bg-white rounded-lg border border-gray-300 shadow-sm flex flex-col gap-5">
@@ -148,52 +156,43 @@ export default function EditArticleInline() {
                   placeholder="Enter article title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Author</label>
-                <input
-                  type="text"
-                  placeholder="Author name"
+                <select
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Author</option>
+                  {authors.map((a) => (
+                    <option key={a.id} value={a.name}>{a.name}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="block text-gray-700 font-medium text-sm">
-                <h1>Cover image</h1>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image</label>
+                <label
+                  htmlFor="cover-image-inline"
+                  className="border-2 border-dashed border-gray-400 rounded-lg bg-gray-50 text-center p-5 cursor-pointer flex flex-col items-center justify-center min-h-40"
+                >
+                  {image ? (
+                    <img src={URL.createObjectURL(image)} alt="Cover Preview" className="max-w-full max-h-64 rounded-lg object-cover" />
+                  ) : (
+                    <>
+                      <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p className="text-sm text-gray-500 mt-2">Click or drag image to upload</p>
+                    </>
+                  )}
+                  <input id="cover-image-inline" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                </label>
               </div>
-              <label
-                htmlFor="cover-image"
-                className="border-2 border-dashed border-gray-400 rounded-lg bg-gray-50 text-center p-5 cursor-pointer flex flex-col items-center justify-center min-h-40"
-              >
-                {image ? (
-                  <img
-                    src={URL.createObjectURL(image)}
-                    alt="Cover Preview"
-                    className="max-w-full max-h-64 rounded-lg object-cover"
-                  />
-                ) : (
-                  <>
-                    <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-sm text-gray-500 mt-2">Click or drag image to upload</p>
-                  </>
-                )}
-                <input
-                  id="cover-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -201,30 +200,36 @@ export default function EditArticleInline() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select Category</option>
-                    <option value="News">News</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Opinion">Opinion</option>
-                    <option value="Literary">Literary</option>
-                    <option value="Features">Features</option>
-                    <option value="Specials">Specials</option>
-                    <option value="Art">Art</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
                   <input
                     type="text"
-                    placeholder="Add tags separated by commas"
+                    placeholder="e.g. sports, news"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
               </div>
 
               <div>
@@ -234,7 +239,6 @@ export default function EditArticleInline() {
                   rows={10}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
                 />
               </div>
@@ -245,16 +249,14 @@ export default function EditArticleInline() {
                   onClick={handleUpdate}
                   disabled={!isFormValid || isUpdating}
                   className={`px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    isFormValid && !isUpdating
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    isFormValid && !isUpdating ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                   }`}
-                > 
+                >
                   {isUpdating ? 'Updating...' : 'Update'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate('/admin')}
                   className="px-8 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
                   Cancel

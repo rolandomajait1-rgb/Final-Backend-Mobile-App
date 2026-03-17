@@ -148,12 +148,12 @@ export default function ManageModerators() {
                     <div className="col-span-4 px-4 flex items-center justify-center border-r border-gray-400 text-black text-sm">
                       {new Date(mod.created_at).toLocaleDateString()} {new Date(mod.created_at).toLocaleTimeString()}
                     </div>
-                    <div 
+                    <button
                       onClick={() => removeModerator(mod.id)}
-                      className="col-span-2 bg-[#E0E0E0] hover:bg-[#d4d4d4] cursor-pointer transition-colors flex items-center justify-center text-black text-sm font-normal"
+                      className="col-span-2 bg-[#E0E0E0] hover:bg-red-100 hover:text-red-700 cursor-pointer transition-colors flex items-center justify-center text-black text-sm font-normal"
                     >
                       Remove
-                    </div>
+                    </button>
                   </div>
                 ))
               ) : (

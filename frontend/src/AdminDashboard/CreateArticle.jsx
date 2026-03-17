@@ -30,6 +30,7 @@ export default function CreateArticle() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [authors, setAuthors] = useState([]);
   const imagePreviewUrl = useRef(null);
 
   // Fetch categories on mount
@@ -42,7 +43,16 @@ export default function CreateArticle() {
         console.error("Error fetching categories:", error);
       }
     };
+    const fetchAuthors = async () => {
+      try {
+        const response = await axios.get("/api/authors", { params: { per_page: 50 } });
+        setAuthors(response.data?.data || []);
+      } catch (error) {
+        console.error("Error fetching authors:", error);
+      }
+    };
     fetchCategories();
+    fetchAuthors();
   }, []);
 
   // Cleanup image object URL on unmount or image change
@@ -318,15 +328,20 @@ export default function CreateArticle() {
                   >
                     Author Name
                   </label>
-                  <input
+                  <select
                     id="authorName"
-                    type="text"
-                    placeholder="Enter author name"
                     value={authorName}
                     onChange={(e) => setAuthorName(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">Select Author</option>
+                    {authors.map((a) => (
+                      <option key={a.id} value={a.name}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="block text-gray-700 font-medium text-sm">
