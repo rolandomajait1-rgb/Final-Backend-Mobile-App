@@ -208,9 +208,9 @@ export default function ResetPasswordScreen({ navigation, route }) {
 
                 {/* Back to login */}
                 <View className="mt-6 flex-row justify-center">
-                  <Text className="text-sm text-gray-600">Remember your password? </Text>
+                  <Text className="text-lg text-gray-600">Remember your password? </Text>
                   <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                    <Text className="text-sm text-blue-600">Sign in</Text>
+                    <Text className="text-lg text-blue-600">Sign in</Text>
                   </TouchableOpacity>
                 </View>
 

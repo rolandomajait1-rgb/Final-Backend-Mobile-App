@@ -61,7 +61,9 @@ export default function RegisterScreen({ navigation }) {
     }
     setIsSubmitting(true);
     try {
-      try { await axios.get('/api/health', { timeout: 180000 }); } catch { /* cold start */ }
+      // Quick health check with short timeout
+      try { await axios.get('/api/health', { timeout: 5000 }); } catch { /* cold start */ }
+      // Register with extended timeout for slow servers
       await axios.post('/api/register', {
         name: formData.name,
         email: formData.email,

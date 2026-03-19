@@ -8,6 +8,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import VerifyOTPScreen from '../screens/auth/VerifyOTPScreen';
+import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 
@@ -17,6 +18,12 @@ const linking = {
   prefixes: [Linking.createURL('/'), 'laverdadherald://', 'exp://'],
   config: {
     screens: {
+      VerifyEmail: {
+        path: 'verify-email',
+        parse: {
+          token: (token) => token,
+        },
+      },
       ResetPassword: {
         path: 'reset-password',
         parse: {
@@ -32,6 +39,7 @@ const linking = {
       Login: 'login',
       Register: 'register',
       ForgotPassword: 'forgot-password',
+      VerifyOTP: 'verify-otp',
       Main: 'main',
       ArticleDetail: 'article/:id',
     },
@@ -65,6 +73,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />

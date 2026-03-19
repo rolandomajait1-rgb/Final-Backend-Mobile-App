@@ -189,7 +189,7 @@ class AuthController extends Controller
 
             if (!$token) {
                 $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
-                return redirect($frontendUrl.'/login?error=invalid_token');
+                return redirect($frontendUrl.'/verify-email?error=invalid_token');
             }
 
             // Check for rate limiting by IP
@@ -201,7 +201,7 @@ class AuthController extends Controller
                     return response()->json(['message' => 'Too many verification attempts. Please try again later.'], 429);
                 }
                 $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
-                return redirect($frontendUrl.'/login?error=too_many_attempts');
+                return redirect($frontendUrl.'/verify-email?error=too_many_attempts');
             }
 
             $result = $this->authService->verifyUserEmail($token);
@@ -218,10 +218,10 @@ class AuthController extends Controller
                 }
                 
                 if ($errorMessage === 'already_verified') {
-                    return redirect($frontendUrl.'/login?verified=1&message=already_verified');
+                    return redirect($frontendUrl.'/verify-email?verified=1&message=already_verified');
                 }
 
-                return redirect($frontendUrl.'/login?error='.$errorMessage);
+                return redirect($frontendUrl.'/verify-email?error='.$errorMessage);
             }
 
             // Clear rate limit on successful verification
@@ -231,7 +231,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Email verified successfully!', 'verified' => true], 200);
             }
 
-            return redirect($frontendUrl.'/login?verified=1');
+            return redirect($frontendUrl.'/verify-email?verified=1');
         } catch (\Exception $e) {
             Log::error('Email verification error', [
                 'error' => $e->getMessage(),
@@ -239,7 +239,7 @@ class AuthController extends Controller
             ]);
             
             $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
-            return redirect($frontendUrl.'/login?error=verification_error');
+            return redirect($frontendUrl.'/verify-email?error=verification_error');
         }
     }
 
