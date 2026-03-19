@@ -80,7 +80,8 @@ export default function RegisterScreen({ navigation }) {
       } else if (error.response?.data?.message) {
         setErrors({ general: error.response.data.message });
       } else {
-        setErrors({ general: 'Registration failed. Please try again.' });
+        console.log('Registration error:', error);
+        setErrors({ general: error.message || 'Registration failed. Please try again.' });
       }
     } finally {
       setIsSubmitting(false);
