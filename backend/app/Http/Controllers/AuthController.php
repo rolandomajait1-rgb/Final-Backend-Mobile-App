@@ -188,7 +188,11 @@ class AuthController extends Controller
             $token = $request->query('token');
 
             if (!$token) {
-                $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+                if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+                    return response()->json(['message' => 'Invalid verification link'], 400);
+                }
+                // Redirect to deep link for mobile
+                $frontendUrl = config('app.frontend_url') ?? 'exp://localhost:8081';
                 return redirect($frontendUrl.'/verify-email?error=invalid_token');
             }
 
@@ -197,23 +201,23 @@ class AuthController extends Controller
             $attempts = Cache::get($cacheKey, 0);
 
             if ($attempts >= 10) {
-                if ($request->wantsJson()) {
+                if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
                     return response()->json(['message' => 'Too many verification attempts. Please try again later.'], 429);
                 }
-                $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+                $frontendUrl = config('app.frontend_url') ?? 'exp://localhost:8081';
                 return redirect($frontendUrl.'/verify-email?error=too_many_attempts');
             }
 
             $result = $this->authService->verifyUserEmail($token);
 
-            $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+            $frontendUrl = config('app.frontend_url') ?? 'exp://localhost:8081';
 
             if (! $result['success']) {
                 Cache::put($cacheKey, $attempts + 1, now()->addMinutes(15));
 
                 $errorMessage = $result['message'];
                 
-                if ($request->wantsJson()) {
+                if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
                     return response()->json(['message' => 'Email verification failed: '.$errorMessage], 400);
                 }
                 
@@ -227,7 +231,7 @@ class AuthController extends Controller
             // Clear rate limit on successful verification
             Cache::forget($cacheKey);
 
-            if ($request->wantsJson()) {
+            if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
                 return response()->json(['message' => 'Email verified successfully!', 'verified' => true], 200);
             }
 
@@ -238,7 +242,11 @@ class AuthController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
             
-            $frontendUrl = config('app.frontend_url') ?? 'http://localhost:5173';
+            if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json(['message' => 'Email verification error'], 500);
+            }
+            
+            $frontendUrl = config('app.frontend_url') ?? 'exp://localhost:8081';
             return redirect($frontendUrl.'/verify-email?error=verification_error');
         }
     }

@@ -333,12 +333,8 @@ class MailService
      */
     private function buildVerificationUrl(string $token): string
     {
-        // Use frontend URL for mobile deep links
-        $frontendUrl = config('app.frontend_url');
-        if ($frontendUrl && (str_starts_with($frontendUrl, 'exp://') || str_starts_with($frontendUrl, 'laverdadherald://'))) {
-            return $frontendUrl.'/verify-email?token='.$token;
-        }
-        // Fallback to web URL
+        // For mobile, we need to use the API endpoint that will redirect to the deep link
+        // The backend will handle the redirect to the mobile app
         return config('app.url').'/api/email/verify-token?token='.$token;
     }
 
