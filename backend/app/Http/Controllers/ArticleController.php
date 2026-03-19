@@ -55,7 +55,9 @@ class ArticleController extends Controller
         // Filter by category if provided
         if ($request->has('category') && $request->category) {
             $query->whereHas('categories', function ($q) use ($request) {
-                $q->where('name', 'ILIKE', $request->category);
+                $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+                $like = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+                $q->where('name', $like, $request->category);
             });
         }
 
@@ -259,7 +261,9 @@ class ArticleController extends Controller
             if (! empty($validated['tags'])) {
                 $tagIds = [];
                 foreach ($validated['tags'] as $tagName) {
-                    $tag = Tag::firstOrCreate(['name' => trim($tagName)]);
+                    $cleanName = ltrim(trim($tagName), '#');
+                    if ($cleanName === '') continue;
+                    $tag = Tag::firstOrCreate(['name' => $cleanName]);
                     $tagIds[] = $tag->id;
                 }
                 $article->tags()->sync($tagIds);
@@ -397,7 +401,9 @@ class ArticleController extends Controller
             $tags = explode(',', $request->tags);
             $tagIds = [];
             foreach ($tags as $tagName) {
-                $tag = Tag::firstOrCreate(['name' => trim($tagName)]);
+                $cleanName = ltrim(trim($tagName), '#');
+                if ($cleanName === '') continue;
+                $tag = Tag::firstOrCreate(['name' => $cleanName]);
                 $tagIds[] = $tag->id;
             }
             $article->tags()->sync($tagIds);

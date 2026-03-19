@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, Image, ScrollView, StyleSheet,
-  TouchableOpacity, SafeAreaView, Share,
+  TouchableOpacity, Share,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Loader, ErrorMessage } from '../../components/common';
 import { getArticleById } from '../../api/services/articleService';

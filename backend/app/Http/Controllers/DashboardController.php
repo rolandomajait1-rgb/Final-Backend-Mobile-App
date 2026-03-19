@@ -52,7 +52,7 @@ class DashboardController extends Controller
                 }
                 return [
                     'action'    => ucfirst($log->action),
-                    'title'     => $title ?? $log->model_type ? class_basename($log->model_type) : 'N/A',
+                    'title'     => $title ?? ($log->model_type ? class_basename($log->model_type) : 'N/A'),
                     'user'      => $log->user?->email ?? 'Unknown',
                     'timestamp' => $log->created_at->format('n/j/Y g:i A'),
                 ];

@@ -12,6 +12,14 @@ const client = axios.create({
   },
 });
 
+// Extend timeout for slow endpoints (Render cold start)
+client.interceptors.request.use((config) => {
+  if (config.url?.includes('/forgot-password') || config.url?.includes('/register')) {
+    config.timeout = 180000;
+  }
+  return config;
+});
+
 // Request interceptor — attach token
 client.interceptors.request.use(
   async (config) => {

@@ -134,22 +134,27 @@ class UserController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user) {
+            $tempPassword = Str::password(12);
             $user = User::create([
-                'name' => explode('@', $request->email)[0],
-                'email' => $request->email,
-                'password' => Hash::make(Str::password(16)),
-                'role' => UserRole::MODERATOR,
+                'name'              => explode('@', $request->email)[0],
+                'email'             => $request->email,
+                'password'          => Hash::make($tempPassword),
+                'role'              => UserRole::MODERATOR,
+                'email_verified_at' => now(), // auto-verify so they can log in
             ]);
 
             Log::create([
-                'user_id' => Auth::id(),
-                'action' => 'created',
+                'user_id'    => Auth::id(),
+                'action'     => 'created',
                 'model_type' => 'User',
-                'model_id' => $user->id,
+                'model_id'   => $user->id,
                 'new_values' => $user->toArray(),
             ]);
 
-            return response()->json(['message' => 'Moderator created successfully'], 201);
+            return response()->json([
+                'message'       => 'Moderator account created. Temporary password: ' . $tempPassword,
+                'temp_password' => $tempPassword,
+            ], 201);
         }
 
         if ($user->role === UserRole::MODERATOR) {

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, StyleSheet,
-  TouchableOpacity, SafeAreaView, Keyboard,
+  TouchableOpacity, Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ArticleCard } from '../../components/articles';
 import { Loader, ErrorMessage } from '../../components/common';

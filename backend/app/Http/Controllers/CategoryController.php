@@ -15,31 +15,8 @@ class CategoryController extends Controller
 {
     public function index(): JsonResponse
     {
-        if (Auth::check()) {
-            $categories = Category::paginate(10);
-        } else {
-            $categories = Category::orderBy('name')->get();
-        }
-
-        // Always return JSON for API endpoint
-        if ($categories instanceof \Illuminate\Pagination\LengthAwarePaginator) {
-            return response()->json([
-                'data' => $categories->items(),
-                'meta' => [
-                    'current_page' => $categories->currentPage(),
-                    'per_page' => $categories->perPage(),
-                    'total' => $categories->total(),
-                    'last_page' => $categories->lastPage(),
-                ],
-                'links' => [
-                    'first' => $categories->url(1),
-                    'last' => $categories->url($categories->lastPage()),
-                    'prev' => $categories->previousPageUrl(),
-                    'next' => $categories->nextPageUrl(),
-                ],
-            ]);
-        }
-
+        // Always return a flat array for API consumers regardless of auth state
+        $categories = Category::orderBy('name')->get();
         return response()->json($categories);
     }
 
@@ -159,7 +136,10 @@ class CategoryController extends Controller
 
     public function getArticlesByCategory(Request $request, $category): JsonResponse
     {
-        $categoryModel = Category::where('name', 'ILIKE', $category)
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+        $like   = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+
+        $categoryModel = Category::where('name', $like, $category)
             ->orWhere('slug', $category)
             ->firstOrFail();
 

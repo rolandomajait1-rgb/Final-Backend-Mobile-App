@@ -241,6 +241,52 @@ class MailService
     }
 
     /**
+     * Send OTP email
+     *
+     * @throws \Exception
+     */
+    public function sendOTPEmail(User $user, string $otp): void
+    {
+        $mailer = $this->transactionalMailer();
+
+        try {
+            if ($mailer === 'brevo') {
+                $this->sendBrevoEmail(
+                    $user,
+                    'Your Password Reset OTP',
+                    view('emails.otp', [
+                        'user' => $user,
+                        'otp' => $otp,
+                    ])->render(),
+                    ['password_reset_otp']
+                );
+
+                $usedMailer = 'brevo_api';
+            } else {
+                $this->validateMailConfiguration($mailer);
+
+                Mail::mailer($mailer)->to($user->email)->send(new \App\Mail\OTPEmail($user, $otp));
+
+                $usedMailer = $mailer;
+            }
+
+            Log::info('OTP email sent', [
+                'user_email' => $user->email,
+                'operation' => 'otp_send',
+                'mailer' => $usedMailer,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('OTP email failed', [
+                'user_email' => $user->email,
+                'operation' => 'otp_send',
+                'mailer' => $mailer,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * Send an email using Brevo's HTTP API.
      *
      * @throws \RuntimeException

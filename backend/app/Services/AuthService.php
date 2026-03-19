@@ -165,7 +165,7 @@ class AuthService
     }
 
     /**
-     * Initiate password reset process
+     * Initiate password reset process with OTP
      *
      * @return array ['success' => bool, 'message' => string]
      */
@@ -175,8 +175,21 @@ class AuthService
 
         if ($user) {
             try {
-                $tokenData = $this->tokenService->createPasswordResetToken($email);
-                $this->sendPasswordResetEmailAfterResponse($user, $tokenData['token']);
+                // Generate 6-digit OTP
+                $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                
+                // Delete old OTP tokens for this email
+                \App\Models\OTPToken::where('email', $email)->delete();
+                
+                // Create new OTP token (expires in 10 minutes)
+                \App\Models\OTPToken::create([
+                    'email' => $email,
+                    'otp' => $otp,
+                    'expires_at' => now()->addMinutes(10),
+                ]);
+                
+                // Send OTP via email
+                $this->sendOTPEmailAfterResponse($user, $otp);
             } catch (\Exception $e) {
                 Log::error('Password reset initiation failed', [
                     'email' => $email,
@@ -188,7 +201,7 @@ class AuthService
         // Always return success to prevent user enumeration
         return [
             'success' => true,
-            'message' => 'If an account exists for that email, a password reset link has been sent.',
+            'message' => 'If an account exists for that email, an OTP has been sent.',
         ];
     }
 
@@ -224,6 +237,55 @@ class AuthService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Send OTP email synchronously to ensure delivery before the HTTP response kills the process.
+     */
+    private function sendOTPEmailAfterResponse(User $user, string $otp): void
+    {
+        try {
+            $this->mailService->sendOTPEmail($user, $otp);
+        } catch (\Throwable $e) {
+            Log::error('OTP email failed', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Verify OTP and return reset token
+     *
+     * @return array ['success' => bool, 'message' => string, 'token' => string|null]
+     */
+    public function verifyOTP(string $email, string $otp): array
+    {
+        $otpRecord = \App\Models\OTPToken::where('email', $email)
+            ->where('otp', $otp)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            return [
+                'success' => false,
+                'message' => 'Invalid or expired OTP',
+                'token' => null,
+            ];
+        }
+
+        // Create a password reset token for this email
+        $tokenData = $this->tokenService->createPasswordResetToken($email);
+
+        // Delete the OTP token
+        $otpRecord->delete();
+
+        return [
+            'success' => true,
+            'message' => 'OTP verified successfully',
+            'token' => $tokenData['token'],
+        ];
     }
 
     /**

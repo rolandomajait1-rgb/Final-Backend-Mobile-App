@@ -5,12 +5,28 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "scheme": "laverdadherald",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.laverdadherald.app"
     },
     "android": {
-      "package": "com.laverdadherald.app"
+      "package": "com.laverdadherald.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "laverdadherald"
+            },
+            {
+              "scheme": "exp"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-asset",

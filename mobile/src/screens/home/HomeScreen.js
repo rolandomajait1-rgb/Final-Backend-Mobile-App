@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
-  RefreshControl, TouchableOpacity, SafeAreaView,
+  RefreshControl, TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleCard } from '../../components/articles';
 import { Loader, ErrorMessage } from '../../components/common';
 import { getArticles } from '../../api/services/articleService';
