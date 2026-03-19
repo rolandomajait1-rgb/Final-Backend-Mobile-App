@@ -15,9 +15,7 @@ const textlogo = require('../../../assets/la verdad herald.png');
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
 
@@ -33,9 +31,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       return;
     }
     setLoading(true);
-    setMessage('');
     setError('');
-    setSent(false);
     try {
       await axios.post('/api/forgot-password', { email });
       // Navigate to OTP verification screen
@@ -45,7 +41,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       if (err.response?.data?.message) {
         msg = err.response.data.message;
       } else if (err.code === 'ECONNABORTED' || err.message === 'timeout of 180000ms exceeded') {
-        msg = 'Request timed out. Server may be starting up. Please try again.';
+        msg = 'Request timed out. Server may be starting up. Please try again in a moment.';
       } else if (err.message === 'Network Error') {
         msg = 'Network error. Please check your connection.';
       }
@@ -134,7 +130,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
                 {loading && (
                   <Text className="text-center text-xs text-gray-400 mt-2">
-                    Server may take up to 60s to wake up...
+                    Sending OTP... This may take a moment on first request.
                   </Text>
                 )}
 

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  ImageBackground, Image, StatusBar,
+  ImageBackground, Image, StatusBar, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,14 @@ export default function ResetPasswordScreen({ navigation, route }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // Sync params when they arrive via deep link
   useEffect(() => {
@@ -97,13 +105,15 @@ export default function ResetPasswordScreen({ navigation, route }) {
 
         <SafeAreaView className="flex-1">
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled" className="px-6 py-6">
+            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled" className="px-6 py-6" ref={scrollRef} keyboardDismissMode="interactive">
 
-              {/* Logo */}
-              <View className="items-center mb-6">
-                <Image source={logo} style={{ width: 260, height: 150, marginBottom: 14 }} resizeMode="contain" />
-                <Image source={textlogo} style={{ width: 360, height: 54 }} resizeMode="contain" />
-              </View>
+              {/* Logo — hidden when keyboard is open */}
+              {!keyboardVisible && (
+                <View className="items-center mb-6">
+                  <Image source={logo} style={{ width: 260, height: 150, marginBottom: 14 }} resizeMode="contain" />
+                  <Image source={textlogo} style={{ width: 360, height: 54 }} resizeMode="contain" />
+                </View>
+              )}
 
               {/* Card */}
               <View className="rounded-3xl bg-white p-8">
@@ -153,6 +163,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
                       placeholderTextColor="#9ca3af"
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
+                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
                       <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
@@ -173,6 +184,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
                       placeholderTextColor="#9ca3af"
                       secureTextEntry={!showConfirmPassword}
                       autoCapitalize="none"
+                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                     />
                     <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="pr-3">
                       <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
