@@ -23,7 +23,7 @@ class AuthService
     }
 
     /**
-     * Register a new user with email verification
+     * Register a new user with OTP verification
      *
      * @param  array  $data  ['name', 'email', 'password']
      *
@@ -33,7 +33,7 @@ class AuthService
     {
         DB::beginTransaction();
         try {
-            // Create user
+            // Create user (not verified yet)
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -41,27 +41,27 @@ class AuthService
                 'role' => 'user',
             ]);
 
-            // Auto-verify in local environment for testing
-            if (config('app.env') === 'local') {
-                $user->markEmailAsVerified();
-            } else {
-                // Generate verification token for production
-                $verificationToken = $this->tokenService->createVerificationToken($user);
-            }
+            // Generate OTP for email verification
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            
+            // Create OTP token (expires in 10 minutes)
+            \App\Models\OTPToken::create([
+                'email' => $data['email'],
+                'otp' => $otp,
+                'expires_at' => now()->addMinutes(10),
+            ]);
 
             DB::commit();
 
-            // Send email after commit so transient mail failures don't roll back registration.
-            if (config('app.env') !== 'local') {
-                try {
-                    $this->mailService->sendVerificationEmail($user, $verificationToken->token);
-                } catch (\Throwable $e) {
-                    Log::error('Verification email failed after registration', [
-                        'user_id' => $user->id,
-                        'user_email' => $user->email,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            // Send OTP email after commit
+            try {
+                $this->mailService->sendOTPEmail($user, $otp);
+            } catch (\Throwable $e) {
+                Log::error('OTP email failed after registration', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]);
             }
 
             return $user;
@@ -286,6 +286,54 @@ class AuthService
             'message' => 'OTP verified successfully',
             'token' => $tokenData['token'],
         ];
+    }
+
+    /**
+     * Verify registration OTP and mark user as verified
+     *
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function verifyRegistrationOTP(string $email, string $otp): array
+    {
+        $otpRecord = \App\Models\OTPToken::where('email', $email)
+            ->where('otp', $otp)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            return [
+                'success' => false,
+                'message' => 'Invalid or expired OTP',
+            ];
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return [
+                'success' => false,
+                'message' => 'User not found',
+            ];
+        }
+
+        try {
+            // Mark email as verified
+            $user->markEmailAsVerified();
+
+            // Delete the OTP token
+            $otpRecord->delete();
+
+            return [
+                'success' => true,
+                'message' => 'Email verified successfully',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Registration OTP verification failed', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**

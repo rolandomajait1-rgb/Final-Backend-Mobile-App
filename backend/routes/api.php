@@ -33,6 +33,7 @@ Route::middleware('throttle:10,1')->group(function () {
 // Stricter rate limiting for password reset requests
 Route::middleware('throttle:3,1')->post('/forgot-password', [AuthController::class, 'forgotPasswordApi']);
 Route::middleware('throttle:5,1')->post('/verify-otp', [AuthController::class, 'verifyOTPApi']);
+Route::middleware('throttle:5,1')->post('/verify-registration-otp', [AuthController::class, 'verifyRegistrationOTPApi']);
 
 // Email Verification Routes
 Route::middleware('throttle:10,1')->get('/email/verify-token', [AuthController::class, 'verifyEmailToken'])->name('verification.verify.token');

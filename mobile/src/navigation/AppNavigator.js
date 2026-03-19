@@ -6,6 +6,7 @@ import TabNavigator from './TabNavigator';
 import ArticleDetailScreen from '../screens/articles/ArticleDetailScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import VerifyRegistrationOTPScreen from '../screens/auth/VerifyRegistrationOTPScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import VerifyOTPScreen from '../screens/auth/VerifyOTPScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
@@ -73,6 +74,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="VerifyRegistrationOTP" component={VerifyRegistrationOTPScreen} />
         <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />

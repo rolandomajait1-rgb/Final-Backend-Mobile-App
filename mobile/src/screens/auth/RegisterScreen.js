@@ -70,8 +70,8 @@ export default function RegisterScreen({ navigation }) {
         password: formData.password,
         password_confirmation: formData.password_confirmation,
       }, { timeout: 180000 });
-      setSuccessMessage('Registration successful! Check your email to verify your account.');
-      setTimeout(() => navigation.replace('Login'), 2000);
+      // Navigate to OTP verification screen for registration
+      navigation.replace('VerifyRegistrationOTP', { email: formData.email });
     } catch (error) {
       if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
         setErrors({ general: 'Server is starting up. Please wait a moment and try again.' });
