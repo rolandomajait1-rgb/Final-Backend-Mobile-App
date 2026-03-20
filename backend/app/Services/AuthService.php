@@ -41,21 +41,14 @@ class AuthService
                 'role' => 'user',
             ]);
 
-            // Generate OTP for email verification
-            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            
-            // Create OTP token (expires in 10 minutes)
-            \App\Models\OTPToken::create([
-                'email' => $data['email'],
-                'otp' => $otp,
-                'expires_at' => now()->addMinutes(10),
-            ]);
+            // Generate OTP for email verification with type
+            $otp = $this->generateOTP($data['email'], \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
 
             DB::commit();
 
-            // Send OTP email after commit
+            // Send OTP email asynchronously after commit
             try {
-                $this->mailService->sendOTPEmail($user, $otp);
+                $this->sendOTPEmailAfterResponse($user, $otp);
             } catch (\Throwable $e) {
                 Log::error('OTP email failed after registration', [
                     'user_id' => $user->id,
@@ -73,6 +66,34 @@ class AuthService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Generate OTP with specified type
+     *
+     * @param  string  $email
+     * @param  string  $type  'email_verification' or 'password_reset'
+     * @return string  The generated OTP code
+     */
+    private function generateOTP(string $email, string $type): string
+    {
+        // Generate 6-digit OTP
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // Delete old OTP tokens for this email and type
+        \App\Models\OTPToken::where('email', $email)
+            ->where('type', $type)
+            ->delete();
+        
+        // Create new OTP token (expires in 10 minutes)
+        \App\Models\OTPToken::create([
+            'email' => $email,
+            'otp' => $otp,
+            'type' => $type,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        return $otp;
     }
 
     /**
@@ -175,20 +196,10 @@ class AuthService
 
         if ($user) {
             try {
-                // Generate 6-digit OTP
-                $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                // Generate OTP for password reset with type
+                $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
                 
-                // Delete old OTP tokens for this email
-                \App\Models\OTPToken::where('email', $email)->delete();
-                
-                // Create new OTP token (expires in 10 minutes)
-                \App\Models\OTPToken::create([
-                    'email' => $email,
-                    'otp' => $otp,
-                    'expires_at' => now()->addMinutes(10),
-                ]);
-                
-                // Send OTP via email
+                // Send OTP via email asynchronously
                 $this->sendOTPEmailAfterResponse($user, $otp);
             } catch (\Exception $e) {
                 Log::error('Password reset initiation failed', [
@@ -275,6 +286,15 @@ class AuthService
             ];
         }
 
+        // Check if OTP type matches expected type
+        if ($otpRecord->type !== \App\Models\OTPToken::TYPE_PASSWORD_RESET) {
+            return [
+                'success' => false,
+                'message' => 'OTP type mismatch',
+                'token' => null,
+            ];
+        }
+
         // Create a password reset token for this email
         $tokenData = $this->tokenService->createPasswordResetToken($email);
 
@@ -304,6 +324,14 @@ class AuthService
             return [
                 'success' => false,
                 'message' => 'Invalid or expired OTP',
+            ];
+        }
+
+        // Check if OTP type matches expected type
+        if ($otpRecord->type !== \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION) {
+            return [
+                'success' => false,
+                'message' => 'OTP type mismatch',
             ];
         }
 

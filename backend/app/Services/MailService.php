@@ -241,11 +241,25 @@ class MailService
     }
 
     /**
-     * Send OTP email
+     * Send OTP email asynchronously via queue job
+     */
+    public function sendOTPEmail(User $user, string $otp): void
+    {
+        // Dispatch the email sending to the queue for async delivery
+        \App\Jobs\SendOTPEmailJob::dispatch($user, $otp);
+
+        Log::info('OTP email queued for delivery', [
+            'user_email' => $user->email,
+            'operation' => 'otp_send',
+        ]);
+    }
+
+    /**
+     * Send OTP email synchronously (called by queue job)
      *
      * @throws \Exception
      */
-    public function sendOTPEmail(User $user, string $otp): void
+    public function sendOTPEmailSync(User $user, string $otp): void
     {
         $mailer = $this->transactionalMailer();
 
