@@ -6,10 +6,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "laverdadherald",
-    "statusBar": {
-      "barStyle": "dark-content",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.laverdadherald.app"

@@ -12,7 +12,6 @@ import VerifyOTPScreen from '../screens/auth/VerifyOTPScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
-import SearchModalWrapper from '../components/search/SearchModalWrapper';
 
 const Stack = createStackNavigator();
 
@@ -83,7 +82,6 @@ export default function AppNavigator() {
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
       </Stack.Navigator>
-      <SearchModalWrapper />
     </NavigationContainer>
   );
 }

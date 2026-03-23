@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Loader, Button, ErrorMessage } from '../../components/common';
-import HomeHeader from '../../components/home/HomeHeader';
 import { getCurrentUser, logout } from '../../api/services/authService';
 import { colors, typography, spacing } from '../../styles';
 
@@ -41,14 +40,6 @@ export default function ProfileScreen({ navigation }) {
   if (!user) {
     return (
       <SafeAreaView style={styles.container}>
-        <HomeHeader 
-          categories={[]}
-          selectedCategory={null}
-          onCategorySelect={() => {}}
-          error={null}
-          ErrorMessage={ErrorMessage}
-          showCategories={false}
-        />
         <View style={styles.center}>
           <Ionicons name="person-circle-outline" size={80} color={colors.border} />
           <Text style={styles.guestTitle}>You're not signed in</Text>
@@ -61,14 +52,6 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <HomeHeader 
-        categories={[]}
-        selectedCategory={null}
-        onCategorySelect={() => {}}
-        error={null}
-        ErrorMessage={ErrorMessage}
-        showCategories={false}
-      />
       <View style={styles.profileCard}>
         <Ionicons name="person-circle" size={72} color={colors.primary} />
         <Text style={styles.name}>{user.name}</Text>

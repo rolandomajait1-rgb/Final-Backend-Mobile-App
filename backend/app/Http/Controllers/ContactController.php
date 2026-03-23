@@ -12,10 +12,11 @@ class ContactController extends Controller
     {
         $request->validate([
             'feedback' => 'required|string',
+            'email' => 'required|email',
         ]);
 
         Mail::raw(
-            "New Feedback Received\n\nFeedback:\n{$request->feedback}",
+            "New Feedback Received\n\nFrom: {$request->email}\n\nFeedback:\n{$request->feedback}",
             function ($message) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
                     ->subject('New Feedback - La Verdad Herald');
@@ -29,29 +30,18 @@ class ContactController extends Controller
     {
         $request->validate([
             'eventName' => 'required|string',
-            'purpose' => 'required|string',
-            'location' => 'required|string',
-            'dateTime' => 'required|string',
-            'highlights' => 'required|string',
-            'requesterName' => 'required|string',
-            'designation' => 'required|string',
-            'coordinator' => 'required|string',
+            'date' => 'required|date',
+            'description' => 'required|string',
+            'contactEmail' => 'required|email',
         ]);
 
-        $emailBody = "New Coverage Request\n\n";
-        $emailBody .= "Event Name: {$request->eventName}\n";
-        $emailBody .= "Purpose/Significance: {$request->purpose}\n";
-        $emailBody .= "Location: {$request->location}\n";
-        $emailBody .= "Date and Time: {$request->dateTime}\n";
-        $emailBody .= "Event Highlights: {$request->highlights}\n";
-        $emailBody .= "Requestor Name: {$request->requesterName}\n";
-        $emailBody .= "Designation: {$request->designation}\n";
-        $emailBody .= "Organizer/Office Coordinator: {$request->coordinator}\n";
-
-        Mail::raw($emailBody, function ($message) {
-            $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
-                ->subject('Coverage Request - La Verdad Herald');
-        });
+        Mail::raw(
+            "New Coverage Request\n\nEvent: {$request->eventName}\nDate: {$request->date}\nContact: {$request->contactEmail}\n\nDescription:\n{$request->description}",
+            function ($message) {
+                $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
+                    ->subject('Coverage Request - La Verdad Herald');
+            }
+        );
 
         return response()->json(['message' => 'Coverage request received successfully']);
     }
@@ -59,16 +49,28 @@ class ContactController extends Controller
     public function joinHerald(Request $request): JsonResponse
     {
         $request->validate([
-            'fullName' => 'required|string',
-            'courseYear' => 'required|string',
-            'gender' => 'required|string|in:Male,Female',
+            'name' => 'required|string',
+            'course' => 'required|string',
+            'gender' => 'required|string',
+            'pubName' => 'required|string',
+            'specificPosition' => 'required|string',
         ]);
+
+        $classifications = json_encode($request->classifications ?? []);
+        $pubOption = json_encode($request->pubOption ?? []);
+        $designations = json_encode($request->designations ?? []);
 
         $emailBody = "New Membership Application\n\n";
         $emailBody .= "Personal Information:\n";
-        $emailBody .= "Full Name: {$request->fullName}\n";
-        $emailBody .= "Course & Year: {$request->courseYear}\n";
-        $emailBody .= "Gender: {$request->gender}\n";
+        $emailBody .= "Name: {$request->name}\n";
+        $emailBody .= "Course & Year: {$request->course}\n";
+        $emailBody .= "Gender: {$request->gender}\n\n";
+        $emailBody .= "Publication Information:\n";
+        $emailBody .= "Publication Name: {$request->pubName}\n";
+        $emailBody .= "Classifications: {$classifications}\n";
+        $emailBody .= "Publishing Option: {$pubOption}\n";
+        $emailBody .= "Designations: {$designations}\n";
+        $emailBody .= "Specific Position: {$request->specificPosition}\n";
 
         Mail::raw($emailBody, function ($message) {
             $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
