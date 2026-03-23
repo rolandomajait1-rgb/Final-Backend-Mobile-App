@@ -1,14 +1,15 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, StyleSheet,
+  View, Text, FlatList, TextInput,
   TouchableOpacity, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ArticleCard } from '../../components/articles';
 import { Loader, ErrorMessage } from '../../components/common';
+import HomeHeader from '../../components/home/HomeHeader';
 import { searchArticles } from '../../api/services/articleService';
-import { colors, typography, spacing } from '../../styles';
+import { colors } from '../../styles';
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
@@ -51,11 +52,16 @@ export default function SearchScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color={colors.text.muted} style={styles.searchIcon} />
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <HomeHeader
+        onMenuPress={() => {}}
+        onGridPress={() => {}}
+        onSearch={() => {}}
+      />
+      <View className="flex-row items-center mx-4 my-3 px-4 bg-white rounded-lg border border-gray-200 h-11">
+        <Ionicons name="search" size={18} color={colors.text.muted} />
         <TextInput
-          style={styles.input}
+          className="flex-1 ml-2 text-gray-800"
           placeholder="Search articles..."
           placeholderTextColor={colors.text.muted}
           value={query}
@@ -71,7 +77,7 @@ export default function SearchScreen({ navigation }) {
         )}
       </View>
 
-      <ErrorMessage message={error} style={{ marginHorizontal: spacing.md }} />
+      <ErrorMessage message={error} style={{ marginHorizontal: 16 }} />
 
       {loading ? (
         <Loader />
@@ -79,7 +85,7 @@ export default function SearchScreen({ navigation }) {
         <FlatList
           data={results}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
           renderItem={({ item }) => (
             <ArticleCard
               article={item}
@@ -88,9 +94,9 @@ export default function SearchScreen({ navigation }) {
           )}
           ListEmptyComponent={
             searched ? (
-              <Text style={styles.empty}>No results for "{query}"</Text>
+              <Text className="text-center text-gray-500 mt-12">No results for "{query}"</Text>
             ) : (
-              <Text style={styles.hint}>Type at least 3 characters to search</Text>
+              <Text className="text-center text-gray-400 mt-12 text-sm">Type at least 3 characters to search</Text>
             )
           }
           keyboardShouldPersistTaps="handled"
@@ -99,13 +105,3 @@ export default function SearchScreen({ navigation }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  searchBar: { flexDirection: 'row', alignItems: 'center', margin: spacing.md, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderRadius: 8, borderWidth: 1, borderColor: colors.border, height: 44 },
-  searchIcon: { marginRight: spacing.sm },
-  input: { flex: 1, fontSize: typography.fontSize.base, color: colors.text.primary },
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
-  empty: { textAlign: 'center', color: colors.text.muted, marginTop: spacing.xl, fontSize: typography.fontSize.base },
-  hint: { textAlign: 'center', color: colors.text.muted, marginTop: spacing.xl, fontSize: typography.fontSize.sm },
-});

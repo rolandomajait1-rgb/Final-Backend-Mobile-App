@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Image, ScrollView, StyleSheet,
+  View, Text, Image, ScrollView,
   TouchableOpacity, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Loader, ErrorMessage } from '../../components/common';
 import { getArticleById } from '../../api/services/articleService';
-import { colors, typography, spacing } from '../../styles';
+import { colors } from '../../styles';
 
 const FALLBACK = 'https://via.placeholder.com/800x400/e2e8f0/64748b?text=No+Image';
 
@@ -34,8 +34,8 @@ export default function ArticleDetailScreen({ route, navigation }) {
 
   if (loading) return <Loader />;
   if (error) return (
-    <SafeAreaView style={styles.container}>
-      <ErrorMessage message={error} style={{ margin: spacing.md }} />
+    <SafeAreaView className="flex-1 bg-white">
+      <ErrorMessage message={error} style={{ margin: 16 }} />
     </SafeAreaView>
   );
 
@@ -46,63 +46,44 @@ export default function ArticleDetailScreen({ route, navigation }) {
     : '';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+      <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-200">
+        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2">
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-          <Ionicons name="share-outline" size={24} color={colors.text.primary} />
+        <TouchableOpacity onPress={handleShare} className="p-2">
+          <Ionicons name="share-outline" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: article.featured_image || FALLBACK }} style={styles.image} resizeMode="cover" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <Image source={{ uri: article.featured_image || FALLBACK }} className="w-full h-56 bg-gray-300" resizeMode="cover" />
 
-        <View style={styles.body}>
-          {category ? <Text style={styles.category}>{category.toUpperCase()}</Text> : null}
-          <Text style={styles.title}>{article.title}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.meta}>{author}</Text>
-            {date ? <Text style={styles.meta}> · {date}</Text> : null}
-            {article.view_count ? <Text style={styles.meta}> · {article.view_count} views</Text> : null}
+        <View className="p-4">
+          {category ? <Text className="text-xs font-bold text-green-600 mb-2 tracking-widest uppercase">{category}</Text> : null}
+          <Text className="text-2xl font-bold text-gray-900 mb-2 leading-tight">{article.title}</Text>
+          <View className="flex-row flex-wrap mb-3">
+            <Text className="text-sm text-gray-600">{author}</Text>
+            {date ? <Text className="text-sm text-gray-600"> · {date}</Text> : null}
+            {article.view_count ? <Text className="text-sm text-gray-600"> · {article.view_count} views</Text> : null}
           </View>
 
           {/* Tags */}
           {article.tags?.length > 0 && (
-            <View style={styles.tags}>
+            <View className="flex-row flex-wrap gap-2 mb-4">
               {article.tags.map(tag => (
-                <View key={tag.id} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag.name}</Text>
+                <View key={tag.id} className="bg-gray-100 rounded px-3 py-1">
+                  <Text className="text-xs text-gray-700">#{tag.name}</Text>
                 </View>
               ))}
             </View>
           )}
 
-          <View style={styles.divider} />
-          <Text style={styles.content}>{stripHtml(article.content)}</Text>
+          <View className="h-px bg-gray-200 my-4" />
+          <Text className="text-base text-gray-900 leading-relaxed">{stripHtml(article.content)}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backBtn: { padding: spacing.xs },
-  shareBtn: { padding: spacing.xs },
-  scroll: { paddingBottom: spacing.xxl },
-  image: { width: '100%', height: 220, backgroundColor: colors.border },
-  body: { padding: spacing.md },
-  category: { fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.bold, color: colors.accent, letterSpacing: 1, marginBottom: spacing.sm },
-  title: { fontFamily: typography.fontFamily.serif, fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: colors.text.primary, lineHeight: typography.fontSize.xl * 1.3, marginBottom: spacing.sm },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.sm },
-  meta: { fontSize: typography.fontSize.sm, color: colors.text.muted },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.md },
-  tag: { backgroundColor: '#f0f4f8', borderRadius: 4, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  tagText: { fontSize: typography.fontSize.xs, color: colors.text.secondary },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
-  content: { fontSize: typography.fontSize.base, color: colors.text.primary, lineHeight: typography.fontSize.base * 1.7 },
-});

@@ -12,6 +12,8 @@ import VerifyOTPScreen from '../screens/auth/VerifyOTPScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
+import { SendFeedbackScreen, RequestCoverageScreen, JoinHeraldScreen } from '../screens/PressHub';
+import { ArticleProvider } from '../context/ArticleContext';
 
 const Stack = createStackNavigator();
 
@@ -69,19 +71,24 @@ const linking = {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer linking={linking} fallback={<WelcomeScreen />}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="VerifyRegistrationOTP" component={VerifyRegistrationOTPScreen} />
-        <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-        <Stack.Screen name="Main" component={TabNavigator} />
-        <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ArticleProvider>
+      <NavigationContainer linking={linking} fallback={<WelcomeScreen />}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="VerifyRegistrationOTP" component={VerifyRegistrationOTPScreen} />
+          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          <Stack.Screen name="Main" component={TabNavigator} />
+          <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+          <Stack.Screen name="SendFeedback" component={SendFeedbackScreen} />
+          <Stack.Screen name="RequestCoverage" component={RequestCoverageScreen} />
+          <Stack.Screen name="JoinHerald" component={JoinHeraldScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ArticleProvider>
   );
 }

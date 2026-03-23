@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet,
-  RefreshControl, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArticleCard } from '../../components/articles';
 import { Loader, ErrorMessage } from '../../components/common';
+import HomeHeader from '../../components/home/HomeHeader';
+import { useArticles } from '../../context/ArticleContext';
 import { getArticles } from '../../api/services/articleService';
 import { getCategories } from '../../api/services/categoryService';
-import { colors, typography, spacing } from '../../styles';
+import { colors } from '../../styles';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen({ navigation }) {
-  const [articles, setArticles] = useState([]);
+  const { latestArticles, historicalArticles, loading: articlesLoading, refreshArticles } = useArticles();
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ export default function HomeScreen({ navigation }) {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [articles, setArticles] = useState([]);
 
   const fetchCategories = async () => {
     try {
@@ -51,16 +53,19 @@ export default function HomeScreen({ navigation }) {
     setLoading(true);
     setError(null);
     fetchArticles(1, selectedCategory, true).finally(() => setLoading(false));
-  }, [selectedCategory]);
+  }, [selectedCategory, fetchArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     setError(null);
-    await fetchArticles(1, selectedCategory, true);
+    await Promise.all([
+      fetchArticles(1, selectedCategory, true),
+      refreshArticles()
+    ]);
     setRefreshing(false);
   };
 
-  const onEndReached = async () => {
+  const onLoadMore = async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     await fetchArticles(page + 1, selectedCategory, false);
@@ -69,68 +74,112 @@ export default function HomeScreen({ navigation }) {
 
   const renderHeader = () => (
     <View>
-      <View style={styles.masthead}>
-        <Text style={styles.mastheadTitle}>La Verdad Herald</Text>
-        <Text style={styles.mastheadSub}>Your trusted source of news</Text>
-      </View>
-      <FlatList
-        horizontal
-        data={[{ id: null, name: 'All' }, ...categories]}
-        keyExtractor={(item) => String(item.id ?? 'all')}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryList}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.categoryChip, selectedCategory === item.id && styles.categoryChipActive]}
-            onPress={() => setSelectedCategory(item.id)}
-          >
-            <Text style={[styles.categoryChipText, selectedCategory === item.id && styles.categoryChipTextActive]}>
-              {item.name}
-            </Text>
-          </TouchableOpacity>
-        )}
+      <HomeHeader
+        categories={categories}
+        onCategorySelect={setSelectedCategory}
+        onMenuPress={() => {
+          // Handle menu press
+        }}
+        onSearchPress={() => {
+          // Handle search press
+        }}
+        onGridPress={() => {
+          // Handle grid press
+        }}
+        onSearch={(query) => {
+          // Handle search
+        }}
       />
-      <ErrorMessage message={error} style={styles.errorBox} />
     </View>
   );
 
   if (loading) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={articles}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <ArticleCard
-            article={item}
-            onPress={() => navigation.navigate('ArticleDetail', { id: item.id, slug: item.slug })}
-          />
-        )}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={<Text style={styles.empty}>No articles found.</Text>}
-        ListFooterComponent={loadingMore ? <Loader style={styles.footerLoader} /> : null}
-        contentContainerStyle={styles.list}
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.4}
-      />
+      >
+        {/* Header */}
+        {renderHeader()}
+
+        {/* Recent Section */}
+        <View className="px-4 mb-6">
+          <Text className="text-3xl font-bold text-gray-900 mb-4 mt-4 ">Latest Articles</Text>
+          {latestArticles.length > 0 ? (
+            <View className="gap-4">
+              {latestArticles.map((article) => (
+                <TouchableOpacity
+                  key={article.id}
+                  onPress={() => navigation.navigate('ArticleDetail', { id: article.id, slug: article.slug })}
+                  className="rounded-2xl overflow-hidden bg-blue-200 h-56 relative"
+                >
+                  <View className="absolute top-3 right-3 z-10">
+                    <Ionicons name="ellipsis-vertical" size={20} color="#9CA3AF" />
+                  </View>
+                  <View className="flex-1 justify-center items-center">
+                    <Ionicons name="image" size={60} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <Text className="text-center text-gray-500 my-4">No recent articles</Text>
+          )}
+        </View>
+
+        {/* Engraved By History Section */}
+        <View className="px-4 mb-6">
+          <Text className="text-lg font-bold text-gray-900 mb-1">Engraved By History</Text>
+          <Text className="text-sm text-gray-500 mb-4">#insert hashtag</Text>
+          {historicalArticles.length > 0 ? (
+            <View className="gap-4">
+              {historicalArticles.map((article) => (
+                <TouchableOpacity
+                  key={article.id}
+                  onPress={() => navigation.navigate('ArticleDetail', { id: article.id, slug: article.slug })}
+                  className="flex-row items-start gap-3 pb-4 border-b border-gray-200"
+                >
+                  <View className="w-16 h-16 bg-gray-300 rounded-lg justify-center items-center flex-shrink-0">
+                    <Ionicons name="image" size={30} color="#D1D5DB" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-base font-bold text-gray-900 mb-1">{article.title}</Text>
+                    {article.category && (
+                      <Text className="text-xs font-semibold text-green-600 mb-1 uppercase">{article.category.name}</Text>
+                    )}
+                    <View className="flex-row items-center gap-2">
+                      <Text className="text-xs text-gray-600">{article.author?.name || 'Unknown Author'}</Text>
+                      <Text className="text-xs text-gray-500">1hr ago</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity>
+                    <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <Text className="text-center text-gray-500 my-4">No historical articles</Text>
+          )}
+        </View>
+
+        {/* Load More Button */}
+        {hasMore && (
+          <View className="items-center mb-8">
+            <TouchableOpacity
+              onPress={onLoadMore}
+              disabled={loadingMore}
+              className="py-2"
+            >
+              <Text className="text-blue-500 font-semibold text-base">
+                {loadingMore ? 'Loading...' : 'Load More'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: spacing.md },
-  masthead: { alignItems: 'center', paddingVertical: spacing.lg, borderBottomWidth: 2, borderBottomColor: colors.primary, marginBottom: spacing.md },
-  mastheadTitle: { fontFamily: typography.fontFamily.serif, fontSize: typography.fontSize.xxl, fontWeight: typography.fontWeight.bold, color: colors.primary },
-  mastheadSub: { fontSize: typography.fontSize.sm, color: colors.text.muted, marginTop: 2 },
-  categoryList: { paddingBottom: spacing.md, gap: spacing.sm },
-  categoryChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryChipText: { fontSize: typography.fontSize.sm, color: colors.text.secondary },
-  categoryChipTextActive: { color: colors.text.inverse, fontWeight: typography.fontWeight.semibold },
-  empty: { textAlign: 'center', color: colors.text.muted, marginTop: spacing.xl },
-  footerLoader: { flex: 0, paddingVertical: spacing.md },
-  errorBox: { marginBottom: spacing.sm },
-});
