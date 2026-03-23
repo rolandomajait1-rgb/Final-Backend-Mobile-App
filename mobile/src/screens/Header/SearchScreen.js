@@ -66,7 +66,7 @@ export default function SearchScreen({ navigation }) {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={handleClear}>
-            <Ionicons name="close-circle" size={18} color={colors.text.muted} />
+            <Ionicons name="text-bubble-outlinefill" size={18} color={colors.text.muted} />
           </TouchableOpacity>
         )}
       </View>

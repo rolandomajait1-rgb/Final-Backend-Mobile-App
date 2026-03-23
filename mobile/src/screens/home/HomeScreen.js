@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet,
-  RefreshControl, TouchableOpacity,
+  View, Text, FlatList,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleCard } from '../../components/articles';
 import { Loader, ErrorMessage } from '../../components/common';
+import HomeHeader from '../../components/home/HomeHeader';
 import { getArticles } from '../../api/services/articleService';
 import { getCategories } from '../../api/services/categoryService';
-import { colors, typography, spacing } from '../../styles';
+import { colors } from '../../styles';
 
 export default function HomeScreen({ navigation }) {
   const [articles, setArticles] = useState([]);
@@ -67,37 +68,17 @@ export default function HomeScreen({ navigation }) {
     setLoadingMore(false);
   };
 
-  const renderHeader = () => (
-    <View>
-      <View style={styles.masthead}>
-        <Text style={styles.mastheadTitle}>La Verdad Herald</Text>
-        <Text style={styles.mastheadSub}>Your trusted source of news</Text>
-      </View>
-      <FlatList
-        horizontal
-        data={[{ id: null, name: 'All' }, ...categories]}
-        keyExtractor={(item) => String(item.id ?? 'all')}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryList}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.categoryChip, selectedCategory === item.id && styles.categoryChipActive]}
-            onPress={() => setSelectedCategory(item.id)}
-          >
-            <Text style={[styles.categoryChipText, selectedCategory === item.id && styles.categoryChipTextActive]}>
-              {item.name}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
-      <ErrorMessage message={error} style={styles.errorBox} />
-    </View>
-  );
-
   if (loading) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <HomeHeader
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategorySelect={setSelectedCategory}
+        error={error}
+        ErrorMessage={ErrorMessage}
+      />
       <FlatList
         data={articles}
         keyExtractor={(item) => String(item.id)}
@@ -107,10 +88,9 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate('ArticleDetail', { id: item.id, slug: item.slug })}
           />
         )}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={<Text style={styles.empty}>No articles found.</Text>}
-        ListFooterComponent={loadingMore ? <Loader style={styles.footerLoader} /> : null}
-        contentContainerStyle={styles.list}
+        ListEmptyComponent={<Text className="text-center text-gray-500 mt-12">No articles found.</Text>}
+        ListFooterComponent={loadingMore ? <Loader style={{ flex: 0, paddingVertical: 12 }} /> : null}
+        contentContainerStyle={{ padding: 12, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.4}
@@ -118,19 +98,3 @@ export default function HomeScreen({ navigation }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: spacing.md },
-  masthead: { alignItems: 'center', paddingVertical: spacing.lg, borderBottomWidth: 2, borderBottomColor: colors.primary, marginBottom: spacing.md },
-  mastheadTitle: { fontFamily: typography.fontFamily.serif, fontSize: typography.fontSize.xxl, fontWeight: typography.fontWeight.bold, color: colors.primary },
-  mastheadSub: { fontSize: typography.fontSize.sm, color: colors.text.muted, marginTop: 2 },
-  categoryList: { paddingBottom: spacing.md, gap: spacing.sm },
-  categoryChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryChipText: { fontSize: typography.fontSize.sm, color: colors.text.secondary },
-  categoryChipTextActive: { color: colors.text.inverse, fontWeight: typography.fontWeight.semibold },
-  empty: { textAlign: 'center', color: colors.text.muted, marginTop: spacing.xl },
-  footerLoader: { flex: 0, paddingVertical: spacing.md },
-  errorBox: { marginBottom: spacing.sm },
-});
