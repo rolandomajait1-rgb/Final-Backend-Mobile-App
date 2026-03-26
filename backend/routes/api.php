@@ -77,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Protected Article Routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [UserController::class, 'getCurrentUser']);
+    Route::put('/user/profile', [UserController::class, 'updateProfileApi']);
 
     Route::post('/logout', [AuthController::class, 'logoutApi']);
     Route::post('/change-password', [AuthController::class, 'changePasswordApi']);

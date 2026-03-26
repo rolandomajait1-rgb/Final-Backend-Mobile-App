@@ -20,6 +20,34 @@ class UserController extends Controller
         return response()->json($request->user());
     }
 
+    public function updateProfileApi(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $oldValues = $user->toArray();
+
+        $user->update([
+            'name' => $request->name,
+        ]);
+
+        Log::create([
+            'user_id' => $user->id,
+            'action' => 'updated',
+            'model_type' => 'User',
+            'model_id' => $user->id,
+            'old_values' => $oldValues,
+            'new_values' => $user->toArray(),
+        ]);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => $user,
+        ]);
+    }
+
     public function checkAdminAccess(Request $request): JsonResponse
     {
         return response()->json([
