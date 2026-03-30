@@ -215,9 +215,20 @@ class ArticleController extends Controller
 
         if (! $authorUser) {
             // Auto-create user for the author if not exists
+            // Generate unique email
+            $baseEmail = Str::slug($validated['author_name']) . '@laverdad.edu.ph';
+            $email = $baseEmail;
+            $counter = 1;
+            
+            while (User::where('email', $email)->exists()) {
+                $emailParts = explode('@', $baseEmail);
+                $email = $emailParts[0] . $counter . '@' . $emailParts[1];
+                $counter++;
+            }
+            
             $authorUser = User::create([
                 'name' => $validated['author_name'],
-                'email' => Str::slug($validated['author_name']) . '@laverdad.edu.ph',
+                'email' => $email,
                 'password' => bcrypt(Str::random(32)), // Random password
                 'email_verified_at' => now(),
             ]);
