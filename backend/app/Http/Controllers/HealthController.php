@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CloudinaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -16,7 +17,6 @@ class HealthController extends Controller
     public function check(): JsonResponse
     {
         try {
-            // Check database connection
             DB::connection()->getPdo();
             
             return response()->json([
@@ -48,6 +48,34 @@ class HealthController extends Controller
             'mail_username' => config('mail.mailers.smtp.username'),
             'mail_from' => config('mail.from.address'),
             'app_env' => config('app.env'),
+            'cloudinary_configured' => !empty(config('filesystems.disks.cloudinary.url')),
+            'cloudinary_cloud_name' => config('filesystems.disks.cloudinary.cloud_name'),
         ]);
+    }
+
+    /**
+     * Test Cloudinary upload
+     */
+    public function testCloudinary(): JsonResponse
+    {
+        try {
+            $service = app(CloudinaryService::class);
+            
+            return response()->json([
+                'status' => 'ok',
+                'message' => 'CloudinaryService initialized successfully',
+                'config' => [
+                    'cloud_name' => config('filesystems.disks.cloudinary.cloud_name'),
+                    'api_key_set' => !empty(config('filesystems.disks.cloudinary.api_key')),
+                    'api_secret_set' => !empty(config('filesystems.disks.cloudinary.api_secret')),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'CloudinaryService initialization failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

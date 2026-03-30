@@ -2,13 +2,41 @@
 
 namespace App\Services;
 
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Cloudinary\Cloudinary;
+use Cloudinary\Api\Upload\UploadApi;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 class CloudinaryService
 {
+    protected Cloudinary $cloudinary;
+    protected UploadApi $uploadApi;
+
+    public function __construct()
+    {
+        $config = config('filesystems.disks.cloudinary');
+        
+        Log::info('Cloudinary config', [
+            'has_url' => !empty($config['url']),
+            'cloud_name' => $config['cloud_name'] ?? 'not set',
+            'api_key_set' => !empty($config['api_key']),
+        ]);
+        
+        $this->cloudinary = new Cloudinary([
+            'cloud' => [
+                'cloud_name' => $config['cloud_name'] ?? env('CLOUDINARY_CLOUD_NAME'),
+                'api_key' => $config['api_key'] ?? env('CLOUDINARY_API_KEY'),
+                'api_secret' => $config['api_secret'] ?? env('CLOUDINARY_API_SECRET'),
+            ],
+            'url' => [
+                'secure' => true,
+            ],
+        ]);
+        
+        $this->uploadApi = $this->cloudinary->uploadApi();
+    }
+
     /**
      * Upload an image to Cloudinary with optimization
      *
@@ -19,24 +47,26 @@ class CloudinaryService
     public function uploadImage(UploadedFile $file): string
     {
         try {
-            $result = Cloudinary::upload($file->getRealPath(), [
+            $result = $this->uploadApi->upload($file->getRealPath(), [
                 'folder' => 'articles',
                 'resource_type' => 'auto',
                 'quality' => 'auto:good',
                 'fetch_format' => 'auto',
-            ])->getSecurePath();
+            ]);
 
-            if (! $result) {
-                Log::error('Cloudinary returned empty URL');
+            if (! $result || ! isset($result['secure_url'])) {
+                Log::error('Cloudinary returned empty URL', ['result' => $result]);
                 throw new Exception('Cloudinary upload failed: No secure URL returned');
             }
 
+            $secureUrl = $result['secure_url'];
+
             Log::info('Image uploaded to Cloudinary', [
                 'file' => $file->getClientOriginalName(),
-                'url' => $result,
+                'url' => $secureUrl,
             ]);
 
-            return $result;
+            return $secureUrl;
         } catch (Exception $e) {
             Log::error('Cloudinary upload failed', [
                 'file' => $file->getClientOriginalName(),
@@ -58,21 +88,17 @@ class CloudinaryService
      */
     public function getOptimizedUrl(string $imageUrl, int $width = 800, int $height = 600, string $crop = 'fill'): string
     {
-        // If not a Cloudinary URL, return as-is
         if (! str_contains($imageUrl, 'res.cloudinary.com')) {
             return $imageUrl;
         }
 
-        // Extract the public ID from the URL
         $parts = explode('/upload/', $imageUrl);
         if (count($parts) !== 2) {
             return $imageUrl;
         }
 
-        // Build transformation string
         $transformation = "w_{$width},h_{$height},c_{$crop},q_auto:good,f_auto";
 
-        // Reconstruct URL with transformations
         return $parts[0].'/upload/'.$transformation.'/'.$parts[1];
     }
 }

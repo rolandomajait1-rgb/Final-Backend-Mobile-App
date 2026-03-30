@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 // Health Check Endpoint (for uptime monitoring)
 Route::get('/health', [HealthController::class, 'check']);
 Route::get('/config-check', [HealthController::class, 'checkConfig']);
+Route::get('/cloudinary-test', [HealthController::class, 'testCloudinary']);
 
 // Team Members Routes
 Route::get('/team-members', [TeamMemberController::class, 'index']);
