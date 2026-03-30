@@ -10,31 +10,50 @@ use Illuminate\Support\Facades\Log;
 
 class CloudinaryService
 {
-    protected Cloudinary $cloudinary;
-    protected UploadApi $uploadApi;
+    protected ?Cloudinary $cloudinary = null;
+    protected ?UploadApi $uploadApi = null;
 
-    public function __construct()
+    protected function getCloudinary(): Cloudinary
     {
-        $config = config('filesystems.disks.cloudinary');
+        if ($this->cloudinary === null) {
+            $config = config('cloudinary');
+            
+            if (empty($config['cloud_name']) || empty($config['api_key']) || empty($config['api_secret'])) {
+                Log::warning('Cloudinary config incomplete, trying filesystem disk config');
+                $diskConfig = config('filesystems.disks.cloudinary');
+                $config = [
+                    'cloud_name' => $diskConfig['cloud_name'] ?? env('CLOUDINARY_CLOUD_NAME'),
+                    'api_key' => $diskConfig['api_key'] ?? env('CLOUDINARY_API_KEY'),
+                    'api_secret' => $diskConfig['api_secret'] ?? env('CLOUDINARY_API_SECRET'),
+                ];
+            }
+            
+            Log::info('Initializing Cloudinary', [
+                'cloud_name' => $config['cloud_name'] ?? 'not set',
+                'api_key_set' => !empty($config['api_key']),
+            ]);
+            
+            $this->cloudinary = new Cloudinary([
+                'cloud' => [
+                    'cloud_name' => $config['cloud_name'],
+                    'api_key' => $config['api_key'],
+                    'api_secret' => $config['api_secret'],
+                ],
+                'url' => [
+                    'secure' => true,
+                ],
+            ]);
+        }
         
-        Log::info('Cloudinary config', [
-            'has_url' => !empty($config['url']),
-            'cloud_name' => $config['cloud_name'] ?? 'not set',
-            'api_key_set' => !empty($config['api_key']),
-        ]);
-        
-        $this->cloudinary = new Cloudinary([
-            'cloud' => [
-                'cloud_name' => $config['cloud_name'] ?? env('CLOUDINARY_CLOUD_NAME'),
-                'api_key' => $config['api_key'] ?? env('CLOUDINARY_API_KEY'),
-                'api_secret' => $config['api_secret'] ?? env('CLOUDINARY_API_SECRET'),
-            ],
-            'url' => [
-                'secure' => true,
-            ],
-        ]);
-        
-        $this->uploadApi = $this->cloudinary->uploadApi();
+        return $this->cloudinary;
+    }
+
+    protected function getUploadApi(): UploadApi
+    {
+        if ($this->uploadApi === null) {
+            $this->uploadApi = $this->getCloudinary()->uploadApi();
+        }
+        return $this->uploadApi;
     }
 
     /**
@@ -47,7 +66,7 @@ class CloudinaryService
     public function uploadImage(UploadedFile $file): string
     {
         try {
-            $result = $this->uploadApi->upload($file->getRealPath(), [
+            $result = $this->getUploadApi()->upload($file->getRealPath(), [
                 'folder' => 'articles',
                 'resource_type' => 'auto',
                 'quality' => 'auto:good',
