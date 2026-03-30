@@ -175,14 +175,11 @@ class ArticleController extends Controller
     public function latestArticles(): JsonResponse
     {
         // Use a new cache key to avoid pulling the old bloated cache from the database
-        $articles = \Illuminate\Support\Facades\Cache::remember('latest_articles_optimized', 300, function () {
-            return Article::published()
-                ->select('id', 'title', 'slug', 'excerpt', 'featured_image', 'published_at', 'author_id')
-                ->with('author.user', 'categories')
-                ->latest('published_at')
-                ->take(6)
-                ->get();
-        });
+        $articles = Article::published()
+            ->with('author.user', 'categories', 'tags')
+            ->latest('published_at')
+            ->take(6)
+            ->get();
 
         return response()->json($articles);
     }
@@ -217,7 +214,13 @@ class ArticleController extends Controller
         $authorUser = User::where('name', $validated['author_name'])->first();
 
         if (! $authorUser) {
-            return response()->json(['error' => 'Author user not found'], 404);
+            // Auto-create user for the author if not exists
+            $authorUser = User::create([
+                'name' => $validated['author_name'],
+                'email' => Str::slug($validated['author_name']) . '@laverdad.edu.ph',
+                'password' => bcrypt(Str::random(32)), // Random password
+                'email_verified_at' => now(),
+            ]);
         }
 
         // Find or create author profile
