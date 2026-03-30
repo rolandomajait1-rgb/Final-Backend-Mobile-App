@@ -1,53 +1,25 @@
 services:
   - type: web
     name: laverdad-herald-backend
-    runtime: docker
-    plan: free
+    env: php
+    buildCommand: composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
-      - key: APP_KEY
-        sync: false
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: false
-      - key: APP_URL
+      - key: PHP_INI_SCAN_DIR
+        value: /opt/render/project/src
+      - key: CLOUDINARY_URL
         sync: false
-      - key: FRONTEND_URL
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: APP_KEY
         sync: false
       - key: DB_CONNECTION
-        value: pgsql
-      - key: DB_HOST
-        value: dpg-d6rmquma2pns73fqqcl0-a.oregon-postgres.render.com
-      - key: DB_PORT
-        value: "5432"
+        value: sqlite
       - key: DB_DATABASE
-        value: amberdatabase
-      - key: DB_USERNAME
-        value: amberbackend
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_SSLMODE
-        value: require
-      - key: SESSION_DRIVER
-        value: database
-      - key: CACHE_STORE
-        value: database
-      - key: QUEUE_CONNECTION
-        value: database
-      - key: MAIL_MAILER
-        value: smtp
-      - key: MAIL_HOST
-        sync: false
-      - key: MAIL_PORT
-        value: 587
-      - key: MAIL_USERNAME
-        sync: false
-      - key: MAIL_PASSWORD
-        sync: false
-      - key: MAIL_ENCRYPTION
-        value: tls
-      - key: MAIL_FROM_ADDRESS
-        sync: false
-      - key: MAIL_FROM_NAME
-        sync: false
-    healthCheckPath: /api/health
+        value: /opt/render/project/src/database/database.sqlite
