@@ -202,6 +202,7 @@ class ArticleController extends Controller
                 'tags' => 'array',
                 'tags.*' => 'string',
                 'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'featured_image_url' => 'nullable|url',
                 'author_name' => 'required|string',
                 'status' => 'nullable|in:published,draft',
             ]);
@@ -251,14 +252,25 @@ class ArticleController extends Controller
 
             return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author) {
                 $imagePath = null;
-                if ($request->hasFile('featured_image')) {
+                
+                // Check if image URL is provided (direct Cloudinary upload)
+                if ($request->has('featured_image_url') && $request->featured_image_url) {
+                    $imagePath = $request->featured_image_url;
+                    Log::info('Using direct Cloudinary URL', ['url' => $imagePath]);
+                }
+                // Otherwise try file upload (fallback)
+                elseif ($request->hasFile('featured_image')) {
                     try {
                         Log::info('Uploading featured image');
                         $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
                         Log::info('Article image uploaded', ['path' => $imagePath]);
                     } catch (\Exception $e) {
-                        Log::error('Image upload failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-                        return response()->json(['error' => 'Featured image failed to upload. Please try again.'], 422);
+                        Log::error('Image upload failed', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        Log::warning('Continuing article creation without image');
+                        $imagePath = null;
                     }
                 }
 
