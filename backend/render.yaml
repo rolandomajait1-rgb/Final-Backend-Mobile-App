@@ -1,3 +1,4 @@
+# Render deployment configuration for La Verdad Herald Backend
 services:
   - type: web
     name: laverdad-herald-backend
@@ -12,6 +13,8 @@ services:
       - key: PHP_INI_SCAN_DIR
         value: /opt/render/project/src
       - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
