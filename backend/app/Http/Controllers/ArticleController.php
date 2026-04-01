@@ -389,16 +389,38 @@ class ArticleController extends Controller
         // Authorize using policy (admins and moderators may update per policy)
         $this->authorize('update', $article);
 
-        // Find user by name, then get their author profile
+        // Find or create author by name (same logic as store method)
         $authorUser = User::where('name', $request->author)->first();
+
         if (! $authorUser) {
-            return response()->json(['error' => 'Author user not found'], 404);
+            // Auto-create user for the author if not exists
+            $baseEmail = Str::slug($request->author) . '@laverdad.edu.ph';
+            $email = $baseEmail;
+            $counter = 1;
+            
+            while (User::where('email', $email)->exists()) {
+                $emailParts = explode('@', $baseEmail);
+                $email = $emailParts[0] . $counter . '@' . $emailParts[1];
+                $counter++;
+            }
+            
+            Log::info('Creating new author user during update', ['name' => $request->author, 'email' => $email]);
+            
+            $authorUser = User::create([
+                'name' => $request->author,
+                'email' => $email,
+                'password' => bcrypt(Str::random(32)),
+                'email_verified_at' => now(),
+            ]);
         }
 
-        $author = Author::where('user_id', $authorUser->id)->first();
-        if (! $author) {
-            return response()->json(['error' => 'Author profile not found'], 404);
-        }
+        // Find or create author profile
+        $author = Author::firstOrCreate(
+            ['user_id' => $authorUser->id],
+            ['bio' => '']
+        );
+
+        Log::info('Author resolved for update', ['author_id' => $author->id, 'user_id' => $authorUser->id]);
 
         // The original slug is maintained. If the title is dirty and slug is empty, the Model boot handles it.
 
