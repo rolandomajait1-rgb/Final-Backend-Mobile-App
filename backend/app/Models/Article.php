@@ -177,6 +177,11 @@ class Article extends Model
         static::creating(function ($article) {
             if (empty($article->slug)) {
                 $baseSlug = Str::slug($article->title);
+                // If the title is non-latin (e.g., Hindi only) and slugging results in an empty
+                // string, fall back to a deterministic hash so the `slug` column stays unique.
+                if (empty($baseSlug)) {
+                    $baseSlug = 'article-'.substr(sha1((string) $article->title), 0, 12);
+                }
                 $slug = $baseSlug;
                 $counter = 1;
 
@@ -191,7 +196,11 @@ class Article extends Model
 
         static::updating(function ($article) {
             if ($article->isDirty('title') && empty($article->slug)) {
-                $article->slug = Str::slug($article->title);
+                $baseSlug = Str::slug($article->title);
+                if (empty($baseSlug)) {
+                    $baseSlug = 'article-'.substr(sha1((string) $article->title), 0, 12);
+                }
+                $article->slug = $baseSlug;
             }
         });
     }

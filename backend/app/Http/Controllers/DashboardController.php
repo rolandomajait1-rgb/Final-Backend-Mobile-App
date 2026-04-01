@@ -80,6 +80,7 @@ class DashboardController extends Controller
 
         $logs = $query->paginate($perPage)->through(function ($log) {
             return [
+                'id'            => $log->id,
                 'action'        => $log->action,
                 'article_title' => $log->model_type === 'App\\Models\\Article'
                     ? \App\Models\Article::find($log->model_id)?->title
