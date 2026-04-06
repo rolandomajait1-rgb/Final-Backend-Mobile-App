@@ -61,6 +61,15 @@ class ArticleController extends Controller
             });
         }
 
+        // Filter by tag if provided
+        if ($request->has('tag') && $request->tag) {
+            \Log::info('Filtering by tag: ' . $request->tag);
+            $query->whereHas('tags', function ($q) use ($request) {
+                $q->where('name', $request->tag);
+            });
+            \Log::info('Articles count after tag filter: ' . $query->count());
+        }
+
         // Filter by limit if provided - max 100 to prevent DoS
         $limit = min(max((int) $request->get('limit', 10), 1), 100);
         $articles = $query->paginate($limit);
