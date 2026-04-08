@@ -8,6 +8,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Models\User;
 use App\Services\AuthService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,12 +28,12 @@ class AuthController extends Controller
         $this->authService = $authService;
     }
 
-    public function showLoginForm(): Response
+    public function showLoginForm(): View
     {
         return view('auth.login');
     }
 
-    public function login(LoginRequest $request): Response
+    public function login(LoginRequest $request): RedirectResponse
     {
         $user = User::where('email', $request->email)->first();
 
@@ -85,12 +86,12 @@ class AuthController extends Controller
         return response()->json(['token' => $token, 'role' => $user->role, 'user' => $user]);
     }
 
-    public function showRegistrationForm(): Response
+    public function showRegistrationForm(): View
     {
         return view('auth.register');
     }
 
-    public function register(RegisterRequest $request): Response
+    public function register(RegisterRequest $request): RedirectResponse
     {
         try {
             $this->authService->createUserWithVerification($request->validated());
@@ -124,7 +125,7 @@ class AuthController extends Controller
         }
     }
 
-    public function logout(Request $request): Response
+    public function logout(Request $request): RedirectResponse
     {
         Auth::logout();
 

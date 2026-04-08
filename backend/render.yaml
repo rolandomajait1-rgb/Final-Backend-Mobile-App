@@ -22,7 +22,5 @@ services:
         sync: false
       - key: APP_KEY
         sync: false
-      - key: DB_CONNECTION
-        value: sqlite
-      - key: DB_DATABASE
-        value: /opt/render/project/src/database/database.sqlite
+      # DB_CONNECTION and DB_DATABASE must be set in Render Dashboard env vars
+      # pointing to your PostgreSQL instance (e.g. DB_CONNECTION=pgsql)
