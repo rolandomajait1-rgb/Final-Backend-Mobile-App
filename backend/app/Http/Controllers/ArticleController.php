@@ -123,13 +123,29 @@ class ArticleController extends Controller
         }
 
         $articles = Article::published()
-            ->with('author.user', 'categories')
+            ->with('author.user', 'categories', 'tags')
             ->where(function ($q) use ($query) {
                 $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
                 $like = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
-                $q->where('title', $like, "%{$query}%")
-                    ->orWhere('excerpt', $like, "%{$query}%")
-                    ->orWhere('content', $like, "%{$query}%");
+                $lowerQuery = strtolower($query);
+                
+                // Use LOWER() for case-insensitive search on all databases
+                $q->whereRaw("LOWER(title) {$like} ?", ["%{$lowerQuery}%"])
+                    ->orWhereRaw("LOWER(excerpt) {$like} ?", ["%{$lowerQuery}%"])
+                    ->orWhereRaw("LOWER(content) {$like} ?", ["%{$lowerQuery}%"])
+                    ->orWhereRaw("LOWER(author_name) {$like} ?", ["%{$lowerQuery}%"])
+                    // Search by author user name
+                    ->orWhereHas('author.user', function ($authorQuery) use ($lowerQuery, $like) {
+                        $authorQuery->whereRaw("LOWER(name) {$like} ?", ["%{$lowerQuery}%"]);
+                    })
+                    // Search by category name
+                    ->orWhereHas('categories', function ($catQuery) use ($lowerQuery, $like) {
+                        $catQuery->whereRaw("LOWER(name) {$like} ?", ["%{$lowerQuery}%"]);
+                    })
+                    // Search by tag name
+                    ->orWhereHas('tags', function ($tagQuery) use ($lowerQuery, $like) {
+                        $tagQuery->whereRaw("LOWER(name) {$like} ?", ["%{$lowerQuery}%"]);
+                    });
             })
             ->latest('published_at')
             ->paginate($perPage, ['*'], 'page', $page);
@@ -204,6 +220,10 @@ class ArticleController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
+            // Log content length for debugging
+            $contentLength = strlen($request->input('content', ''));
+            Log::info('Article content length received', ['length' => $contentLength]);
+            
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
                 'content' => 'required|string',
@@ -297,7 +317,14 @@ class ArticleController extends Controller
                     'featured_image' => $imagePath,
                 ]);
 
-                Log::info('Article created', ['article_id' => $article->id, 'slug' => $article->slug]);
+                // Log content length after save for debugging
+                $savedContentLength = strlen($article->content);
+                Log::info('Article created', [
+                    'article_id' => $article->id, 
+                    'slug' => $article->slug,
+                    'content_length_saved' => $savedContentLength,
+                    'content_length_original' => $contentLength
+                ]);
 
                 $article->categories()->attach($validated['category_id']);
 
@@ -384,6 +411,10 @@ class ArticleController extends Controller
 
     public function update(Request $request, Article $article): JsonResponse
     {
+        // Log content length for debugging
+        $contentLength = strlen($request->input('content', ''));
+        Log::info('Article update - content length received', ['length' => $contentLength, 'article_id' => $article->id]);
+        
         $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'required|string',
