@@ -245,13 +245,17 @@ class MailService
      */
     public function sendOTPEmail(User $user, string $otp): void
     {
-        // Dispatch the email sending to the queue for async delivery
-        \App\Jobs\SendOTPEmailJob::dispatch($user, $otp);
-
-        Log::info('OTP email queued for delivery', [
-            'user_email' => $user->email,
-            'operation' => 'otp_send',
-        ]);
+        // Send synchronously to ensure immediate delivery
+        try {
+            $this->sendOTPEmailSync($user, $otp);
+        } catch (\Exception $e) {
+            Log::error('OTP email failed', [
+                'user_email' => $user->email,
+                'operation' => 'otp_send',
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
