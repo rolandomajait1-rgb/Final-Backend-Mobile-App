@@ -194,26 +194,43 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if ($user && !$user->hasVerifiedEmail()) {
-            try {
-                // Generate new OTP for email verification
-                $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
-                
-                // Send OTP via email
-                $this->sendOTPEmailAfterResponse($user, $otp, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
-            } catch (\Exception $e) {
-                Log::error('Resend registration OTP failed', [
-                    'email' => $email,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if (!$user) {
+            // Return generic message to prevent user enumeration
+            return [
+                'success' => true,
+                'message' => 'If an unverified account exists for that email, a new OTP has been sent.',
+            ];
         }
 
-        // Always return success to prevent user enumeration
-        return [
-            'success' => true,
-            'message' => 'If an unverified account exists for that email, a new OTP has been sent.',
-        ];
+        if ($user->hasVerifiedEmail()) {
+            return [
+                'success' => true,
+                'message' => 'If an unverified account exists for that email, a new OTP has been sent.',
+            ];
+        }
+
+        try {
+            // Generate new OTP for email verification
+            $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
+
+            // Send OTP via email — throws on failure
+            $this->mailService->sendOTPEmail($user, $otp, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
+
+            return [
+                'success' => true,
+                'message' => 'If an unverified account exists for that email, a new OTP has been sent.',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Resend registration OTP failed', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Unable to send OTP email. Please try again later.',
+            ];
+        }
     }
 
     /**
@@ -225,26 +242,38 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if ($user) {
-            try {
-                // Generate OTP for password reset with type
-                $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
-                
-                // Send OTP via email asynchronously
-                $this->sendOTPEmailAfterResponse($user, $otp, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
-            } catch (\Exception $e) {
-                Log::error('Password reset initiation failed', [
-                    'email' => $email,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if (!$user) {
+            // Return generic message to prevent user enumeration
+            return [
+                'success' => true,
+                'message' => 'If an account exists for that email, an OTP has been sent.',
+            ];
         }
 
-        // Always return success to prevent user enumeration
-        return [
-            'success' => true,
-            'message' => 'If an account exists for that email, an OTP has been sent.',
-        ];
+        try {
+            // Generate OTP for password reset with type
+            $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
+
+            // Send OTP via email — throws on failure
+            $this->mailService->sendOTPEmail($user, $otp, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
+
+            Log::info('Password reset OTP sent', ['email' => $email]);
+
+            return [
+                'success' => true,
+                'message' => 'If an account exists for that email, an OTP has been sent.',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Password reset initiation failed — email delivery error', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Unable to send OTP email. Please try again later.',
+            ];
+        }
     }
 
     /**
@@ -282,7 +311,7 @@ class AuthService
     }
 
     /**
-     * Send OTP email synchronously to ensure delivery before the HTTP response kills the process.
+     * Send OTP email and propagate failures to the caller.
      */
     private function sendOTPEmailAfterResponse(User $user, string $otp, string $type = 'password_reset'): void
     {
@@ -294,6 +323,8 @@ class AuthService
                 'user_email' => $user->email,
                 'error' => $e->getMessage(),
             ]);
+            // Re-throw so callers can decide whether to surface the error
+            throw new \Exception('OTP email delivery failed: ' . $e->getMessage(), 0, $e);
         }
     }
 

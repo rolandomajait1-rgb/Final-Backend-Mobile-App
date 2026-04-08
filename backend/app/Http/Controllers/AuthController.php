@@ -268,6 +268,12 @@ class AuthController extends Controller
 
         $result = $this->authService->initiatePasswordReset($request->email);
 
+        if (!$result['success']) {
+            return response()->json([
+                'message' => $result['message'],
+            ], 503);
+        }
+
         return response()->json([
             'message' => $result['message'],
         ], 200);
@@ -315,6 +321,12 @@ class AuthController extends Controller
         $request->validate(['email' => 'required|email']);
 
         $result = $this->authService->resendRegistrationOTP($request->email);
+
+        if (!$result['success']) {
+            return response()->json([
+                'message' => $result['message'],
+            ], 503);
+        }
 
         return response()->json([
             'message' => $result['message'],
