@@ -48,7 +48,7 @@ class AuthService
 
             // Send OTP email asynchronously after commit
             try {
-                $this->sendOTPEmailAfterResponse($user, $otp);
+                $this->sendOTPEmailAfterResponse($user, $otp, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
             } catch (\Throwable $e) {
                 Log::error('OTP email failed after registration', [
                     'user_id' => $user->id,
@@ -200,7 +200,7 @@ class AuthService
                 $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
                 
                 // Send OTP via email
-                $this->sendOTPEmailAfterResponse($user, $otp);
+                $this->sendOTPEmailAfterResponse($user, $otp, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
             } catch (\Exception $e) {
                 Log::error('Resend registration OTP failed', [
                     'email' => $email,
@@ -231,7 +231,7 @@ class AuthService
                 $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
                 
                 // Send OTP via email asynchronously
-                $this->sendOTPEmailAfterResponse($user, $otp);
+                $this->sendOTPEmailAfterResponse($user, $otp, \App\Models\OTPToken::TYPE_PASSWORD_RESET);
             } catch (\Exception $e) {
                 Log::error('Password reset initiation failed', [
                     'email' => $email,
@@ -284,10 +284,10 @@ class AuthService
     /**
      * Send OTP email synchronously to ensure delivery before the HTTP response kills the process.
      */
-    private function sendOTPEmailAfterResponse(User $user, string $otp): void
+    private function sendOTPEmailAfterResponse(User $user, string $otp, string $type = 'password_reset'): void
     {
         try {
-            $this->mailService->sendOTPEmail($user, $otp);
+            $this->mailService->sendOTPEmail($user, $otp, $type);
         } catch (\Throwable $e) {
             Log::error('OTP email failed', [
                 'user_id' => $user->id,

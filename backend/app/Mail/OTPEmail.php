@@ -16,12 +16,13 @@ class OTPEmail extends Mailable
     public function __construct(
         public User $user,
         public string $otp,
+        public string $type = 'password_reset',
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Password Reset OTP',
+            subject: $this->type === 'email_verification' ? 'Your Email Verification OTP' : 'Your Password Reset OTP',
         );
     }
 
@@ -32,6 +33,7 @@ class OTPEmail extends Mailable
             with: [
                 'user' => $this->user,
                 'otp' => $this->otp,
+                'type' => $this->type,
             ],
         );
     }

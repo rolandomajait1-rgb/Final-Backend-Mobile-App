@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('email')->index();
             $table->string('otp', 6);
+            $table->string('type')->default('email_verification');
             $table->timestamp('expires_at');
             $table->timestamps();
         });

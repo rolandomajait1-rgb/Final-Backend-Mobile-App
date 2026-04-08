@@ -243,11 +243,11 @@ class MailService
     /**
      * Send OTP email asynchronously via queue job
      */
-    public function sendOTPEmail(User $user, string $otp): void
+    public function sendOTPEmail(User $user, string $otp, string $type = 'password_reset'): void
     {
         // Send synchronously to ensure immediate delivery
         try {
-            $this->sendOTPEmailSync($user, $otp);
+            $this->sendOTPEmailSync($user, $otp, $type);
         } catch (\Exception $e) {
             Log::error('OTP email failed', [
                 'user_email' => $user->email,
@@ -263,27 +263,30 @@ class MailService
      *
      * @throws \Exception
      */
-    public function sendOTPEmailSync(User $user, string $otp): void
+    public function sendOTPEmailSync(User $user, string $otp, string $type = 'password_reset'): void
     {
         $mailer = $this->transactionalMailer();
+        $subject = $type === 'email_verification' ? 'Your Email Verification OTP' : 'Your Password Reset OTP';
+        $tagName = $type === 'email_verification' ? 'email_verification_otp' : 'password_reset_otp';
 
         try {
             if ($mailer === 'brevo') {
                 $this->sendBrevoEmail(
                     $user,
-                    'Your Password Reset OTP',
+                    $subject,
                     view('emails.otp', [
                         'user' => $user,
                         'otp' => $otp,
+                        'type' => $type,
                     ])->render(),
-                    ['password_reset_otp']
+                    [$tagName]
                 );
 
                 $usedMailer = 'brevo_api';
             } else {
                 $this->validateMailConfiguration($mailer);
 
-                Mail::mailer($mailer)->to($user->email)->send(new \App\Mail\OTPEmail($user, $otp));
+                Mail::mailer($mailer)->to($user->email)->send(new \App\Mail\OTPEmail($user, $otp, $type));
 
                 $usedMailer = $mailer;
             }
