@@ -186,6 +186,37 @@ class AuthService
     }
 
     /**
+     * Resend registration OTP
+     *
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function resendRegistrationOTP(string $email): array
+    {
+        $user = User::where('email', $email)->first();
+
+        if ($user && !$user->hasVerifiedEmail()) {
+            try {
+                // Generate new OTP for email verification
+                $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
+                
+                // Send OTP via email
+                $this->sendOTPEmailAfterResponse($user, $otp);
+            } catch (\Exception $e) {
+                Log::error('Resend registration OTP failed', [
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Always return success to prevent user enumeration
+        return [
+            'success' => true,
+            'message' => 'If an unverified account exists for that email, a new OTP has been sent.',
+        ];
+    }
+
+    /**
      * Initiate password reset process with OTP
      *
      * @return array ['success' => bool, 'message' => string]

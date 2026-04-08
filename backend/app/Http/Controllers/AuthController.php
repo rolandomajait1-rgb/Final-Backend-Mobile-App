@@ -310,6 +310,17 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function resendRegistrationOTPApi(Request $request): JsonResponse
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $result = $this->authService->resendRegistrationOTP($request->email);
+
+        return response()->json([
+            'message' => $result['message'],
+        ], 200);
+    }
+
     public function resetPasswordApi(ResetPasswordRequest $request): JsonResponse
     {
         try {
