@@ -245,39 +245,13 @@ class ArticleController extends Controller
 
             Log::info('Creating article', ['title' => $validated['title'], 'author_name' => $validated['author_name']]);
 
-            // Find or create author by name
+            // Find existing user by name only — do NOT auto-create users
             $authorUser = User::where('name', $validated['author_name'])->first();
+            $author = $authorUser
+                ? Author::firstOrCreate(['user_id' => $authorUser->id], ['bio' => ''])
+                : null;
 
-            if (! $authorUser) {
-                // Auto-create user for the author if not exists
-                // Generate unique email
-                $baseEmail = Str::slug($validated['author_name']) . '@laverdad.edu.ph';
-                $email = $baseEmail;
-                $counter = 1;
-                
-                while (User::where('email', $email)->exists()) {
-                    $emailParts = explode('@', $baseEmail);
-                    $email = $emailParts[0] . $counter . '@' . $emailParts[1];
-                    $counter++;
-                }
-                
-                Log::info('Creating new author user', ['name' => $validated['author_name'], 'email' => $email]);
-                
-                $authorUser = User::create([
-                    'name' => $validated['author_name'],
-                    'email' => $email,
-                    'password' => bcrypt(Str::random(32)), // Random password
-                    'email_verified_at' => now(),
-                ]);
-            }
-
-            // Find or create author profile
-            $author = Author::firstOrCreate(
-                ['user_id' => $authorUser->id],
-                ['bio' => ''] // Default empty bio
-            );
-
-            Log::info('Author resolved', ['author_id' => $author->id, 'user_id' => $authorUser->id]);
+            Log::info('Author resolved', ['author_id' => $author?->id]);
 
             return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author, $contentLength) {
                 $imagePath = null;
@@ -307,14 +281,14 @@ class ArticleController extends Controller
                 Log::info('Creating article record', ['status' => $status, 'has_image' => !!$imagePath]);
                 
                 $article = Article::create([
-                    'title' => $validated['title'],
-                    'content' => $validated['content'],
-                    'author_id' => $author->id,
-                    'author_name' => $validated['author_name'],
-                    'status' => $status,
-                    'published_at' => $status === 'published' ? now() : null,
-                    'excerpt' => Str::limit($validated['content'], 150),
-                    'featured_image' => $imagePath,
+                    'title'         => $validated['title'],
+                    'content'       => $validated['content'],
+                    'author_id'     => $author?->id,
+                    'author_name'   => $validated['author_name'],
+                    'status'        => $status,
+                    'published_at'  => $status === 'published' ? now() : null,
+                    'excerpt'       => Str::limit($validated['content'], 150),
+                    'featured_image'=> $imagePath,
                 ]);
 
                 // Log content length after save for debugging
@@ -430,47 +404,22 @@ class ArticleController extends Controller
         // Authorize using policy (admins and moderators may update per policy)
         $this->authorize('update', $article);
 
-        // Find or create author by name (same logic as store method)
+        // Find existing user by name only — do NOT auto-create users
         $authorUser = User::where('name', $request->author)->first();
+        $author = $authorUser
+            ? Author::firstOrCreate(['user_id' => $authorUser->id], ['bio' => ''])
+            : null;
 
-        if (! $authorUser) {
-            // Auto-create user for the author if not exists
-            $baseEmail = Str::slug($request->author) . '@laverdad.edu.ph';
-            $email = $baseEmail;
-            $counter = 1;
-            
-            while (User::where('email', $email)->exists()) {
-                $emailParts = explode('@', $baseEmail);
-                $email = $emailParts[0] . $counter . '@' . $emailParts[1];
-                $counter++;
-            }
-            
-            Log::info('Creating new author user during update', ['name' => $request->author, 'email' => $email]);
-            
-            $authorUser = User::create([
-                'name' => $request->author,
-                'email' => $email,
-                'password' => bcrypt(Str::random(32)),
-                'email_verified_at' => now(),
-            ]);
-        }
-
-        // Find or create author profile
-        $author = Author::firstOrCreate(
-            ['user_id' => $authorUser->id],
-            ['bio' => '']
-        );
-
-        Log::info('Author resolved for update', ['author_id' => $author->id, 'user_id' => $authorUser->id]);
+        Log::info('Author resolved for update', ['author_id' => $author?->id]);
 
         // The original slug is maintained. If the title is dirty and slug is empty, the Model boot handles it.
 
         $data = [
-            'title' => $request->title,
-            'content' => $request->input('content'),
-            'author_id' => $author->id,
+            'title'       => $request->title,
+            'content'     => $request->input('content'),
+            'author_id'   => $author?->id,
             'author_name' => $request->author,
-            'excerpt' => Str::limit($request->input('content'), 150),
+            'excerpt'     => Str::limit($request->input('content'), 150),
         ];
 
         // Handle status update
