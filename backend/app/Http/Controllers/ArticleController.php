@@ -279,7 +279,7 @@ class ArticleController extends Controller
 
             Log::info('Author resolved', ['author_id' => $author->id, 'user_id' => $authorUser->id]);
 
-            return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author) {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author, $contentLength) {
                 $imagePath = null;
                 
                 // Check if image URL is provided (direct Cloudinary upload)
@@ -388,7 +388,7 @@ class ArticleController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $related = \App\Models\Article::published()
+        $related = Article::published()
             ->where('id', '!=', $article->id)
             ->whereHas('categories', function ($q) use ($article) {
                 $q->whereIn('categories.id', $article->categories->pluck('id'));
@@ -530,7 +530,7 @@ class ArticleController extends Controller
                 'new_values' => ['title' => $article->title, 'status' => $article->status],
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to write audit log: ' . $e->getMessage());
+            Log::warning('Failed to write audit log: ' . $e->getMessage());
         }
 
         return response()->json($article->load('author.user', 'categories', 'tags'));
@@ -589,7 +589,7 @@ class ArticleController extends Controller
         return response()->json(['liked' => true, 'likes_count' => $article->interactions()->where('type', 'liked')->count()]);
     }
 
-    public function share(Article $article): Response
+    public function share(Article $article): \Illuminate\Http\RedirectResponse
     {
         ArticleInteraction::updateOrCreate(
             [
