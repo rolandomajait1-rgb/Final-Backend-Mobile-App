@@ -83,18 +83,26 @@ class ArticleController extends Controller
 
     public function publicIndex(Request $request): JsonResponse
     {
-        // Validate and limit pagination parameters
-        $limit = min(max((int) $request->get('limit', 10), 1), 100);
+        $perPage  = min(max((int) $request->get('per_page', $request->get('limit', 10)), 1), 100);
+        $category = trim($request->get('category', ''));
+        $tag      = trim($request->get('tag', ''));
 
-        $articles = Article::published()
-            ->with('author.user', 'categories', 'tags')
-            ->withCount(['interactions as likes_count' => function ($query) {
-                $query->where('type', 'liked');
-            }])
-            ->latest('published_at')
-            ->paginate($limit);
+        $query = Article::published()
+            ->with('categories', 'tags')
+            ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
+            ->latest('published_at');
 
-        return response()->json($articles);
+        // Filter by category name (exact, case-insensitive)
+        if ($category !== '') {
+            $query->whereHas('categories', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($category)]));
+        }
+
+        // Filter by tag name (exact, case-insensitive)
+        if ($tag !== '') {
+            $query->whereHas('tags', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($tag)]));
+        }
+
+        return response()->json($query->paginate($perPage));
     }
 
     public function publicSearch(Request $request): JsonResponse
