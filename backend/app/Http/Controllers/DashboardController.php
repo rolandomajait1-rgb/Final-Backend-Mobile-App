@@ -81,7 +81,7 @@ class DashboardController extends Controller
 
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+                $driver = DB::connection()->getDriverName();
                 $like   = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
                 $q->where('action', $like, "%{$search}%")
                   ->orWhereHas('user', fn ($u) => $u->where('email', $like, "%{$search}%"));
