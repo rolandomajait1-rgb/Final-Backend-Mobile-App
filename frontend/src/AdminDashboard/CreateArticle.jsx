@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiBarChart,
@@ -12,6 +12,7 @@ import { Editor } from "@tinymce/tinymce-react";
 import Header from "../components/Header";
 import Navigation from "../components/HeaderLink";
 import { AdminSidebar } from "../components/AdminSidebar";
+import SaveDraftModal from "../components/SaveDraftModal";
 import { getUserRole } from "../utils/auth";
 import axios from "../utils/axiosConfig";
 
@@ -31,6 +32,7 @@ export default function CreateArticle() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [categories, setCategories] = useState([]);
   const [authors, setAuthors] = useState([]);
+  const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
   const imagePreviewUrl = useRef(null);
 
   // Fetch categories on mount
@@ -139,6 +141,10 @@ export default function CreateArticle() {
     }
   };
 
+  const handleNextClick = () => {
+    setShowSaveDraftModal(true);
+  };
+
   const validateForm = () => {
     if (
       !title.trim() ||
@@ -172,10 +178,8 @@ export default function CreateArticle() {
       const formData = new FormData();
       formData.append("title", title);
       formData.append("category_id", category);
-      // TinyMCE already outputs HTML, no need to format
       formData.append("content", content);
 
-      // Send tags as array, not comma-separated string
       const tagArray = tags.map((tag) => tag.replace("#", ""));
       tagArray.forEach((tag) => {
         formData.append("tags[]", tag);
@@ -188,13 +192,13 @@ export default function CreateArticle() {
         formData.append("featured_image", image);
       }
 
-      const response = await axios.post("/api/articles", formData, {
+      await axios.post("/api/articles", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
-      alert("Draft saved successfully!");
+      setShowSaveDraftModal(false);
       navigate("/admin/draft-articles");
     } catch (error) {
       console.error("Save draft error:", error);
@@ -448,7 +452,7 @@ export default function CreateArticle() {
                       placeholder="Add Tags"
                       value={newTag}
                       onChange={(e) => setNewTag(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      onKeyDown={handleKeyPress}
                       className="w-full p-2 pl-12 border border-gray-400 rounded-md text-gray-800 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all placeholder-gray-400"
                     />
                   </div>
@@ -464,7 +468,7 @@ export default function CreateArticle() {
                 </label>
                 <Editor
                   apiKey={import.meta.env.VITE_TINYMCE_API_KEY || "no-api-key"}
-                  onInit={(evt, editor) => (editorRef.current = editor)}
+                  onInit={(_, editor) => (editorRef.current = editor)}
                   value={content}
                   onEditorChange={(newContent) => setContent(newContent)}
                   init={{
@@ -517,15 +521,10 @@ export default function CreateArticle() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveDraft}
-                  disabled={!title.trim() || isSavingDraft}
-                  className={`px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 ${
-                    title.trim() && !isSavingDraft
-                      ? "bg-gray-600 text-white hover:bg-gray-700"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
+                  onClick={handleNextClick}
+                  className="px-8 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  {isSavingDraft ? "Saving..." : "Save Draft"}
+                  Next
                 </button>
                 <button
                   type="button"
@@ -543,6 +542,17 @@ export default function CreateArticle() {
           </div>
         </div>
       </div>
+
+      <SaveDraftModal
+        isOpen={showSaveDraftModal}
+        onClose={() => setShowSaveDraftModal(false)}
+        onSave={handleSaveDraft}
+        onDiscard={() => {
+          setShowSaveDraftModal(false);
+          navigate(getUserRole() === "moderator" ? "/moderator" : "/admin");
+        }}
+        isSaving={isSavingDraft}
+      />
     </div>
   );
 }

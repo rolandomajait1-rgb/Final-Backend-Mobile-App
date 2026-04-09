@@ -393,104 +393,121 @@ class ArticleController extends Controller
 
     public function update(Request $request, Article $article): JsonResponse
     {
-        // Log content length for debugging
-        $contentLength = strlen($request->input('content', ''));
-        Log::info('Article update - content length received', ['length' => $contentLength, 'article_id' => $article->id]);
-        
-        $request->validate([
-            'title'              => 'required|string|max:255',
-            'content'            => 'required|string',
-            'category'           => 'required|string',
-            'tags'               => 'nullable|string',
-            'featured_image'     => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-            'featured_image_url' => 'nullable|url',
-            'author'             => 'required|string|min:1',
-        ]);
-
-        $oldValues = $article->toArray();
-
-        // Authorize using policy (admins and moderators may update per policy)
-        $this->authorize('update', $article);
-
-        // Find or create Author directly by name — goes to authors table, NOT users table
-        $author = Author::firstOrCreate(
-            ['name' => $request->author],
-            ['bio'  => '']
-        );
-
-        Log::info('Author resolved for update', ['author_id' => $author->id, 'name' => $author->name]);
-
-        // The original slug is maintained. If the title is dirty and slug is empty, the Model boot handles it.
-
-        $data = [
-            'title'       => $request->title,
-            'content'     => $request->input('content'),
-            'author_id'   => $author->id,
-            'author_name' => $request->author,
-            'excerpt'     => Str::limit($request->input('content'), 150),
-        ];
-
-        // Handle status update
-        if ($request->has('status')) {
-            $data['status'] = $request->status;
-            if ($request->status === 'published' && ! $article->published_at) {
-                $data['published_at'] = now();
-            }
-        }
-
-        // Handle image: prefer Cloudinary URL (mobile upload), fallback to direct file
-        if ($request->has('featured_image_url') && $request->featured_image_url) {
-            $data['featured_image'] = $request->featured_image_url;
-            Log::info('Using Cloudinary URL for image update', ['url' => $request->featured_image_url]);
-        } elseif ($request->hasFile('featured_image')) {
-            try {
-                $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
-                if ($imagePath) {
-                    $data['featured_image'] = $imagePath;
-                }
-            } catch (\Exception $e) {
-                \Log::error('Cloudinary upload exception during update: '.$e->getMessage());
-
-                return response()->json(['error' => 'Featured image failed to upload to Cloudinary. Please try again.'], 422);
-            }
-        }
-
-        $article->update($data);
-
-        // Handle category
-        if ($request->category) {
-            $category = Category::firstOrCreate(['name' => $request->category]);
-            $article->categories()->sync([$category->id]);
-        }
-
-        // Handle tags
-        if ($request->tags) {
-            $tags = explode(',', $request->tags);
-            $tagIds = [];
-            foreach ($tags as $tagName) {
-                $cleanName = ltrim(trim($tagName), '#');
-                if ($cleanName === '') continue;
-                $tag = Tag::firstOrCreate(['name' => $cleanName]);
-                $tagIds[] = $tag->id;
-            }
-            $article->tags()->sync($tagIds);
-        }
-
-        // Log the update
         try {
-            \App\Models\Log::create([
-                'user_id'    => Auth::id(),
-                'action'     => 'update',
-                'model_type' => 'App\\Models\\Article',
-                'model_id'   => $article->id,
-                'old_values' => ['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null],
-                'new_values' => ['title' => $article->title, 'status' => $article->status],
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Failed to write audit log: ' . $e->getMessage());
-        }
+            // Log content length for debugging
+            $contentLength = strlen($request->input('content', ''));
+            Log::info('Article update - content length received', ['length' => $contentLength, 'article_id' => $article->id]);
 
-        return response()->json($article->load('author.user', 'categories', 'tags'));
+            $request->validate([
+                'title'              => 'required|string|max:255',
+                'content'            => 'required|string',
+                'category'           => 'required|string',
+                'tags'               => 'nullable|string',
+                'featured_image'     => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'featured_image_url' => 'nullable|url',
+                'author'             => 'required|string|min:1',
+                'status'             => 'nullable|in:published,draft',
+            ]);
+
+            $oldValues = $article->toArray();
+
+            // Authorize using policy (admins and moderators may update per policy)
+            $this->authorize('update', $article);
+
+            // Find or create Author directly by name — goes to authors table, NOT users table
+            $author = Author::firstOrCreate(
+                ['name' => $request->author],
+                ['bio'  => '']
+            );
+
+            Log::info('Author resolved for update', ['author_id' => $author->id, 'name' => $author->name]);
+
+            // Strip HTML tags for excerpt so it's plain text
+            $plainContent = strip_tags($request->input('content'));
+
+            $data = [
+                'title'       => $request->title,
+                'content'     => $request->input('content'),
+                'author_id'   => $author->id,
+                'author_name' => $request->author,
+                'excerpt'     => Str::limit($plainContent, 150),
+            ];
+
+            // Handle status update
+            if ($request->has('status')) {
+                $data['status'] = $request->status;
+                if ($request->status === 'published' && ! $article->published_at) {
+                    $data['published_at'] = now();
+                }
+            }
+
+            // Handle image: prefer Cloudinary URL (mobile upload), fallback to direct file
+            if ($request->has('featured_image_url') && $request->featured_image_url) {
+                $data['featured_image'] = $request->featured_image_url;
+                Log::info('Using Cloudinary URL for image update', ['url' => $request->featured_image_url]);
+            } elseif ($request->hasFile('featured_image')) {
+                try {
+                    $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
+                    if ($imagePath) {
+                        $data['featured_image'] = $imagePath;
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Cloudinary upload exception during update: '.$e->getMessage());
+                    return response()->json(['error' => 'Featured image failed to upload to Cloudinary. Please try again.'], 422);
+                }
+            }
+
+            $article->update($data);
+
+            // Handle category
+            if ($request->category) {
+                $category = Category::firstOrCreate(['name' => $request->category]);
+                $article->categories()->sync([$category->id]);
+            }
+
+            // Handle tags
+            if ($request->tags) {
+                $tags = explode(',', $request->tags);
+                $tagIds = [];
+                foreach ($tags as $tagName) {
+                    $cleanName = ltrim(trim($tagName), '#');
+                    if ($cleanName === '') continue;
+                    $tag = Tag::firstOrCreate(['name' => $cleanName]);
+                    $tagIds[] = $tag->id;
+                }
+                $article->tags()->sync($tagIds);
+            }
+
+            // Log the update (non-critical — swallow errors)
+            try {
+                \App\Models\Log::create([
+                    'user_id'    => Auth::id(),
+                    'action'     => 'update',
+                    'model_type' => 'App\\Models\\Article',
+                    'model_id'   => $article->id,
+                    'old_values' => ['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null],
+                    'new_values' => ['title' => $article->title, 'status' => $article->status],
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to write audit log: ' . $e->getMessage());
+            }
+
+            return response()->json($article->load('author', 'categories', 'tags'));
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Article update validation failed', ['errors' => $e->errors(), 'article_id' => $article->id]);
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            Log::warning('Article update unauthorized', ['user_id' => Auth::id(), 'article_id' => $article->id]);
+            return response()->json(['message' => 'You are not authorized to update this article.'], 403);
+        } catch (\Exception $e) {
+            Log::error('Article update failed', [
+                'article_id' => $article->id,
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+            ]);
+            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function destroy(Article $article): JsonResponse

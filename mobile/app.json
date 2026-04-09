@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.laverdadherald.app",
+      "softwareKeyboardLayoutMode": "pan",
       "intentFilters": [
         {
           "action": "VIEW",

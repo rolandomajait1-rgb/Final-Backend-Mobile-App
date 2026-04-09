@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 
 const typography = {
   fontFamily: {
-    serif: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    sans: Platform.OS === 'ios' ? 'Helvetica Neue' : 'sans-serif',
+    serif: Platform.OS === 'ios' ? ' Nunito Sans' : 'Nunito Sans',
+    sans: Platform.OS === 'ios' ? '  Nunito Sans' : 'Nunito Sans',
   },
   fontSize: {
     xs: 11,

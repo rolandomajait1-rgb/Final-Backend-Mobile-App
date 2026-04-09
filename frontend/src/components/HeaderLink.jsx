@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export default function Navigation() {
   return (
-    <nav className="hidden md:flex items-center justify-center space-x-12 w-full px-5 py-2 bg-[#DCE3E8]">
+    <nav className="sticky top-[94px] z-40 hidden md:flex items-center justify-center space-x-12 w-full px-5 py-2 bg-[#DCE3E8]">
       <div className="flex items-center space-x-12">
         <Link to="/category/news" className="text-cyan-800 font-medium hover:text-yellow-500 transition-colors duration-200">
           NEWS

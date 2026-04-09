@@ -6,10 +6,13 @@ const ENDPOINTS = {
   FORGOT_PASSWORD: '/api/forgot-password',
 
   // Articles
+  ARTICLES: '/api/articles',
   ARTICLES_PUBLIC: '/api/articles/public',
   ARTICLES_SEARCH: '/api/articles/search',
   ARTICLE_BY_SLUG: (slug) => `/api/articles/by-slug/${slug}`,
   ARTICLE_BY_ID: (id) => `/api/articles/id/${id}`,
+  ARTICLE_UPDATE: (id) => `/api/articles/${id}`,
+  ARTICLE_DELETE: (id) => `/api/articles/${id}`,
   ARTICLES_BY_AUTHOR: (authorId) => `/api/articles/author-public/${authorId}`,
   LATEST_ARTICLES: '/api/latest-articles',
 

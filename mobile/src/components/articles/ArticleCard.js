@@ -1,66 +1,54 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, typography, spacing } from '../../styles';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { typography } from '../../styles';
+import { getCategoryColor } from '../../utils/categoryColors';
 
 const FALLBACK = 'https://via.placeholder.com/400x200/e2e8f0/64748b?text=No+Image';
 
 export default function ArticleCard({ article, onPress }) {
   const category = article.categories?.[0]?.name ?? '';
-  const author = article.author_name ?? article.author?.user?.name ?? '';
+  const author = article.author?.user?.name || article.author?.name || article.author_name || 'Unknown Author';
   const date = article.published_at
     ? new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity 
+      className="bg-white rounded-lg mb-4 overflow-hidden border border-gray-200" 
+      onPress={onPress} 
+      activeOpacity={0.85}
+    >
       <Image
-        source={{ uri: article.featured_image || FALLBACK }}
-        style={styles.image}
+        source={{ uri: article.featured_image_url || article.featured_image || FALLBACK }}
+        className="w-full h-44 bg-gray-200"
         resizeMode="cover"
       />
-      <View style={styles.body}>
-        {category ? <Text style={styles.category}>{category.toUpperCase()}</Text> : null}
-        <Text style={styles.title} numberOfLines={3}>{article.title}</Text>
-        <Text style={styles.meta}>{[author, date].filter(Boolean).join(' · ')}</Text>
+      
+      <View className="p-4">
+        {category ? (
+          <Text 
+            className="text-xs font-bold mb-1 tracking-wider" 
+            style={{ color: getCategoryColor(category) }}
+          >
+            {category.toUpperCase()}
+          </Text>
+        ) : null}
+        
+        <Text 
+          className="text-base font-bold text-gray-900 mb-1" 
+          style={{ 
+            fontFamily: typography.fontFamily.serif,
+            lineHeight: typography.fontSize.md * typography.lineHeight.normal 
+          }} 
+          numberOfLines={3}
+        >
+          {article.title}
+        </Text>
+        
+        <Text className="text-xs text-gray-500">
+          {[author, date].filter(Boolean).join(' · ')}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  image: {
-    width: '100%',
-    height: 180,
-    backgroundColor: colors.border,
-  },
-  body: {
-    padding: spacing.md,
-  },
-  category: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.accent,
-    letterSpacing: 1,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    fontFamily: typography.fontFamily.serif,
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.text.primary,
-    lineHeight: typography.fontSize.md * typography.lineHeight.normal,
-    marginBottom: spacing.xs,
-  },
-  meta: {
-    fontSize: typography.fontSize.xs,
-    color: colors.text.muted,
-  },
-});
