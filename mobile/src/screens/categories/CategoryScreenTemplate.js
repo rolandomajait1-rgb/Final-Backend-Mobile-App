@@ -30,6 +30,21 @@ const formatDate = (d) => {
 };
 
 export default function CategoryScreen({ navigation, categoryName }) {
+  const CATEGORY_SCREEN_MAP = {
+    News:     'NewsScreen',
+    Literary: 'LiteraryScreen',
+    Opinion:  'OpinionScreen',
+    Sports:   'SportsScreen',
+    Features: 'FeaturesScreen',
+    Specials: 'SpecialsScreen',
+    Art:      'ArtScreen',
+  };
+
+  const handleCategorySelect = (cat) => {
+    if (!cat?.name) return;
+    const screen = CATEGORY_SCREEN_MAP[cat.name];
+    if (screen) navigation.navigate(screen);
+  };
   const [articles, setArticles]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -146,7 +161,7 @@ export default function CategoryScreen({ navigation, categoryName }) {
       <View className="flex-shrink-0">
         <HomeHeader
           categories={categories}
-          onCategorySelect={() => {}}
+          onCategorySelect={handleCategorySelect}
           onMenuPress={() => {}}
           onSearchPress={() => {}}
           onGridPress={() => navigation.navigate('Admin')}
