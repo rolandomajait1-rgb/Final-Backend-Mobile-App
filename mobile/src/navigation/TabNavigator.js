@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from 'react-native';
-import HomeScreen from '../screens/home/HomeScreen';
+import HomeScreen from '../screens/homepage/HomeScreen';
 import ExploreScreen from '../screens/Explore';
-import ProfileScreen from '../screens/auth/ProfileScreen';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
+import EditProfile from '../screens/Profile/EditProfile';
 import { PressHubScreen } from '../screens/PressHub';
 
 const Tab = createBottomTabNavigator();
+const ProfileStack = createStackNavigator();
 
 const TAB_ICONS = {
   Home: ['home', 'home-outline'],
@@ -23,45 +26,30 @@ const TAB_LABELS = {
   Profile: 'You',
 };
 
+// Move ProfileStackScreen OUTSIDE to prevent recreation
+function ProfileStackScreen() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="EditProfile" component={EditProfile} />
+    </ProfileStack.Navigator>
+  );
+}
+
 export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarStyle: { display: 'none' }, // Hide the default tab bar
         tabBarActiveTintColor: '#FFB800',
         tabBarInactiveTintColor: '#A0B8C8',
-        tabBarStyle: {
-          backgroundColor: '#2C5F7F',
-          borderTopWidth: 0,
-          height: 100,
-          paddingBottom: 40,
-          paddingTop: 15,
-        },
-        tabBarLabel: ({ focused }) => (
-          <Text
-            className={`text-xs font-semibold mt-1 ${
-              focused ? 'text-yellow-500' : 'text-gray-400'
-            }`}
-          >
-            {TAB_LABELS[route.name]}
-          </Text>
-        ),
-        tabBarIcon: ({ focused }) => {
-          const [active, inactive] = TAB_ICONS[route.name] ?? ['ellipse', 'ellipse-outline'];
-          return (
-            <Ionicons
-              name={focused ? active : inactive}
-              size={28}
-              color={focused ? '#FFB800' : '#A0B8C8'}
-            />
-          );
-        },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="PressHub" component={PressHubScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileStackScreen} />
     </Tab.Navigator>
   );
 }
