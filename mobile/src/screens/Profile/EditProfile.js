@@ -56,7 +56,7 @@ export default function EditProfile({ navigation, route }) {
 
       // Update profile name
       if (formData.name.trim() && formData.name !== userData.name) {
-        await client.put('/user/profile', { name: formData.name.trim() });
+        await client.put('/api/user/profile', { name: formData.name.trim() });
         updated = true;
       }
 
@@ -75,7 +75,7 @@ export default function EditProfile({ navigation, route }) {
           return;
         }
 
-        await client.post('/change-password', {
+        await client.post('/api/change-password', {
           current_password: formData.oldPassword,
           password: formData.newPassword,
           password_confirmation: formData.confirmPassword,

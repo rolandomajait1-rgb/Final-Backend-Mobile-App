@@ -38,19 +38,17 @@ export default function ProfileScreen({ navigation }) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Reload articles when tab changes
+  // Reload articles when tab changes (only after user is loaded)
   useEffect(() => {
-    if (user) {
-      setTabPage(1);
-      setTabHasMore(true);
-      if (activeTab === 'liked') {
-        setLikedArticles([]);
-        fetchTabArticles('liked', 1, true);
-      } else {
-        setSharedArticles([]);
-        fetchTabArticles('shared', 1, true);
-      }
+    if (!user) return;
+    if (activeTab === 'liked') {
+      setLikedArticles([]);
+    } else {
+      setSharedArticles([]);
     }
+    setTabPage(1);
+    setTabHasMore(true);
+    fetchTabArticles(activeTab, 1, true);
   }, [activeTab, user]);
 
   const loadProfile = async () => {
@@ -65,8 +63,7 @@ export default function ProfileScreen({ navigation }) {
         setUser(res.data);
         await AsyncStorage.setItem('user_data', JSON.stringify(res.data));
         setLoading(false);
-        // Load initial tab data
-        fetchTabArticles('liked', 1, true);
+        // Tab useEffect will fire automatically when user state is set
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -82,8 +79,8 @@ export default function ProfileScreen({ navigation }) {
     setTabLoading(true);
     try {
       const endpoint = tab === 'liked'
-        ? '/user/liked-articles'
-        : '/user/shared-articles';
+        ? '/api/user/liked-articles'
+        : '/api/user/shared-articles';
       const res = await client.get(endpoint, { params: { page, per_page: 10 } });
       const newItems = res.data?.data ?? [];
       const lastPage = res.data?.last_page ?? 1;
