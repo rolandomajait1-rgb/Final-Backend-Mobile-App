@@ -8,8 +8,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../styles';
-import HomeHeader from '../../components/home/HomeHeader';
+import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
+import BottomNavigation from '../../components/common/BottomNavigation';
 import JoinHeraldCard from './JoinHeraldCard';
 import RequestCoverageCard from './RequestCoverageCard';
 import SendFeedbackCard from './SendFeedbackCard';
@@ -30,6 +31,7 @@ const PressHubScreen = ({ navigation }) => {
         error={null}
         ErrorMessage={ErrorMessage}
         showCategories={false}
+        navigation={navigation}
       />
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 120, gap: 16 }}>
        <RequestCoverageCard/>
@@ -37,6 +39,9 @@ const PressHubScreen = ({ navigation }) => {
        <JoinHeraldCard/>
        <OfficeInformationCard/>
       </ScrollView>
+      <View className="absolute bottom-0 left-0 right-0">
+        <BottomNavigation navigation={navigation} activeTab="PressHub" />
+      </View>
     </SafeAreaView>
   );
 };

@@ -26,8 +26,8 @@ const JoinHeraldScreen = ({ navigation }) => {
     courseYear: '',
     gender: '',
   });
-  const [photo, setPhoto] = useState(null);       // { uri, name, type }
-  const [consentForm, setConsentForm] = useState(null); // { name }
+  const [photo, setPhoto] = useState(null);           // { uri, name, type }
+  const [consentForm, setConsentForm] = useState(null); // { uri, name, mimeType }
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -71,7 +71,12 @@ const JoinHeraldScreen = ({ navigation }) => {
         copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets?.length > 0) {
-        setConsentForm({ name: result.assets[0].name });
+        const asset = result.assets[0];
+        setConsentForm({
+          uri:      asset.uri,
+          name:     asset.name,
+          mimeType: asset.mimeType ?? 'application/pdf',
+        });
       }
     } catch (err) {
       Alert.alert('Error', 'Failed to pick file. Please try again.');
@@ -96,10 +101,28 @@ const JoinHeraldScreen = ({ navigation }) => {
     setIsLoading(true);
     setError(null);
     try {
-      await client.post('/contact/join-herald', {
-        fullName:   formData.fullName.trim(),
-        courseYear: formData.courseYear.trim(),
-        gender:     formData.gender,
+      // Build multipart/form-data so files are transmitted
+      const body = new FormData();
+      body.append('fullName',   formData.fullName.trim());
+      body.append('courseYear', formData.courseYear.trim());
+      body.append('gender',     formData.gender);
+
+      // Attach photo
+      body.append('photo', {
+        uri:  photo.uri,
+        name: photo.name,
+        type: photo.type,
+      });
+
+      // Attach consent form
+      body.append('consentForm', {
+        uri:  consentForm.uri,
+        name: consentForm.name,
+        type: consentForm.mimeType,
+      });
+
+      await client.post('/api/contact/join-herald', body, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       setIsSubmitted(true);
       setTimeout(() => navigation.goBack(), 2500);
