@@ -9,10 +9,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../utils/axiosConfig';
+import client from '../../api/client';
 import { colors } from '../../styles';
-import HomeHeader from '../../components/home/HomeHeader';
+import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
+import BottomNavigation from '../../components/common/BottomNavigation';
 
 const RequestCoverageScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -45,14 +46,15 @@ const RequestCoverageScreen = ({ navigation }) => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.post('/contact/request-coverage', formData);
+      await client.post('/contact/request-coverage', formData);
       setIsSubmitted(true);
       setTimeout(() => {
         navigation.goBack();
       }, 2000);
     } catch (err) {
       console.error('Error requesting coverage:', err);
-      setError('Failed to submit request. Please try again.');
+      const msg = err.response?.data?.message || 'Failed to submit request. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +69,7 @@ const RequestCoverageScreen = ({ navigation }) => {
         error={null}
         ErrorMessage={ErrorMessage}
         showCategories={false}
+        navigation={navigation}
       />
       {/* Custom Header with Title and Back Arrow */}
       <View className="flex-row items-center px-4 py-4 border-b" style={{ borderColor: colors.border }}>
@@ -78,7 +81,7 @@ const RequestCoverageScreen = ({ navigation }) => {
         </Text>
         <View style={{ width: 24 }} />
       </View>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 100 }}>
         {isSubmitted ? (
           <View className="flex-1 items-center justify-center">
             <Ionicons name="checkmark-circle" size={100} color="#10b981" />
@@ -181,6 +184,7 @@ const RequestCoverageScreen = ({ navigation }) => {
           </>
         )}
       </ScrollView>
+      <BottomNavigation navigation={navigation} activeTab="PressHub" />
     </SafeAreaView>
   );
 };

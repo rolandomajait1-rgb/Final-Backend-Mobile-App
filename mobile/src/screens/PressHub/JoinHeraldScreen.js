@@ -7,22 +7,27 @@ import {
   ActivityIndicator,
   ScrollView,
   Linking,
+  Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../utils/axiosConfig';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import client from '../../api/client';
 import { colors } from '../../styles';
-import HomeHeader from '../../components/home/HomeHeader';
+import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
+import BottomNavigation from '../../components/common/BottomNavigation';
 
 const JoinHeraldScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     courseYear: '',
     gender: '',
-    photo: null,
-    consentForm: null,
   });
+  const [photo, setPhoto] = useState(null);       // { uri, name, type }
+  const [consentForm, setConsentForm] = useState(null); // { name }
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -31,33 +36,77 @@ const JoinHeraldScreen = ({ navigation }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handlePhotoUpload = () => {
-    // Placeholder for photo upload logic
-    setFormData(prev => ({ ...prev, photo: 'photo_selected' }));
+  // ─── Real Photo Picker ─────────────────────────────────────────────────────
+  const handlePhotoUpload = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please enable photo library access in settings.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        setPhoto({
+          uri: asset.uri,
+          name: asset.fileName ?? `photo-${Date.now()}.jpg`,
+          type: asset.mimeType ?? 'image/jpeg',
+        });
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to pick photo. Please try again.');
+    }
   };
 
-  const handleFileUpload = () => {
-    // Placeholder for file upload logic
-    setFormData(prev => ({ ...prev, consentForm: 'file_selected' }));
+  // ─── Real Document Picker ──────────────────────────────────────────────────
+  const handleFileUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets?.length > 0) {
+        setConsentForm({ name: result.assets[0].name });
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to pick file. Please try again.');
+    }
   };
 
+  // ─── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!formData.fullName.trim() || !formData.courseYear.trim() || !formData.gender.trim() || !formData.photo || !formData.consentForm) {
-      setError('Please fill in all required fields');
+    if (!formData.fullName.trim() || !formData.courseYear.trim() || !formData.gender.trim()) {
+      setError('Please fill in all required fields (Name, Course & Year, Gender).');
+      return;
+    }
+    if (!photo) {
+      setError('Please upload your 1x1 photo.');
+      return;
+    }
+    if (!consentForm) {
+      setError('Please upload your filled consent form.');
       return;
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      await axios.post('/contact/join-herald', formData);
+      await client.post('/contact/join-herald', {
+        fullName:   formData.fullName.trim(),
+        courseYear: formData.courseYear.trim(),
+        gender:     formData.gender,
+      });
       setIsSubmitted(true);
-      setTimeout(() => {
-        navigation.goBack();
-      }, 2000);
+      setTimeout(() => navigation.goBack(), 2500);
     } catch (err) {
       console.error('Error joining Herald:', err);
-      setError('Failed to submit application. Please try again.');
+      const msg = err.response?.data?.message || 'Failed to submit application. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -72,8 +121,10 @@ const JoinHeraldScreen = ({ navigation }) => {
         error={null}
         ErrorMessage={ErrorMessage}
         showCategories={false}
+        navigation={navigation}
       />
-      {/* Custom Header with Title and Back Arrow */}
+
+      {/* Header */}
       <View className="flex-row items-center px-4 py-4 border-b" style={{ borderColor: colors.border }}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back-outline" size={24} color={colors.text} />
@@ -83,30 +134,33 @@ const JoinHeraldScreen = ({ navigation }) => {
         </Text>
         <View style={{ width: 24 }} />
       </View>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 40 }}>
+
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 120 }}>
         {isSubmitted ? (
-          <View className="flex-1 items-center justify-center">
+          <View className="flex-1 items-center justify-center py-16">
             <Ionicons name="checkmark-circle" size={100} color="#10b981" />
             <Text className="text-green-600 font-semibold text-center mt-4 text-lg">
-              Thank you for your interest!
+              Thank you for your interest!{'\n'}We'll be in touch soon.
             </Text>
           </View>
         ) : (
           <>
-            {/* NOTE Section */}
+            {/* Data Privacy Notice */}
             <View className="mb-6 p-3 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>
-                NOTE :
+                Data Privacy Notice
               </Text>
-              <Text style={{ fontSize: 14, color: '#4b5563', lineHeight: 18 }}>
-                Data Privacy Notice: In compliance with data privacy laws such as, but not limited to, Republic Act No. 10173 [Data Privacy Act of 2012] and the implementing rules and regulations, we within the Organization of La Verdad Christian College (LVCC), collect and process your personal information in this membership form for personal information purposes only, keeping it secure and with confidentiality using our organizational, technical, and physical security measures and retain them in accordance with our retention policy. We don't share them to any external group without your consent, unless otherwise stated in our privacy notice. You have the right to be informed, to object, to access, to rectify, to erase or to block the processing of data portability, to file a complaint and be entitled to damages for violation of your rights under this data privacy.
+              <Text style={{ fontSize: 13, color: '#4b5563', lineHeight: 20 }}>
+                In compliance with Republic Act No. 10173 (Data Privacy Act of 2012), we collect and
+                process your personal information for membership purposes only, keeping it secure and
+                confidential.
               </Text>
-              <Text style={{ fontSize: 14, color: '#4b5563', marginTop: 8 }}>
-                For your data privacy inquiries, you may reach our Data Protection Officer through: dpo@laverdad.edu.ph
+              <Text style={{ fontSize: 13, color: '#4b5563', marginTop: 6 }}>
+                For inquiries, contact our DPO: dpo@laverdad.edu.ph
               </Text>
             </View>
 
-            {/* Personal Information Section */}
+            {/* Personal Information */}
             <Text style={{ fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 12 }}>
               Personal Information
             </Text>
@@ -114,22 +168,17 @@ const JoinHeraldScreen = ({ navigation }) => {
             {/* Full Name */}
             <View className="mb-5">
               <Text style={{ fontSize: 15, fontWeight: '500', color: '#1f2937', marginBottom: 8 }}>
-                Name (Surname, Given Name, Middle Name)
+                Name (Surname, Given Name, Middle Name) *
               </Text>
               <TextInput
                 style={{
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                  fontSize: 14,
-                  color: colors.text,
+                  borderColor: colors.border, borderWidth: 1, borderRadius: 8,
+                  paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, color: colors.text,
                 }}
-                placeholder="Enter name here."
+                placeholder="Enter name here"
                 placeholderTextColor={colors.textSecondary}
                 value={formData.fullName}
-                onChangeText={(value) => handleChange('fullName', value)}
+                onChangeText={(v) => handleChange('fullName', v)}
                 editable={!isLoading}
               />
             </View>
@@ -137,22 +186,17 @@ const JoinHeraldScreen = ({ navigation }) => {
             {/* Course & Year */}
             <View className="mb-5">
               <Text style={{ fontSize: 15, fontWeight: '500', color: '#1f2937', marginBottom: 8 }}>
-                Course & Year
+                Course & Year *
               </Text>
               <TextInput
                 style={{
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                  fontSize: 14,
-                  color: colors.text,
+                  borderColor: colors.border, borderWidth: 1, borderRadius: 8,
+                  paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, color: colors.text,
                 }}
-                placeholder="Enter course & year level"
+                placeholder="e.g. BSCS 2-A"
                 placeholderTextColor={colors.textSecondary}
                 value={formData.courseYear}
-                onChangeText={(value) => handleChange('courseYear', value)}
+                onChangeText={(v) => handleChange('courseYear', v)}
                 editable={!isLoading}
               />
             </View>
@@ -160,138 +204,117 @@ const JoinHeraldScreen = ({ navigation }) => {
             {/* Gender */}
             <View className="mb-5">
               <Text style={{ fontSize: 15, fontWeight: '500', color: '#1f2937', marginBottom: 8 }}>
-                Gender
+                Gender *
               </Text>
               <View className="flex-row gap-6">
-                <TouchableOpacity
-                  className="flex-row items-center"
-                  onPress={() => handleChange('gender', 'male')}
-                >
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      borderWidth: 2,
-                      borderColor: colors.border,
-                      marginRight: 8,
-                      backgroundColor: formData.gender === 'male' ? '#0ea5e9' : 'transparent',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                {['male', 'female'].map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    className="flex-row items-center"
+                    onPress={() => handleChange('gender', g)}
+                    disabled={isLoading}
                   >
-                    {formData.gender === 'male' && (
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: 'white' }} />
-                    )}
-                  </View>
-                  <Text style={{ fontSize: 14, color: colors.text }}>Male</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="flex-row items-center"
-                  onPress={() => handleChange('gender', 'female')}
-                >
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      borderWidth: 2,
-                      borderColor: colors.border,
-                      marginRight: 8,
-                      backgroundColor: formData.gender === 'female' ? '#0ea5e9' : 'transparent',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {formData.gender === 'female' && (
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: 'white' }} />
-                    )}
-                  </View>
-                  <Text style={{ fontSize: 14, color: colors.text }}>Female</Text>
-                </TouchableOpacity>
+                    <View
+                      style={{
+                        width: 20, height: 20, borderRadius: 10, borderWidth: 2,
+                        borderColor: formData.gender === g ? '#0ea5e9' : colors.border,
+                        marginRight: 8, backgroundColor: formData.gender === g ? '#0ea5e9' : 'transparent',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {formData.gender === g && (
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: 'white' }} />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 14, color: colors.text, textTransform: 'capitalize' }}>{g}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
             {/* 1x1 Photo */}
             <View className="mb-5">
               <Text style={{ fontSize: 15, fontWeight: '500', color: '#1f2937', marginBottom: 8 }}>
-                1x1 Photo
+                1×1 Photo *
               </Text>
               <TouchableOpacity
                 style={{
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: 8,
-                  paddingVertical: 40,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f9fafb',
+                  borderColor: photo ? '#10b981' : colors.border,
+                  borderWidth: 1, borderRadius: 8,
+                  paddingVertical: 16, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: photo ? '#f0fdf4' : '#f9fafb',
+                  flexDirection: 'row', gap: 10,
                 }}
                 onPress={handlePhotoUpload}
                 disabled={isLoading}
               >
-                <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>
-                  {formData.photo ? 'Photo selected' : 'upload image'}
-                </Text>
+                {photo ? (
+                  <>
+                    <Image source={{ uri: photo.uri }} style={{ width: 48, height: 48, borderRadius: 8 }} />
+                    <Text style={{ fontSize: 13, color: '#10b981', fontWeight: '500' }}>
+                      Photo selected ✓{'\n'}
+                      <Text style={{ fontWeight: '400' }}>{photo.name}</Text>
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={32} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>Tap to upload 1×1 photo</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
 
-            {/* Filled Consent Form */}
+            {/* Consent Form */}
             <View className="mb-5">
               <View className="flex-row items-center mb-3">
                 <Text style={{ fontSize: 15, fontWeight: '500', color: '#1f2937', flex: 1 }}>
-                  Filled Consent Form
+                  Filled Consent Form *
                 </Text>
                 <TouchableOpacity
                   onPress={() => Linking.openURL('https://example.com/consent-form')}
                   className="flex-row items-center"
                 >
                   <Text style={{ fontSize: 13, color: '#0ea5e9', fontWeight: '500', marginRight: 4 }}>
-                    Download Consent Form
+                    Download
                   </Text>
                   <Ionicons name="download" size={16} color="#0ea5e9" />
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
                 style={{
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: 8,
-                  paddingVertical: 40,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f9fafb',
+                  borderColor: consentForm ? '#10b981' : colors.border,
+                  borderWidth: 1, borderRadius: 8,
+                  paddingVertical: 24, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: consentForm ? '#f0fdf4' : '#f9fafb',
+                  flexDirection: 'row', gap: 10,
                 }}
                 onPress={handleFileUpload}
                 disabled={isLoading}
               >
-                <Ionicons name="document-outline" size={40} color={colors.textSecondary} />
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>
-                  {formData.consentForm ? 'File selected' : 'upload file'}
+                <Ionicons
+                  name={consentForm ? 'checkmark-circle' : 'document-outline'}
+                  size={32}
+                  color={consentForm ? '#10b981' : colors.textSecondary}
+                />
+                <Text style={{ fontSize: 13, color: consentForm ? '#10b981' : colors.textSecondary, fontWeight: consentForm ? '500' : '400' }}>
+                  {consentForm ? `${consentForm.name}` : 'Tap to upload consent form (PDF/image)'}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
-              <Text style={{ color: '#dc2626', fontSize: 13, marginBottom: 16 }}>
-                {error}
-              </Text>
+              <Text style={{ color: '#dc2626', fontSize: 13, marginBottom: 16 }}>{error}</Text>
             )}
 
-            {/* Submit Button */}
-            <View className="items-center mt-6 mb-4">
+            {/* Submit */}
+            <View className="items-center mt-4 mb-4">
               <TouchableOpacity
                 style={{
-                  backgroundColor: '#0ea5e9',
-                  borderRadius: 24,
-                  paddingVertical: 12,
-                  paddingHorizontal: 48,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  backgroundColor: '#0ea5e9', borderRadius: 24,
+                  paddingVertical: 14, paddingHorizontal: 56,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
                   opacity: isLoading ? 0.7 : 1,
                 }}
                 onPress={handleSubmit}
@@ -301,15 +324,14 @@ const JoinHeraldScreen = ({ navigation }) => {
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
-                    Submit
-                  </Text>
+                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Submit</Text>
                 )}
               </TouchableOpacity>
             </View>
           </>
         )}
       </ScrollView>
+      <BottomNavigation navigation={navigation} activeTab="PressHub" />
     </SafeAreaView>
   );
 };

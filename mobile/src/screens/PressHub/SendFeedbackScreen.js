@@ -9,10 +9,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../utils/axiosConfig';
+import client from '../../api/client';
 import { colors } from '../../styles';
-import HomeHeader from '../../components/home/HomeHeader';
+import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
+import BottomNavigation from '../../components/common/BottomNavigation';
 
 const SendFeedbackScreen = ({ navigation }) => {
   const [feedback, setFeedback] = useState('');
@@ -28,7 +29,7 @@ const SendFeedbackScreen = ({ navigation }) => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.post('/contact/feedback', { feedback });
+      await client.post('/contact/feedback', { feedback });
       setIsSubmitted(true);
       setFeedback('');
       setTimeout(() => {
@@ -36,7 +37,8 @@ const SendFeedbackScreen = ({ navigation }) => {
       }, 2000);
     } catch (err) {
       console.error('Error sending feedback:', err);
-      setError('Failed to send feedback. Please try again.');
+      const msg = err.response?.data?.message || 'Failed to send feedback. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +53,7 @@ const SendFeedbackScreen = ({ navigation }) => {
         error={null}
         ErrorMessage={ErrorMessage}
         showCategories={false}
+        navigation={navigation}
       />
       {/* Custom Header with Title and Back Arrow */}
       <View className="flex-row items-center px-4 py-4" style={{ borderColor: colors.border }}>
@@ -62,7 +65,7 @@ const SendFeedbackScreen = ({ navigation }) => {
         </Text>
         <View style={{ width: 24 }} />
       </View>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 16 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 16, paddingBottom: 100 }}>
         {isSubmitted ? (
           <View className="flex-1 items-center justify-center">
             <Ionicons name="checkmark-circle" size={100} color="#10b981" />
@@ -114,6 +117,7 @@ const SendFeedbackScreen = ({ navigation }) => {
           </>
         )}
       </ScrollView>
+      <BottomNavigation navigation={navigation} activeTab="PressHub" />
     </SafeAreaView>
   );
 };
