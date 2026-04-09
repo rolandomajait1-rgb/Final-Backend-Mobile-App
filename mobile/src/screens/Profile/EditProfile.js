@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../utils/axiosConfig';
+import client from '../../api/client';
 import { colors } from '../../styles';
-import HomeHeader from '../../components/home/HomeHeader';
+import HomeHeader from '../homepage/HomeHeader';
+import BottomNavigation from '../../components/common/BottomNavigation';
+
+const validatePassword = (password) => {
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters';
+  }
+
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
+  if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+    return 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+  }
+
+  return null;
+};
 
 export default function EditProfile({ navigation, route }) {
   const userData = route?.params?.user || {};
@@ -26,38 +43,12 @@ export default function EditProfile({ navigation, route }) {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // Update formData when userData changes
-  useEffect(() => {
-    if (userData.name) {
-      setFormData(prev => ({
-        ...prev,
-        name: userData.name
-      }));
-    }
-  }, [userData.name]);
-
-  const handleChange = useCallback((field, value) => {
+  const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  };
 
-  const validatePassword = useCallback((password) => {
-    if (password.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
-      return 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
-    }
-
-    return null;
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (isSaving) return; // Prevent double submission
+  const handleSave = async () => {
+    if (isSaving) return;
 
     try {
       setIsSaving(true);
@@ -65,7 +56,7 @@ export default function EditProfile({ navigation, route }) {
 
       // Update profile name
       if (formData.name.trim() && formData.name !== userData.name) {
-        await axios.put('/api/user/profile', { name: formData.name.trim() });
+        await client.put('/user/profile', { name: formData.name.trim() });
         updated = true;
       }
 
@@ -84,7 +75,7 @@ export default function EditProfile({ navigation, route }) {
           return;
         }
 
-        await axios.post('/api/change-password', {
+        await client.post('/change-password', {
           current_password: formData.oldPassword,
           password: formData.newPassword,
           password_confirmation: formData.confirmPassword,
@@ -104,7 +95,7 @@ export default function EditProfile({ navigation, route }) {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, userData.name, isSaving, validatePassword, navigation]);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -116,6 +107,7 @@ export default function EditProfile({ navigation, route }) {
         <HomeHeader
           categories={[]}
           onCategorySelect={() => {}}
+          navigation={navigation}
         />
 
         {/* Account Settings Header */}
@@ -193,6 +185,7 @@ export default function EditProfile({ navigation, route }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <BottomNavigation navigation={navigation} activeTab="Profile" />
     </SafeAreaView>
   );
 }

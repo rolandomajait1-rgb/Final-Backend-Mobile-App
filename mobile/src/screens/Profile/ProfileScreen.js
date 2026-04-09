@@ -1,67 +1,113 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ScrollView, RefreshControl, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Loader, Button } from '../../components/common';
+import BottomNavigation from '../../components/common/BottomNavigation';
 import { getCurrentUser, logout } from '../../api/services/authService';
+import client from '../../api/client';
 import { colors } from '../../styles';
 import SideBar from './SideBar';
 
+const formatDate = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 export default function ProfileScreen({ navigation }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('liked');
+  const [user, setUser]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [activeTab, setActiveTab]     = useState('liked');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // Per-tab article state
+  const [likedArticles, setLikedArticles]   = useState([]);
+  const [sharedArticles, setSharedArticles] = useState([]);
+  const [tabLoading, setTabLoading]         = useState(false);
+  const [tabPage, setTabPage]               = useState(1);
+  const [tabHasMore, setTabHasMore]         = useState(true);
+
   const mountedRef = useRef(true);
 
-  // Load profile on mount only
   useEffect(() => {
     mountedRef.current = true;
     loadProfile();
-    
-    return () => {
-      mountedRef.current = false;
-    };
+    return () => { mountedRef.current = false; };
   }, []);
+
+  // Reload articles when tab changes
+  useEffect(() => {
+    if (user) {
+      setTabPage(1);
+      setTabHasMore(true);
+      if (activeTab === 'liked') {
+        setLikedArticles([]);
+        fetchTabArticles('liked', 1, true);
+      } else {
+        setSharedArticles([]);
+        fetchTabArticles('shared', 1, true);
+      }
+    }
+  }, [activeTab, user]);
 
   const loadProfile = async () => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
-      
       if (!token) {
-        if (mountedRef.current) {
-          setLoading(false);
-          setUser(null);
-        }
+        if (mountedRef.current) { setLoading(false); setUser(null); }
         return;
       }
-
       const res = await getCurrentUser();
-      
       if (mountedRef.current) {
         setUser(res.data);
+        await AsyncStorage.setItem('user_data', JSON.stringify(res.data));
         setLoading(false);
+        // Load initial tab data
+        fetchTabArticles('liked', 1, true);
       }
     } catch (err) {
       console.error('Error loading profile:', err);
-      
-      // Check if it's a network error
-      if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
-        console.log('Network issue - backend might be down or unreachable');
-      }
-      
-      // Check if token is invalid (401)
       if (err.response?.status === 401) {
-        console.log('Token expired or invalid - clearing auth');
-        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.multiRemove(['auth_token', 'user_data']);
       }
-      
+      if (mountedRef.current) { setLoading(false); setUser(null); }
+    }
+  };
+
+  const fetchTabArticles = async (tab, page = 1, replace = false) => {
+    if (tabLoading) return;
+    setTabLoading(true);
+    try {
+      const endpoint = tab === 'liked'
+        ? '/user/liked-articles'
+        : '/user/shared-articles';
+      const res = await client.get(endpoint, { params: { page, per_page: 10 } });
+      const newItems = res.data?.data ?? [];
+      const lastPage = res.data?.last_page ?? 1;
+
       if (mountedRef.current) {
-        setLoading(false);
-        setUser(null);
+        if (tab === 'liked') {
+          setLikedArticles(prev => replace ? newItems : [...prev, ...newItems]);
+        } else {
+          setSharedArticles(prev => replace ? newItems : [...prev, ...newItems]);
+        }
+        setTabHasMore(page < lastPage);
+        setTabPage(page);
       }
+    } catch (err) {
+      console.error(`Error fetching ${tab} articles:`, err);
+    } finally {
+      if (mountedRef.current) setTabLoading(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!tabLoading && tabHasMore) {
+      const nextPage = tabPage + 1;
+      fetchTabArticles(activeTab, nextPage, false);
     }
   };
 
@@ -75,12 +121,13 @@ export default function ProfileScreen({ navigation }) {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Sign Out',
-        style: 'destructive',
+        text: 'Sign Out', style: 'destructive',
         onPress: async () => {
           try {
             await logout();
             setUser(null);
+            setLikedArticles([]);
+            setSharedArticles([]);
             setSidebarVisible(false);
           } catch (err) {
             console.error('Logout error:', err);
@@ -90,21 +137,7 @@ export default function ProfileScreen({ navigation }) {
     ]);
   };
 
-  const handleNavigateToLogin = () => {
-    navigation.navigate('Login');
-  };
-
-  const handleOpenSidebar = () => {
-    setSidebarVisible(true);
-  };
-
-  const handleCloseSidebar = () => {
-    setSidebarVisible(false);
-  };
-
-  if (loading) {
-    return <Loader />;
-  }
+  if (loading) return <Loader />;
 
   if (!user) {
     return (
@@ -115,7 +148,7 @@ export default function ProfileScreen({ navigation }) {
           <Text className="text-sm text-gray-600 text-center mt-2 mb-6">
             Sign in to access your profile and saved articles.
           </Text>
-          <Button title="Sign In" onPress={handleNavigateToLogin} />
+          <Button title="Sign In" onPress={() => navigation.navigate('Login')} />
         </View>
       </SafeAreaView>
     );
@@ -125,20 +158,18 @@ export default function ProfileScreen({ navigation }) {
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : 'Recently';
 
+  const currentArticles = activeTab === 'liked' ? likedArticles : sharedArticles;
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
         {/* Profile Header */}
-        <View className="bg-cyan-700 px-4 py-8">
+        <View className="px-4 py-8" style={{ backgroundColor: colors.primary }}>
           <View className="flex-row items-center gap-4">
             <View className="w-16 h-16 rounded-full bg-white justify-center items-center">
               <Ionicons name="person" size={40} color={colors.primary} />
@@ -146,8 +177,13 @@ export default function ProfileScreen({ navigation }) {
             <View className="flex-1">
               <Text className="text-3xl font-bold text-white">{user.name}</Text>
               <Text className="text-lg text-blue-100">Joined in {joinedDate}</Text>
+              {user.role && (
+                <View className="bg-white/20 self-start px-2 py-0.5 rounded-full mt-1">
+                  <Text className="text-white text-xs font-semibold capitalize">{user.role}</Text>
+                </View>
+              )}
             </View>
-            <TouchableOpacity onPress={handleOpenSidebar} className="p-2">
+            <TouchableOpacity onPress={() => setSidebarVisible(true)} className="p-2">
               <Ionicons name="menu" size={30} color="white" />
             </TouchableOpacity>
           </View>
@@ -155,77 +191,101 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Tabs */}
         <View className="flex-row bg-white border-b border-gray-200">
-          <TouchableOpacity
-            onPress={() => setActiveTab('liked')}
-            className={`flex-1 py-4 items-center border-b-2 ${
-              activeTab === 'liked' ? 'border-blue-500' : 'border-transparent'
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                activeTab === 'liked' ? 'text-blue-500' : 'text-gray-600'
-              }`}
-            >
-              Liked Articles
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setActiveTab('shared')}
-            className={`flex-1 py-4 items-center border-b-2 ${
-              activeTab === 'shared' ? 'border-blue-500' : 'border-transparent'
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                activeTab === 'shared' ? 'text-blue-500' : 'text-gray-600'
-              }`}
-            >
-              Shared Articles
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Articles List */}
-        <View className="px-4 py-4">
-          {[1, 2, 3, 4, 5, 6].map((item) => (
+          {['liked', 'shared'].map((tab) => (
             <TouchableOpacity
-              key={item}
-              className="flex-row items-start gap-3 pb-4 border-b border-gray-200"
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              className={`flex-1 py-4 items-center border-b-2 ${activeTab === tab ? 'border-blue-500' : 'border-transparent'}`}
             >
-              <View className="w-24 h-24 bg-gray-300 rounded-lg justify-center items-center flex-shrink-0">
-                <Ionicons name="image" size={30} color="#D1D5DB" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-lg font-bold text-gray-900 mb-1">Engraved By History</Text>
-                <Text className="text-s font-semibold text-green-600 mb-1 uppercase">LITERARY</Text>
-                <View className="flex-row items-center gap-2">
-                  <Text className="text-base text-gray-600">Reanne Kate Esguerra</Text>
-                  <Text className="text-xs text-gray-500">1hr ago</Text>
-                </View>
-              </View>
-              <TouchableOpacity>
-                <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
-              </TouchableOpacity>
+              <Text className={`text-sm font-semibold ${activeTab === tab ? 'text-blue-500' : 'text-gray-600'}`}>
+                {tab === 'liked' ? 'Liked Articles' : 'Shared Articles'}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Load More Button */}
-        <View className="items-center py-6">
-          <TouchableOpacity>
-            <Text className="text-blue-500 font-semibold text-base">Load More</Text>
-          </TouchableOpacity>
+        {/* Articles List */}
+        <View className="px-4 py-4">
+          {tabLoading && currentArticles.length === 0 ? (
+            <View className="items-center py-12">
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text className="text-gray-400 mt-3">Loading articles...</Text>
+            </View>
+          ) : currentArticles.length === 0 ? (
+            <View className="items-center py-12">
+              <Ionicons
+                name={activeTab === 'liked' ? 'heart-outline' : 'share-social-outline'}
+                size={48} color="#ccc"
+              />
+              <Text className="text-gray-400 mt-3 text-center">
+                {activeTab === 'liked'
+                  ? "You haven't liked any articles yet."
+                  : "You haven't shared any articles yet."}
+              </Text>
+            </View>
+          ) : (
+            <>
+              {currentArticles.map((article) => (
+                <TouchableOpacity
+                  key={article.id}
+                  onPress={() => navigation.navigate('ArticleDetail', { articleId: article.id })}
+                  className="bg-white rounded-xl mb-3 flex-row overflow-hidden border border-gray-100"
+                  style={{ elevation: 1 }}
+                >
+                  {/* Thumbnail */}
+                  {article.featured_image ? (
+                    <Image
+                      source={{ uri: article.featured_image }}
+                      style={{ width: 80, height: 80 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ width: 80, height: 80, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="image-outline" size={28} color="#ccc" />
+                    </View>
+                  )}
+                  {/* Info */}
+                  <View className="flex-1 px-3 py-3 justify-center">
+                    <Text className="font-bold text-gray-900 text-sm mb-1" numberOfLines={2}>
+                      {article.title}
+                    </Text>
+                    <Text className="text-gray-500 text-xs">{article.author_name ?? 'Unknown'}</Text>
+                    <Text className="text-gray-400 text-xs mt-0.5">{formatDate(article.published_at)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              {/* Load More */}
+              {tabHasMore && (
+                <TouchableOpacity
+                  onPress={handleLoadMore}
+                  disabled={tabLoading}
+                  className="items-center py-4"
+                >
+                  {tabLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text className="text-blue-500 font-semibold text-base">Load More</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
+
+        <View className="h-24" />
       </ScrollView>
 
-      {/* Sidebar Component */}
       <SideBar
         visible={sidebarVisible}
-        onClose={handleCloseSidebar}
+        onClose={() => setSidebarVisible(false)}
         onLogout={handleLogout}
         navigation={navigation}
         user={user}
       />
+      <View className="absolute bottom-0 left-0 right-0">
+        <BottomNavigation navigation={navigation} activeTab="Profile" />
+      </View>
     </SafeAreaView>
   );
 }

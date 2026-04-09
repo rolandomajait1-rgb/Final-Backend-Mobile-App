@@ -562,7 +562,7 @@ class ArticleController extends Controller
             $query->where('user_id', Auth::id())
                 ->where('type', 'liked');
         })
-            ->with('author.user', 'categories', 'tags')
+            ->with('categories', 'tags')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json($articles);
@@ -578,7 +578,7 @@ class ArticleController extends Controller
             $query->where('user_id', Auth::id())
                 ->where('type', 'shared');
         })
-            ->with('author.user', 'categories', 'tags')
+            ->with('categories', 'tags')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json($articles);
