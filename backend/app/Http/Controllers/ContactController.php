@@ -8,83 +8,118 @@ use Illuminate\Support\Facades\Mail;
 
 class ContactController extends Controller
 {
+    // ─── Send Feedback ─────────────────────────────────────────────────────────
     public function sendFeedback(Request $request): JsonResponse
     {
         $request->validate([
-            'feedback' => 'required|string',
-            'email' => 'required|email',
+            'feedback' => 'required|string|max:5000',
+            'email'    => 'nullable|email',       // optional — mobile doesn't collect it
         ]);
 
-        Mail::raw(
-            "New Feedback Received\n\nFrom: {$request->email}\n\nFeedback:\n{$request->feedback}",
-            function ($message) {
+        $from  = $request->email ?? 'anonymous@app';
+        $body  = "New Feedback Received\n\nFrom: {$from}\n\nFeedback:\n{$request->feedback}";
+
+        try {
+            Mail::raw($body, function ($message) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
-                    ->subject('New Feedback - La Verdad Herald');
-            }
-        );
+                        ->subject('New Feedback - La Verdad Herald');
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Mail send failed (feedback): ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Feedback received successfully']);
     }
 
+    // ─── Request Coverage ──────────────────────────────────────────────────────
     public function requestCoverage(Request $request): JsonResponse
     {
         $request->validate([
-            'eventName' => 'required|string',
-            'date' => 'required|date',
-            'description' => 'required|string',
-            'contactEmail' => 'required|email',
+            'eventName'     => 'required|string|max:255',
+            'purpose'       => 'nullable|string',      // mobile sends "purpose"
+            'location'      => 'nullable|string',
+            'dateTime'      => 'nullable|string',      // mobile sends "dateTime" (free text)
+            'highlights'    => 'nullable|string',
+            'requesterName' => 'nullable|string',
+            'designation'   => 'nullable|string',
+            'coordinator'   => 'nullable|string',
+            // Legacy web fields (kept for backwards compat)
+            'date'          => 'nullable|string',
+            'description'   => 'nullable|string',
+            'contactEmail'  => 'nullable|email',
         ]);
 
-        Mail::raw(
-            "New Coverage Request\n\nEvent: {$request->eventName}\nDate: {$request->date}\nContact: {$request->contactEmail}\n\nDescription:\n{$request->description}",
-            function ($message) {
+        $body  = "New Coverage Request\n\n";
+        $body .= "Event: {$request->eventName}\n";
+        $body .= "Purpose / Significance: " . ($request->purpose ?? $request->description ?? 'N/A') . "\n";
+        $body .= "Location: " . ($request->location ?? 'N/A') . "\n";
+        $body .= "Date & Time: " . ($request->dateTime ?? $request->date ?? 'N/A') . "\n";
+        $body .= "Event Highlights: " . ($request->highlights ?? 'N/A') . "\n\n";
+        $body .= "Requester Information:\n";
+        $body .= "Full Name: " . ($request->requesterName ?? 'N/A') . "\n";
+        $body .= "Designation: " . ($request->designation ?? 'N/A') . "\n";
+        $body .= "Organizer / Coordinator: " . ($request->coordinator ?? 'N/A') . "\n";
+        $body .= "Contact Email: " . ($request->contactEmail ?? 'N/A') . "\n";
+
+        try {
+            Mail::raw($body, function ($message) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
-                    ->subject('Coverage Request - La Verdad Herald');
-            }
-        );
+                        ->subject('Coverage Request - La Verdad Herald');
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Mail send failed (coverage): ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Coverage request received successfully']);
     }
 
+    // ─── Join Herald ───────────────────────────────────────────────────────────
     public function joinHerald(Request $request): JsonResponse
     {
         $request->validate([
-            'name' => 'required|string',
-            'course' => 'required|string',
-            'gender' => 'required|string',
-            'pubName' => 'required|string',
-            'specificPosition' => 'required|string',
+            // Mobile field names
+            'fullName'   => 'nullable|string|max:255',
+            'courseYear' => 'nullable|string|max:255',
+            'gender'     => 'nullable|string|max:50',
+            // Legacy web field names (kept for backwards compat)
+            'name'       => 'nullable|string|max:255',
+            'course'     => 'nullable|string|max:255',
         ]);
 
-        $classifications = json_encode($request->classifications ?? []);
-        $pubOption = json_encode($request->pubOption ?? []);
-        $designations = json_encode($request->designations ?? []);
+        $name   = $request->fullName   ?? $request->name   ?? 'N/A';
+        $course = $request->courseYear ?? $request->course  ?? 'N/A';
+        $gender = $request->gender ?? 'N/A';
 
-        $emailBody = "New Membership Application\n\n";
-        $emailBody .= "Personal Information:\n";
-        $emailBody .= "Name: {$request->name}\n";
-        $emailBody .= "Course & Year: {$request->course}\n";
-        $emailBody .= "Gender: {$request->gender}\n\n";
-        $emailBody .= "Publication Information:\n";
-        $emailBody .= "Publication Name: {$request->pubName}\n";
-        $emailBody .= "Classifications: {$classifications}\n";
-        $emailBody .= "Publishing Option: {$pubOption}\n";
-        $emailBody .= "Designations: {$designations}\n";
-        $emailBody .= "Specific Position: {$request->specificPosition}\n";
+        $body  = "New Membership Application\n\n";
+        $body .= "Personal Information:\n";
+        $body .= "Name: {$name}\n";
+        $body .= "Course & Year: {$course}\n";
+        $body .= "Gender: {$gender}\n\n";
+        $body .= "Attachments: Photo and consent form submitted via mobile app.\n";
 
-        Mail::raw($emailBody, function ($message) {
-            $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
-                ->subject('Membership Application - La Verdad Herald');
-        });
+        // Optional extra fields from web form
+        if ($request->pubName)          $body .= "Publication Name: {$request->pubName}\n";
+        if ($request->specificPosition) $body .= "Specific Position: {$request->specificPosition}\n";
+        if ($request->classifications)  $body .= "Classifications: " . json_encode($request->classifications) . "\n";
+
+        try {
+            Mail::raw($body, function ($message) {
+                $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
+                        ->subject('Membership Application - La Verdad Herald');
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Mail send failed (join): ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Application submitted successfully']);
     }
 
+    // ─── Subscribe ─────────────────────────────────────────────────────────────
     public function subscribe(Request $request): JsonResponse
     {
         $request->validate([
             'email' => 'required|email',
-            'name' => 'nullable|string|max:255',
+            'name'  => 'nullable|string|max:255',
         ]);
 
         $subscriberService = app(\App\Services\SubscriberService::class);
