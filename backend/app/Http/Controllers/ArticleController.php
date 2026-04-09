@@ -416,12 +416,13 @@ class ArticleController extends Controller
         Log::info('Article update - content length received', ['length' => $contentLength, 'article_id' => $article->id]);
         
         $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'category' => 'required|string',
-            'tags' => 'nullable|string',
-            'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-            'author' => 'required|string|min:1',
+            'title'              => 'required|string|max:255',
+            'content'            => 'required|string',
+            'category'           => 'required|string',
+            'tags'               => 'nullable|string',
+            'featured_image'     => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'featured_image_url' => 'nullable|url',
+            'author'             => 'required|string|min:1',
         ]);
 
         $oldValues = $article->toArray();
@@ -480,7 +481,11 @@ class ArticleController extends Controller
             }
         }
 
-        if ($request->hasFile('featured_image')) {
+        // Handle image: prefer Cloudinary URL (mobile upload), fallback to direct file
+        if ($request->has('featured_image_url') && $request->featured_image_url) {
+            $data['featured_image'] = $request->featured_image_url;
+            Log::info('Using Cloudinary URL for image update', ['url' => $request->featured_image_url]);
+        } elseif ($request->hasFile('featured_image')) {
             try {
                 $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
                 if ($imagePath) {
