@@ -4,23 +4,20 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * This migration adds the `name` column back to the authors table.
+ * The previous attempt (2026_04_09_000001) failed because it used ->change()
+ * which requires doctrine/dbal. This version avoids that.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        // Re-add 'name' column to authors table so authors can exist without a user account.
-        // This column was removed in migration 100006 but is needed for the new author-first design.
         if (! Schema::hasColumn('authors', 'name')) {
             Schema::table('authors', function (Blueprint $table) {
                 $table->string('name')->nullable()->after('id');
             });
         }
-
-        // NOTE: We intentionally do NOT change articles.author_id to nullable here
-        // because:
-        //  1. ->change() requires doctrine/dbal which is not installed
-        //  2. Author::firstOrCreate() always returns a valid author now,
-        //     so author_id will always be set on new articles.
     }
 
     public function down(): void
