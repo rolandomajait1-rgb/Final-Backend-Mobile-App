@@ -58,6 +58,7 @@ export default function LoginScreen({ navigation }) {
         ['user_email', email],
         ['user_name', user.name],
         ['user_role', user?.role || 'user'],
+        ['user_data', JSON.stringify(user)], // Save complete user object
       ]);
       setSuccessMessage('Welcome back to La Verdad Herald!');
       setTimeout(() => navigation.replace('Main'), 1200);
@@ -99,38 +100,52 @@ export default function LoginScreen({ navigation }) {
     <View className="flex-1">
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
-        {/* Dark overlay */}
-        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
+      <View className="flex-1">
+        <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
+          {/* Dark overlay */}
+          <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-            <ScrollView
-              ref={scrollRef}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-              keyboardShouldPersistTaps="handled"
-              className="px-6 py-6"
-              keyboardDismissMode="interactive"
-            >
+          {/* Logo block — part of background */}
+          <View className="items-center mt-40 ">
+            <Image
+              source={logo}
+              style={{ width: 260, height: 150, marginBottom: 14 , opacity: 0.3}}
+              resizeMode="contain"
+            />
+            <Image
+              source={textlogo}
+              style={{ width: 360, height: 54 }}
+              resizeMode="contain"
+            />
+            <Text className="text-gray-300 text-lg text-center px-2 mt-2 ">
+              The Official Higher Education Student Publication of{'\n'}
+              La Verdad Christian College, Inc.
+            </Text>
+          </View>
+        </ImageBackground>
 
-              {/* Logo block — hidden when keyboard is open */}
-              {!keyboardVisible && (
-                <View className="items-center mb-6 mt-4">
-                  <Image
-                    source={logo}
-                    style={{ width: 260, height: 150, marginBottom: 14 }}
-                    resizeMode="contain"
-                  />
-                  <Image
-                    source={textlogo}
-                    style={{ width: 360, height: 54 }}
-                    resizeMode="contain"
-                  />
-                </View>
-              )}
+        {/* White view at the bottom */}
+        <View className="h-64 bg-white-500" />
+      </View>
+
+      <SafeAreaView className="absolute inset-0">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          className="flex-1"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            className="px-6"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+          >
 
               {/* Card */}
-              <View className="rounded-3xl bg-white p-10">
+              <View className="rounded-3xl bg-white mt-60 p-10">
 
                 {/* X close button */}
                 <TouchableOpacity
@@ -141,13 +156,40 @@ export default function LoginScreen({ navigation }) {
                   <Ionicons name="close" size={24} color="#6b7280" />
                 </TouchableOpacity>
 
-                <Text className="text-center font-bold text-4xl text-black mb-12">Login</Text>
+                <Text className="text-center font-bold text-4xl text-black mb-6">Login</Text>
+
+                {/* General error */}
+                {errors.general && (
+                  <View className="mb-4 rounded-md border border-red-400 bg-red-300/40 p-3">
+                    <Text className="text-center text-sm text-red-900">{errors.general}</Text>
+                  </View>
+                )}
+
+                {/* Resend verification */}
+                {showResend && (
+                  <View className="mb-4 rounded-md border border-yellow-400 bg-yellow-300/40 p-3">
+                    <Text className="mb-2 text-center text-sm text-yellow-900">Need a new verification link?</Text>
+                    <TouchableOpacity onPress={handleResend} disabled={isResending} className="rounded-md bg-yellow-600 py-2">
+                      {isResending
+                        ? <ActivityIndicator color="white" size="small" />
+                        : <Text className="text-center text-sm text-white">Resend Verification Email</Text>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Success message */}
+                {successMessage !== '' && (
+                  <View className="mb-4 rounded-md border border-green-400 bg-green-300/40 p-3">
+                    <Text className="text-center text-sm text-green-900">{successMessage}</Text>
+                  </View>
+                )}
 
                 {/* Email */}
                 <View className="mb-6">
                   <Text className="mb-1 text-lg font-medium text-black gap-">Email Address</Text>
                   <TextInput
-                    className={`w-full rounded-md border px-4 py-2 mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-white/40'}`}
+                    className={`w-full rounded-md border px-4 py-2 mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                     value={email}
                     onChangeText={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: null })); }}
                     placeholder="Enter your email"
@@ -162,7 +204,7 @@ export default function LoginScreen({ navigation }) {
                 {/* Password */}
                 <View className="mb-6">
                   <Text className="mb-1 text-lg font-medium text-black">Password</Text>
-                  <View className={`flex-row items-center rounded-md border bg-white/80 ${errors.password ? 'border-red-400' : 'border-white/40'}`}>
+                  <View className={`flex-row items-center rounded-md border bg-white/80 ${errors.password ? 'border-red-400' : 'border-gray-300'}`}>
                     <TextInput
                       className="flex-1 px-4 py-2 text-black"
                       value={password}
@@ -181,7 +223,7 @@ export default function LoginScreen({ navigation }) {
                 </View>
 
                 {/* Remember me + Forgot password */}
-                <View className="flex-row items-center justify-between mb-20">
+                <View className="flex-row items-center justify-between mb-6">
                   <TouchableOpacity onPress={() => setRemember(!remember)} className="flex-row items-center gap-2">
                     <View className={`h-4 w-4 rounded border ${remember ? 'bg-blue-500 border-blue-500' : 'border-black/60 bg-white/10'}`}>
                       {remember && <Ionicons name="checkmark" size={14} color="white" />}
@@ -193,39 +235,12 @@ export default function LoginScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
 
-                {/* General error */}
-                {errors.general && (
-                  <View className="mb-4 rounded-md border border-red-400 bg-red-900/40 p-3">
-                    <Text className="text-center text-sm text-red-300">{errors.general}</Text>
-                  </View>
-                )}
-
-                {/* Resend verification */}
-                {showResend && (
-                  <View className="mb-4 rounded-md border border-yellow-400 bg-yellow-900/40 p-3">
-                    <Text className="mb-2 text-center text-sm text-yellow-300">Need a new verification link?</Text>
-                    <TouchableOpacity onPress={handleResend} disabled={isResending} className="rounded-md bg-yellow-600 py-2">
-                      {isResending
-                        ? <ActivityIndicator color="white" size="small" />
-                        : <Text className="text-center text-sm text-white">Resend Verification Email</Text>
-                      }
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Success message */}
-                {successMessage !== '' && (
-                  <View className="mb-4 rounded-md border border-green-400 bg-green-900/40 p-3">
-                    <Text className="text-center text-sm text-green-300">{successMessage}</Text>
-                  </View>
-                )}
-
                 {/* Submit */}
                 <TouchableOpacity
                   onPress={handleLogin}
                   disabled={isLoading}
                   className="rounded-full py-4 items-center"
-                  style={{ backgroundColor: '#f8b200' }}
+                  style={{ backgroundColor: '#0686f6ff', width: 150, alignSelf: 'center' }}
                 >
                   {isLoading
                     ? <ActivityIndicator color="white" size="small" />
@@ -248,10 +263,9 @@ export default function LoginScreen({ navigation }) {
 
               </View>
 
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </ImageBackground>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }

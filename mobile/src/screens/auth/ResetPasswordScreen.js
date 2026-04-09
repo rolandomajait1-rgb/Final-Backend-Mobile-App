@@ -100,125 +100,150 @@ export default function ResetPasswordScreen({ navigation, route }) {
     <View className="flex-1">
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
-        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
+      {/* Background layer — same as LoginScreen */}
+      <View className="flex-1">
+        <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
+          {/* Dark blue overlay */}
+          <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled" className="px-6 py-6" ref={scrollRef} keyboardDismissMode="interactive">
+          {/* Logo block */}
+          <View className="items-center mt-40">
+            <Image
+              source={logo}
+              style={{ width: 260, height: 150, marginBottom: 14, opacity: 0.3 }}
+              resizeMode="contain"
+            />
+            <Image
+              source={textlogo}
+              style={{ width: 360, height: 54 }}
+              resizeMode="contain"
+            />
+            <Text className="text-gray-300 text-lg text-center px-2 mt-2">
+              The Official Higher Education Student Publication of{'\n'}
+              La Verdad Christian College, Inc.
+            </Text>
+          </View>
+        </ImageBackground>
 
-              {/* Logo — hidden when keyboard is open */}
-              {!keyboardVisible && (
-                <View className="items-center mb-6">
-                  <Image source={logo} style={{ width: 260, height: 150, marginBottom: 14 }} resizeMode="contain" />
-                  <Image source={textlogo} style={{ width: 360, height: 54 }} resizeMode="contain" />
+        {/* White spacer at the bottom */}
+        <View className="h-64 bg-white-500" />
+      </View>
+
+      {/* Absolute overlay — card floats on top */}
+      <SafeAreaView className="absolute inset-0">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={{ paddingVertical: 24 }}
+            keyboardShouldPersistTaps="handled"
+            className="px-6"
+            keyboardDismissMode="interactive"
+          >
+
+            {/* Card */}
+            <View className="rounded-3xl bg-white mt-60 p-10">
+
+              {/* X close */}
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                className="absolute top-4 right-4 z-10"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+
+              <Text className="text-center font-bold text-3xl text-black mb-6">Reset Password</Text>
+
+              {successMessage !== '' && (
+                <View className="mb-4 rounded-md border border-green-400 bg-green-300/40 p-3">
+                  <Text className="text-center text-sm text-green-900">{successMessage}</Text>
                 </View>
               )}
 
-              {/* Card */}
-              <View className="rounded-3xl bg-white p-8">
+              {errors.general && (
+                <View className="mb-4 rounded-md border border-red-400 bg-red-300/40 p-3">
+                  <Text className="text-center text-sm text-red-900">{errors.general}</Text>
+                </View>
+              )}
 
-                {/* X close */}
-                <TouchableOpacity
-                  onPress={() => navigation.goBack()}
-                  className="absolute top-4 right-4 z-10"
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="close" size={24} color="#6b7280" />
-                </TouchableOpacity>
+              {/* Email (read-only) */}
+              <View className="mb-4">
+                <Text className="mb-1 text-lg font-medium text-black">Email Address</Text>
+                <TextInput
+                  className="w-full rounded-md border border-gray-200 px-4 py-2 bg-gray-100 text-gray-500"
+                  value={formData.email}
+                  editable={false}
+                />
+              </View>
 
-                <Text className="text-center font-bold text-3xl text-black mb-6">Reset Password</Text>
-
-                {successMessage !== '' && (
-                  <View className="mb-4 rounded-md border border-green-400 bg-green-50 p-3">
-                    <Text className="text-center text-sm text-green-700">{successMessage}</Text>
-                  </View>
-                )}
-
-                {errors.general && (
-                  <View className="mb-4 rounded-md border border-red-400 bg-red-50 p-3">
-                    <Text className="text-center text-sm text-red-700">{errors.general}</Text>
-                  </View>
-                )}
-
-                {/* Email (read-only) */}
-                <View className="mb-4">
-                  <Text className="mb-1 text-sm font-medium text-gray-700">Email Address</Text>
+              {/* New Password */}
+              <View className="mb-4">
+                <Text className="mb-1 text-lg font-medium text-black">New Password</Text>
+                <View className={`flex-row items-center rounded-md border bg-white/80 ${errors.password ? 'border-red-400' : 'border-gray-300'}`}>
                   <TextInput
-                    className="w-full rounded-md border border-gray-200 px-4 py-2 bg-gray-100 text-gray-500"
-                    value={formData.email}
-                    editable={false}
+                    className="flex-1 px-4 py-2 text-black"
+                    value={formData.password}
+                    onChangeText={(v) => handleChange('password', v)}
+                    placeholder="Enter new password"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                   />
-                </View>
-
-                {/* New Password */}
-                <View className="mb-4">
-                  <Text className="mb-1 text-sm font-medium text-gray-700">New Password</Text>
-                  <View className={`flex-row items-center rounded-md border bg-white ${errors.password ? 'border-red-400' : 'border-gray-300'}`}>
-                    <TextInput
-                      className="flex-1 px-4 py-2 text-gray-800"
-                      value={formData.password}
-                      onChangeText={(v) => handleChange('password', v)}
-                      placeholder="Enter new password"
-                      placeholderTextColor="#9ca3af"
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
-                      <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
-                    </TouchableOpacity>
-                  </View>
-                  {errors.password && <Text className="mt-1 text-xs text-red-500">{errors.password[0]}</Text>}
-                </View>
-
-                {/* Confirm Password */}
-                <View className="mb-6">
-                  <Text className="mb-1 text-sm font-medium text-gray-700">Confirm New Password</Text>
-                  <View className={`flex-row items-center rounded-md border bg-white ${errors.password_confirmation ? 'border-red-400' : 'border-gray-300'}`}>
-                    <TextInput
-                      className="flex-1 px-4 py-2 text-gray-800"
-                      value={formData.password_confirmation}
-                      onChangeText={(v) => handleChange('password_confirmation', v)}
-                      placeholder="Confirm new password"
-                      placeholderTextColor="#9ca3af"
-                      secureTextEntry={!showConfirmPassword}
-                      autoCapitalize="none"
-                      onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
-                    />
-                    <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="pr-3">
-                      <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
-                    </TouchableOpacity>
-                  </View>
-                  {errors.password_confirmation && <Text className="mt-1 text-xs text-red-500">{errors.password_confirmation[0]}</Text>}
-                </View>
-
-                {/* Submit */}
-                <TouchableOpacity
-                  onPress={handleSubmit}
-                  disabled={isLoading}
-                  className="rounded-full py-4 items-center"
-                  style={{ backgroundColor: '#f8b200' }}
-                >
-                  {isLoading
-                    ? <ActivityIndicator color="white" size="small" />
-                    : <Text className="text-center font-bold text-white text-base">Reset Password</Text>
-                  }
-                </TouchableOpacity>
-
-                {/* Back to login */}
-                <View className="mt-6 flex-row justify-center">
-                  <Text className="text-lg text-gray-600">Remember your password? </Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                    <Text className="text-lg text-blue-600">Sign in</Text>
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
-
+                {errors.password && <Text className="mt-1 text-xs text-red-400">{errors.password[0]}</Text>}
               </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </ImageBackground>
+
+              {/* Confirm Password */}
+              <View className="mb-6">
+                <Text className="mb-1 text-lg font-medium text-black">Confirm New Password</Text>
+                <View className={`flex-row items-center rounded-md border bg-white/80 ${errors.password_confirmation ? 'border-red-400' : 'border-gray-300'}`}>
+                  <TextInput
+                    className="flex-1 px-4 py-2 text-black"
+                    value={formData.password_confirmation}
+                    onChangeText={(v) => handleChange('password_confirmation', v)}
+                    placeholder="Confirm new password"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
+                  />
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="pr-3">
+                    <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
+                  </TouchableOpacity>
+                </View>
+                {errors.password_confirmation && <Text className="mt-1 text-xs text-red-400">{errors.password_confirmation[0]}</Text>}
+              </View>
+
+              {/* Submit */}
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={isLoading}
+                className="rounded-full py-4 items-center"
+                style={{ backgroundColor: '#f8b200', width: 150, alignSelf: 'center' }}
+              >
+                {isLoading
+                  ? <ActivityIndicator color="white" size="small" />
+                  : <Text className="text-center font-bold text-white text-base">Reset Password</Text>
+                }
+              </TouchableOpacity>
+
+              {/* Back to login */}
+              <View className="mt-6 flex-row justify-center">
+                <Text className="text-lg text-black mb-1">Remember your password? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                  <Text className="text-lg text-blue-500">Sign in</Text>
+                </TouchableOpacity>
+              </View>
+
+            </View>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }

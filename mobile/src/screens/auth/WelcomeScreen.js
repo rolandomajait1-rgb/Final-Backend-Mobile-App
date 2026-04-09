@@ -15,7 +15,7 @@ export default function WelcomeScreen({ navigation }) {
 
       <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
         {/* Dark overlay */}
-        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
+        <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
         <SafeAreaView className="flex-1 items-center justify-between px-4 py-10">
 
@@ -38,11 +38,11 @@ export default function WelcomeScreen({ navigation }) {
           </View>
 
           {/* Action buttons */}
-          <View className="w-full items-center gap-3 mb-4">
+          <View className="w-full items-center gap-3 -mb-10 mt-12">
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
-              className="w-2/3 rounded-full items-center mb-4"
-              style={{ backgroundColor: '#f8b200', paddingVertical: 20 }}
+              className="w-2/3 rounded-full items-center mb-2"
+              style={{ backgroundColor: '#0686f6ff', paddingVertical: 20 }}
               activeOpacity={0.85}
             >
               <Text className="text-white font-bold text-lg">Log In</Text>
@@ -50,8 +50,8 @@ export default function WelcomeScreen({ navigation }) {
 
             <TouchableOpacity
               onPress={() => navigation.navigate('Register')}
-              className="w-2/3 rounded-full items-center mb-4"
-              style={{ backgroundColor: '#0686f6ff', paddingVertical: 20 }}
+              className="w-2/3 rounded-full items-center mb-2"
+              style={{ backgroundColor: '#f8b200', paddingVertical: 20 }}
               activeOpacity={0.85}
             >
               <Text className="text-white font-bold text-lg">Sign Up</Text>
@@ -62,7 +62,7 @@ export default function WelcomeScreen({ navigation }) {
               className="items-center mt-1"
               activeOpacity={0.7}
             >
-              <Text className="text-gray-400 text-sm underline">
+              <Text className="text-gray-400 text-sm  underline">
                 Continue without signing in
               </Text>
             </TouchableOpacity>
@@ -70,6 +70,9 @@ export default function WelcomeScreen({ navigation }) {
 
         </SafeAreaView>
       </ImageBackground>
+
+      {/* White view at the bottom */}
+      <View className="h-64 bg-white" />
     </View>
   );
 }

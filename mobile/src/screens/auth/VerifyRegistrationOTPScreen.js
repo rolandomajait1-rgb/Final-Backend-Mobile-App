@@ -17,6 +17,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
 
@@ -55,12 +56,12 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
   const handleResendOTP = async () => {
     setLoading(true);
     setError('');
+    setSuccessMsg('');
     try {
-      // Resend OTP by calling register endpoint again
-      // This will generate a new OTP
-      await axios.post('/api/register', { email }, { timeout: 180000 });
+      await axios.post('/api/resend-registration-otp', { email });
       setOtp('');
-      setError('');
+      setSuccessMsg('New OTP sent! Please check your email.');
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
       let msg = 'Failed to resend OTP. Please try again.';
       if (err.response?.data?.message) {
@@ -119,6 +120,12 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
                   </View>
                 )}
 
+                {successMsg !== '' && (
+                  <View className="mb-4 rounded-md border border-green-400 bg-green-50 p-3">
+                    <Text className="text-center text-sm text-green-700">{successMsg}</Text>
+                  </View>
+                )}
+
                 {/* OTP Input */}
                 <View className="mb-6">
                   <Text className="mb-1 text-sm font-medium text-gray-700">OTP Code</Text>
@@ -163,7 +170,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
 
                 {/* Back to register */}
                 <View className="mt-6 flex-row justify-center">
-                  <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <TouchableOpacity onPress={() => navigation.replace('Register')}>
                     <Text className="text-sm text-blue-600">Back to Register</Text>
                   </TouchableOpacity>
                 </View>
