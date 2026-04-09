@@ -33,10 +33,20 @@ class DashboardController extends Controller
             'totalArticles'  => \App\Models\Article::count(),
             'totalUsers'     => \App\Models\User::count(),
             'totalViews'     => (int) \App\Models\Article::sum('view_count'),
-            'recentArticles' => \App\Models\Article::with('author.user', 'categories')
-                ->latest('published_at')->take(5)->get(),
+            'recentArticles' => \App\Models\Article::with('categories')
+                ->latest('published_at')
+                ->take(5)
+                ->get()
+                ->map(fn ($a) => [
+                    'id'           => $a->id,
+                    'title'        => $a->title,
+                    'author_name'  => $a->author_name ?? $a->display_author_name ?? 'Unknown',
+                    'status'       => $a->status,
+                    'published_at' => $a->published_at,
+                ]),
         ]);
     }
+
 
     public function apiRecentActivity(Request $request): JsonResponse
     {
