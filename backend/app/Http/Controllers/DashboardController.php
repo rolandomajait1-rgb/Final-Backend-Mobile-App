@@ -29,11 +29,44 @@ class DashboardController extends Controller
 
     public function apiAdminFullStats(Request $request): JsonResponse
     {
+        $totalViews    = (int) \App\Models\Article::sum('view_count');
+        $totalUsers    = \App\Models\User::count();
+        $totalArticles = \App\Models\Article::count();
+        $published     = \App\Models\Article::where('status', 'published')->count();
+        $totalLikes    = \App\Models\ArticleInteraction::where('type', 'liked')->count();
+        $totalShares   = \App\Models\ArticleInteraction::where('type', 'shared')->count();
+
+        // Simple reader growth: compare this month's vs last month's new users
+        $currentReaders  = \App\Models\User::whereMonth('created_at', now()->month)
+                                           ->whereYear('created_at', now()->year)->count();
+        $previousReaders = \App\Models\User::whereMonth('created_at', now()->subMonth()->month)
+                                           ->whereYear('created_at', now()->subMonth()->year)->count();
+        $growthPct = $previousReaders > 0
+            ? round((($currentReaders - $previousReaders) / $previousReaders) * 100, 2)
+            : 0;
+
         return response()->json([
-            'totalArticles'  => \App\Models\Article::count(),
-            'totalUsers'     => \App\Models\User::count(),
-            'totalViews'     => (int) \App\Models\Article::sum('view_count'),
-            'recentArticles' => \App\Models\Article::with('categories')
+            // Engagement
+            'totalViews'      => $totalViews,
+            'totalLikes'      => $totalLikes,
+            'totalShares'     => $totalShares,
+            'totalArticles'   => $totalArticles,
+            'publishedCount'  => $published,
+
+            // Forms (counts from ArticleInteraction or dedicated models if available)
+            'feedbackForms'       => \App\Models\ArticleInteraction::where('type', 'feedback')->count(),
+            'coverageRequests'    => \App\Models\ArticleInteraction::where('type', 'coverage')->count(),
+            'membershipApps'      => $totalUsers, // registered users as membership proxy
+
+            // Reach
+            'studentReach'    => $totalUsers,
+            'totalUsers'      => $totalUsers,
+            'growthPct'       => $growthPct,
+            'currentReaders'  => $currentReaders,
+            'previousReaders' => $previousReaders,
+
+            // Recent publications
+            'recentArticles'  => \App\Models\Article::with('categories')
                 ->latest('published_at')
                 ->take(5)
                 ->get()
