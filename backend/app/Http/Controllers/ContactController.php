@@ -78,24 +78,33 @@ class ContactController extends Controller
     {
         $request->validate([
             // Mobile field names
-            'fullName'   => 'nullable|string|max:255',
-            'courseYear' => 'nullable|string|max:255',
-            'gender'     => 'nullable|string|max:50',
-            // Legacy web field names (kept for backwards compat)
-            'name'       => 'nullable|string|max:255',
-            'course'     => 'nullable|string|max:255',
+            'fullName'    => 'nullable|string|max:255',
+            'courseYear'  => 'nullable|string|max:255',
+            'gender'      => 'nullable|string|max:50',
+            // File attachments from mobile
+            'photo'       => 'nullable|file|mimes:jpg,jpeg,png,gif|max:5120',
+            'consentForm' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            // Legacy web field names
+            'name'        => 'nullable|string|max:255',
+            'course'      => 'nullable|string|max:255',
         ]);
 
         $name   = $request->fullName   ?? $request->name   ?? 'N/A';
         $course = $request->courseYear ?? $request->course  ?? 'N/A';
         $gender = $request->gender ?? 'N/A';
 
+        // Store uploaded files if present
+        $photoPath  = $request->hasFile('photo')       ? $request->file('photo')->store('herald-applications/photos', 'public')       : null;
+        $consentPath = $request->hasFile('consentForm') ? $request->file('consentForm')->store('herald-applications/consent', 'public') : null;
+
         $body  = "New Membership Application\n\n";
         $body .= "Personal Information:\n";
         $body .= "Name: {$name}\n";
         $body .= "Course & Year: {$course}\n";
         $body .= "Gender: {$gender}\n\n";
-        $body .= "Attachments: Photo and consent form submitted via mobile app.\n";
+        $body .= "Attachments:\n";
+        $body .= "Photo: "       . ($photoPath   ? "Uploaded — {$photoPath}" : 'Not provided') . "\n";
+        $body .= "Consent Form: " . ($consentPath ? "Uploaded — {$consentPath}" : 'Not provided') . "\n";
 
         // Optional extra fields from web form
         if ($request->pubName)          $body .= "Publication Name: {$request->pubName}\n";
