@@ -4,139 +4,110 @@ import {
   Text,
   ActivityIndicator,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  RefreshControl,
   Image,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { colors } from '../../styles';
-import ArticleCard from '../../components/articles/ArticleCard';
+import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 
 const logo = require('../../../assets/logo.png');
 
-const getAuthorName = (article) => {
-  return article.author_name || article.author?.name || article.author?.user?.name || 'Unknown Author';
+const getAuthorName = (article) =>
+  article.author_name || article.author?.name || article.author?.user?.name || 'Unknown Author';
+
+const formatDate = (d) => {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 };
 
-
-const RelatedCard = ({ article, onPress }) => (
-  <TouchableOpacity
-    className="bg-white rounded-lg border mb-4 overflow-hidden"
-    style={{ borderColor: colors.border }}
-    onPress={onPress}
-  >
-    <Image
-      source={{ uri: article.featured_image || article.featured_image_url || 'https://via.placeholder.com/300x200?text=No+Image' }}
-      style={{ width: '100%', height: 180 }}
-      resizeMode="cover"
-    />
-    <View className="p-3">
-      <View className="flex-row justify-between items-start mb-2">
-        <View className="px-2 py-1 rounded" style={{ backgroundColor: colors.primary }}>
-          <Text className="text-xs font-bold text-white">{article.category}</Text>
-        </View>
-        <Text className="text-xs" style={{ color: colors.textSecondary }}>{article.date}</Text>
-      </View>
-      <Text className="text-base font-bold mb-2" style={{ color: colors.text }} numberOfLines={2}>
-        {article.title}
-      </Text>
-      {article.excerpt && (
-        <Text className="text-sm mb-2" style={{ color: colors.textSecondary }} numberOfLines={2}>
-          {article.excerpt}
-        </Text>
-      )}
-      <Text className="text-xs text-right" style={{ color: colors.textSecondary }}>
-        {article.author}
-      </Text>
-    </View>
-  </TouchableOpacity>
-);
-
-const MostViewedCard = ({ article, onPress }) => (
-  <TouchableOpacity
-    className="bg-white p-3 rounded-lg border mb-3"
-    style={{ borderColor: colors.border }}
-    onPress={onPress}
-  >
-    <View className="flex-row justify-between items-center mb-2">
-      <Text className="text-xs" style={{ color: colors.textSecondary }}>{article.date}</Text>
-      <View className="px-2 py-1 rounded" style={{ backgroundColor: colors.primary }}>
-        <Text className="text-xs font-bold text-white">{article.category}</Text>
-      </View>
-    </View>
-    <Text className="text-sm font-bold mb-2" style={{ color: colors.text }} numberOfLines={2}>
-      {article.title}
-    </Text>
-    <Text className="text-xs mb-2" style={{ color: colors.textSecondary }} numberOfLines={2}>
-      {article.excerpt}
-    </Text>
-    <Text className="text-xs text-right" style={{ color: colors.textSecondary }}>
-      {article.author}
-    </Text>
-  </TouchableOpacity>
-);
-
-
-export default function CategoryScreen({ navigation, categoryName, categorySlug }) {
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [relatedArticles, setRelatedArticles] = useState([]);
+export default function CategoryScreen({ navigation, categoryName }) {
+  const [articles, setArticles]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError]           = useState(null);
   const [categories, setCategories] = useState([]);
+  const [page, setPage]             = useState(1);
+  const [hasMore, setHasMore]       = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     fetchCategories();
-    fetchCategoryArticles();
-  }, []);
+    fetchArticles(1, true);
+  }, [categoryName]);
 
   const fetchCategories = async () => {
     try {
-      const response = await client.get('/api/categories');
-      const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
-      const filteredCategories = (response.data ?? []).filter(cat => allowedCategories.includes(cat.name));
-      setCategories(filteredCategories);
+      const res = await client.get('/api/categories');
+      const allowed = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
+      setCategories((res.data ?? []).filter(c => allowed.includes(c.name)));
     } catch (err) {
       console.error('Error fetching categories:', err);
     }
   };
 
-  const fetchCategoryArticles = async () => {
-    setLoading(true);
+  const fetchArticles = async (pageNum = 1, replace = false) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
     setError(null);
+
     try {
-      // Use public endpoint — no auth required
-      const response = await client.get('/api/articles/public', {
-        params: { category: categoryName, per_page: 15 },
+      const res = await client.get('/api/articles/public', {
+        params: { category: categoryName, page: pageNum, per_page: 10 },
       });
-      const articlesData = response.data.data || [];
-      setArticles(articlesData);
-      // Use remaining articles as related (avoid second request)
-      setRelatedArticles(articlesData.slice(10, 15));
+      const data     = res.data?.data ?? [];
+      const lastPage = res.data?.last_page ?? 1;
+
+      setArticles(prev => replace ? data : [...prev, ...data]);
+      setHasMore(pageNum < lastPage);
+      setPage(pageNum);
     } catch (err) {
       console.error(`Error fetching ${categoryName} articles:`, err);
-      setError(`Failed to load ${categoryName} articles. Please try again later.`);
-      setArticles([]);
+      setError(`Failed to load ${categoryName} articles. Please try again.`);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      setRefreshing(false);
     }
   };
 
-  const handleArticlePress = (slug) => {
-    navigation.navigate('ArticleDetail', { slug });
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchArticles(1, true);
   };
 
-  const renderLoadingState = () => (
-    <View className="flex-1 justify-center items-center">
-      <ActivityIndicator size="large" color={colors.primary} />
-      <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading articles...</Text>
-    </View>
-  );
+  const loadMore = () => {
+    if (!loadingMore && hasMore) fetchArticles(page + 1, false);
+  };
 
-  const renderEmptyState = () => (
-    <View className="flex-1 justify-center items-center px-4">
+  const handleArticlePress = (article) => {
+    navigation.navigate('ArticleDetail', { slug: article.slug });
+  };
+
+  const handleTagPress = (tag) => {
+    navigation.navigate('TagArticles', { tagName: tag });
+  };
+
+  const handleAuthorPress = (article) => {
+    if (article.author?.id) {
+      navigation.navigate('AuthorProfile', {
+        authorId:   article.author.id,
+        authorName: getAuthorName(article),
+      });
+    }
+  };
+
+  // ─── Empty State ──────────────────────────────────────────────────────────
+  const EmptyState = () => (
+    <View className="flex-1 justify-center items-center px-6 py-20">
       <Image source={logo} style={{ width: 60, height: 60 }} resizeMode="contain" />
       <Text className="text-2xl font-bold mt-6 text-center" style={{ color: colors.text }}>
         Nothing Published Yet
@@ -147,89 +118,31 @@ export default function CategoryScreen({ navigation, categoryName, categorySlug 
     </View>
   );
 
-
-  const renderContent = () => (
-    <ScrollView showsVerticalScrollIndicator={false}>
-      {articles[0] && (
-        <View className="mb-6">
-          <ArticleCard
-            article={articles[0]}
-            onPress={() => handleArticlePress(articles[0].slug)}
-          />
+  // ─── Footer (Load More / Spinner) ────────────────────────────────────────
+  const Footer = () => {
+    if (loadingMore) {
+      return (
+        <View className="py-6 items-center">
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
-      )}
-
-      {articles.slice(1, 3).length > 0 && (
-        <View className="mb-6">
-          {articles.slice(1, 3).map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              onPress={() => handleArticlePress(article.slug)}
-            />
-          ))}
+      );
+    }
+    if (!hasMore && articles.length > 0) {
+      return (
+        <View className="py-6 items-center">
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+            You've reached the end.
+          </Text>
         </View>
-      )}
-
-      <View className="h-px bg-gray-300 my-6" />
-
-      {articles.slice(3, 6).length > 0 && (
-        <View className="mb-6">
-          <Text className="text-2xl font-bold mb-4" style={{ color: colors.text }}>Latest</Text>
-          {articles.slice(3, 6).map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              onPress={() => handleArticlePress(article.slug)}
-            />
-          ))}
-        </View>
-      )}
-
-      {articles.slice(6, 10).length > 0 && (
-        <View className="mb-6">
-          <Text className="text-2xl font-bold mb-4" style={{ color: colors.text }}>Most Viewed</Text>
-          {articles.slice(6, 10).map((article) => (
-            <MostViewedCard
-              key={article.id}
-              article={{
-                title: article.title,
-                excerpt: article.excerpt,
-                category: article.categories && article.categories.length > 0 ? article.categories[0].name : categoryName,
-                author: getAuthorName(article),
-                date: new Date(article.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-              }}
-              onPress={() => handleArticlePress(article.slug)}
-            />
-          ))}
-        </View>
-      )}
-
-      {relatedArticles.length > 0 && (
-        <View className="mb-6">
-          <Text className="text-2xl font-bold mb-4" style={{ color: colors.text }}>More from this Category</Text>
-          {relatedArticles.map((article) => (
-            <RelatedCard
-              key={article.id}
-              article={{
-                title: article.title,
-                category: article.categories && article.categories.length > 0 ? article.categories[0].name : categoryName,
-                date: new Date(article.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-                author: getAuthorName(article),
-                imageUrl: article.featured_image_url || 'https://via.placeholder.com/300x200?text=No+Image',
-                excerpt: article.excerpt,
-              }}
-              onPress={() => handleArticlePress(article.slug)}
-            />
-          ))}
-        </View>
-      )}
-    </ScrollView>
-  );
-
+      );
+    }
+    return <View className="h-6" />;
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white mt-10" style={{ backgroundColor: colors.background }}>
+
+      {/* Header */}
       <View className="flex-shrink-0">
         <HomeHeader
           categories={categories}
@@ -242,31 +155,65 @@ export default function CategoryScreen({ navigation, categoryName, categorySlug 
         />
       </View>
 
-      <View className="py-4 bg-white rounded-t-lg px-4" style={{ backgroundColor: colors.primary }}>
+      {/* Category Banner */}
+      <View className="py-4 px-4" style={{ backgroundColor: colors.primary }}>
         <Text className="text-3xl font-bold text-white text-center">
           {categoryName.toUpperCase()}
         </Text>
-        
       </View>
 
-      {loading ? renderLoadingState() : error ? (
+      {/* Content */}
+      {loading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading articles...</Text>
+        </View>
+      ) : error ? (
         <View className="flex-1 justify-center items-center px-4">
-          <Ionicons name="alert-circle" size={48} color={colors.error} />
-          <Text className="mt-4 text-center" style={{ color: colors.error }}>{error}</Text>
+          <Ionicons name="alert-circle" size={48} color={colors.error || '#ef4444'} />
+          <Text className="mt-4 text-center" style={{ color: colors.error || '#ef4444' }}>{error}</Text>
           <TouchableOpacity
             className="mt-6 px-6 py-3 rounded-lg"
             style={{ backgroundColor: colors.primary }}
-            onPress={fetchCategoryArticles}
+            onPress={() => fetchArticles(1, true)}
           >
             <Text className="text-white font-semibold">Try Again</Text>
           </TouchableOpacity>
         </View>
-      ) : articles.length === 0 ? (
-        renderEmptyState()
       ) : (
-        <View className="flex-1 px-4 py-4">
-          {renderContent()}
-        </View>
+        <FlatList
+          data={articles}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <View className="px-4">
+              <ArticleLargeCard
+                title={item.title}
+                category={item.categories?.[0]?.name || categoryName}
+                author={getAuthorName(item)}
+                date={formatDate(item.published_at || item.created_at)}
+                image={item.featured_image || item.featured_image_url}
+                hashtags={item.tags?.map(t => t.name) ?? []}
+                onPress={() => handleArticlePress(item)}
+                onMenuPress={() => {}}
+                onTagPress={handleTagPress}
+                onAuthorPress={() => handleAuthorPress(item)}
+              />
+            </View>
+          )}
+          ListEmptyComponent={<EmptyState />}
+          ListFooterComponent={<Footer />}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+        />
       )}
 
       <BottomNavigation navigation={navigation} activeTab="Home" />
