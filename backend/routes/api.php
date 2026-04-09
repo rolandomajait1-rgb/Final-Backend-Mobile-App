@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\HealthController as ApiHealthController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuthorController;
@@ -16,8 +17,11 @@ use App\Http\Controllers\UserController;
 use App\Models\Article;
 use Illuminate\Support\Facades\Route;
 
-// Health Check Endpoint (for uptime monitoring)
-Route::get('/health', [HealthController::class, 'check']);
+// Health Check Endpoints (for uptime monitoring)
+Route::get('/health', [ApiHealthController::class, 'check']);
+Route::get('/ping', [ApiHealthController::class, 'ping']);
+
+// Legacy health endpoints (keep for backward compatibility)
 Route::get('/config-check', [HealthController::class, 'checkConfig']);
 Route::get('/cloudinary-test', [HealthController::class, 'testCloudinary']);
 
