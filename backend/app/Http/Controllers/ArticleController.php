@@ -245,13 +245,13 @@ class ArticleController extends Controller
 
             Log::info('Creating article', ['title' => $validated['title'], 'author_name' => $validated['author_name']]);
 
-            // Find existing user by name only — do NOT auto-create users
-            $authorUser = User::where('name', $validated['author_name'])->first();
-            $author = $authorUser
-                ? Author::firstOrCreate(['user_id' => $authorUser->id], ['bio' => ''])
-                : null;
+            // Find or create Author directly by name — goes to authors table, NOT users table
+            $author = Author::firstOrCreate(
+                ['name' => $validated['author_name']],
+                ['bio'  => '']
+            );
 
-            Log::info('Author resolved', ['author_id' => $author?->id]);
+            Log::info('Author resolved', ['author_id' => $author->id, 'name' => $author->name]);
 
             return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author, $contentLength) {
                 $imagePath = null;
@@ -283,7 +283,7 @@ class ArticleController extends Controller
                 $article = Article::create([
                     'title'         => $validated['title'],
                     'content'       => $validated['content'],
-                    'author_id'     => $author?->id,
+                    'author_id'     => $author->id,
                     'author_name'   => $validated['author_name'],
                     'status'        => $status,
                     'published_at'  => $status === 'published' ? now() : null,
@@ -404,20 +404,20 @@ class ArticleController extends Controller
         // Authorize using policy (admins and moderators may update per policy)
         $this->authorize('update', $article);
 
-        // Find existing user by name only — do NOT auto-create users
-        $authorUser = User::where('name', $request->author)->first();
-        $author = $authorUser
-            ? Author::firstOrCreate(['user_id' => $authorUser->id], ['bio' => ''])
-            : null;
+        // Find or create Author directly by name — goes to authors table, NOT users table
+        $author = Author::firstOrCreate(
+            ['name' => $request->author],
+            ['bio'  => '']
+        );
 
-        Log::info('Author resolved for update', ['author_id' => $author?->id]);
+        Log::info('Author resolved for update', ['author_id' => $author->id, 'name' => $author->name]);
 
         // The original slug is maintained. If the title is dirty and slug is empty, the Model boot handles it.
 
         $data = [
             'title'       => $request->title,
             'content'     => $request->input('content'),
-            'author_id'   => $author?->id,
+            'author_id'   => $author->id,
             'author_name' => $request->author,
             'excerpt'     => Str::limit($request->input('content'), 150),
         ];
