@@ -20,8 +20,9 @@ class ContactController extends Controller
         $body  = "New Feedback Received\n\nFrom: {$from}\n\nFeedback:\n{$request->feedback}";
 
         try {
-            Mail::raw($body, function ($message) {
+            Mail::raw($body, function ($message) use ($from) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
+                        ->replyTo($from)
                         ->subject('New Feedback - La Verdad Herald');
             });
         } catch (\Exception $e) {
@@ -62,9 +63,13 @@ class ContactController extends Controller
         $body .= "Contact Email: " . ($request->contactEmail ?? 'N/A') . "\n";
 
         try {
-            Mail::raw($body, function ($message) {
+            Mail::raw($body, function ($message) use ($request) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
                         ->subject('Coverage Request - La Verdad Herald');
+                
+                if ($request->contactEmail) {
+                    $message->replyTo($request->contactEmail);
+                }
             });
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('Mail send failed (coverage): ' . $e->getMessage());
@@ -81,6 +86,7 @@ class ContactController extends Controller
             'fullName'    => 'nullable|string|max:255',
             'courseYear'  => 'nullable|string|max:255',
             'gender'      => 'nullable|string|max:50',
+            'email'       => 'nullable|email',
             // File attachments from mobile
             'photo'       => 'nullable|file|mimes:jpg,jpeg,png,gif|max:5120',
             'consentForm' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
@@ -101,7 +107,8 @@ class ContactController extends Controller
         $body .= "Personal Information:\n";
         $body .= "Name: {$name}\n";
         $body .= "Course & Year: {$course}\n";
-        $body .= "Gender: {$gender}\n\n";
+        $body .= "Gender: {$gender}\n";
+        $body .= "Email: " . ($request->email ?? 'N/A') . "\n\n";
         $body .= "Attachments:\n";
         $body .= "Photo: "       . ($photoPath   ? "Uploaded — {$photoPath}" : 'Not provided') . "\n";
         $body .= "Consent Form: " . ($consentPath ? "Uploaded — {$consentPath}" : 'Not provided') . "\n";
@@ -112,9 +119,13 @@ class ContactController extends Controller
         if ($request->classifications)  $body .= "Classifications: " . json_encode($request->classifications) . "\n";
 
         try {
-            Mail::raw($body, function ($message) {
+            Mail::raw($body, function ($message) use ($request) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
                         ->subject('Membership Application - La Verdad Herald');
+
+                if ($request->email) {
+                    $message->replyTo($request->email);
+                }
             });
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('Mail send failed (join): ' . $e->getMessage());
