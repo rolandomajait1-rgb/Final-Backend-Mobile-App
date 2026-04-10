@@ -11,14 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('otp_tokens', function (Blueprint $table) {
-            $table->id();
-            $table->string('email')->index();
-            $table->string('otp', 6);
-            $table->string('type')->default('email_verification');
-            $table->timestamp('expires_at');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('otp_tokens')) {
+            Schema::create('otp_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->string('email')->index();
+                $table->string('otp', 6);
+                $table->string('type')->default('email_verification');
+                $table->timestamp('expires_at');
+                $table->timestamps();
+            });
+        }
     }
 
     /**
