@@ -44,6 +44,15 @@ class ArticleController extends Controller
                 if (! $user || (! $user->isAdmin() && ! $user->isModerator())) {
                     return response()->json(['error' => 'Admin or moderator access required for drafts'], 403);
                 }
+
+                // Moderators can only see their own created drafts
+                if ($user->isModerator()) {
+                    $myDraftIds = \App\Models\Log::where('user_id', $user->id)
+                        ->where('model_type', 'App\\Models\\Article')
+                        ->where('action', 'create_draft')
+                        ->pluck('model_id');
+                    $query->whereIn('id', $myDraftIds);
+                }
             }
             $query->where('status', $request->status);
         } else {
@@ -261,7 +270,7 @@ class ArticleController extends Controller
 
             Log::info('Author resolved', ['author_id' => $author->id, 'name' => $author->name]);
 
-            return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author, $contentLength) {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $validated, $author, $contentLength, $user) {
                 $imagePath = null;
                 
                 // Check if image URL is provided (direct Cloudinary upload)
@@ -286,6 +295,11 @@ class ArticleController extends Controller
                 }
 
                 $status = $request->get('status', 'published');
+                
+                if ($status === 'published' && $user->isModerator()) {
+                    return response()->json(['error' => 'Moderators cannot publish articles directly.'], 403);
+                }
+
                 Log::info('Creating article record', ['status' => $status, 'has_image' => !!$imagePath]);
                 
                 $article = Article::create([
@@ -424,19 +438,94 @@ class ArticleController extends Controller
 
             $oldValues = $article->toArray();
 
-            // Authorize using policy (admins and moderators may update per policy)
-            $this->authorize('update', $article);
+            $isPublished = ($oldValues['status'] ?? null) === 'published';
+            $user = Auth::user();
 
-            // Find or create Author directly by name — goes to authors table, NOT users table
+            // Find or create Author directly by name
             $author = Author::firstOrCreate(
                 ['name' => $request->author],
                 ['bio'  => '']
             );
 
-            Log::info('Author resolved for update', ['author_id' => $author->id, 'name' => $author->name]);
-
             // Strip HTML tags for excerpt so it's plain text
             $plainContent = strip_tags($request->input('content'));
+
+            if ($user && $user->isModerator()) {
+                if ($request->status === 'published') {
+                    return response()->json(['message' => 'Moderators cannot publish articles.'], 403);
+                }
+
+                if ($isPublished) {
+                    // Edits to published articles by a moderator create a new draft for Admin approval
+                    $imagePath = $article->featured_image;
+                    if ($request->has('featured_image_url') && $request->featured_image_url) {
+                        $imagePath = $request->featured_image_url;
+                    } elseif ($request->hasFile('featured_image')) {
+                        try {
+                            $newPath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
+                            if ($newPath) $imagePath = $newPath;
+                        } catch (\Exception $e) {
+                            return response()->json(['error' => 'Featured image failed to upload.'], 422);
+                        }
+                    }
+
+                    $draft = Article::create([
+                        'title'         => $request->title,
+                        'content'       => $request->input('content'),
+                        'author_id'     => $author->id,
+                        'author_name'   => $request->author,
+                        'status'        => 'draft',
+                        'published_at'  => null,
+                        'excerpt'       => Str::limit($plainContent, 150),
+                        'featured_image'=> $imagePath,
+                    ]);
+
+                    if ($request->category) {
+                        $category = Category::firstOrCreate(['name' => $request->category]);
+                        $draft->categories()->sync([$category->id]);
+                    }
+
+                    if ($request->tags) {
+                        $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
+                        $tagIds = [];
+                        foreach ($tags as $tagName) {
+                            $cleanName = ltrim(trim($tagName), '#');
+                            if ($cleanName === '') continue;
+                            $tag = Tag::firstOrCreate(['name' => $cleanName]);
+                            $tagIds[] = $tag->id;
+                        }
+                        $draft->tags()->sync($tagIds);
+                    }
+
+                    try {
+                        \App\Models\Log::create([
+                            'user_id'    => Auth::id(),
+                            'action'     => 'create_draft',
+                            'model_type' => 'App\\Models\\Article',
+                            'model_id'   => $draft->id,
+                            'new_values' => json_encode(['title' => $draft->title, 'status' => 'draft']),
+                        ]);
+                    } catch (\Exception $e) {}
+
+                    return response()->json($draft->load('author', 'categories', 'tags'));
+                } else {
+                    // Cannot edit drafts created by Admins or other Moderators
+                    $creatorLog = \App\Models\Log::where('model_type', 'App\\Models\\Article')
+                        ->where('model_id', $article->id)
+                        ->where('action', 'create_draft')
+                        ->orderBy('created_at', 'asc')
+                        ->first();
+                    
+                    if ($creatorLog && $creatorLog->user_id !== $user->id) {
+                        return response()->json(['message' => 'You can only edit drafts that you originally created.'], 403);
+                    }
+                }
+            }
+
+            // Authorize using policy (admins and moderators may update per policy)
+            $this->authorize('update', $article);
+
+            Log::info('Author resolved for update', ['author_id' => $author->id, 'name' => $author->name]);
 
             $data = [
                 'title'       => $request->title,
@@ -533,6 +622,11 @@ class ArticleController extends Controller
     public function destroy(Article $article): JsonResponse
     {
         try {
+            $user = Auth::user();
+            if ($user && $user->isModerator()) {
+                return response()->json(['error' => 'Moderators cannot delete articles.'], 403);
+            }
+
             // Ensure user is authorized to delete (policy allows only admins)
             $this->authorize('delete', $article);
 

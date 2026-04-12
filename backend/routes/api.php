@@ -108,6 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/dashboard-stats', [\App\Http\Controllers\DashboardController::class, 'apiStats']);
         Route::get('/admin/recent-activity', [\App\Http\Controllers\DashboardController::class, 'apiRecentActivity']);
         Route::get('/admin/audit-logs', [\App\Http\Controllers\DashboardController::class, 'apiAuditLogs']);
+        Route::get('/admin/stats', [\App\Http\Controllers\DashboardController::class, 'apiAdminFullStats']);
 
         // Categories API (Write)
         Route::post('/categories', [CategoryController::class, 'store']);
@@ -130,7 +131,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin-Only Routes
     Route::middleware(['role:admin'])->group(function () {
         Route::get('/admin/check-access', [\App\Http\Controllers\UserController::class, 'checkAdminAccess']);
-        Route::get('/admin/stats', [\App\Http\Controllers\DashboardController::class, 'apiAdminFullStats']);
 
         Route::get('/admin/moderators', [\App\Http\Controllers\UserController::class, 'getModerators']);
         Route::post('/admin/moderators', [\App\Http\Controllers\UserController::class, 'addModerator']);
