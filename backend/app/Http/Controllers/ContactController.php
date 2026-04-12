@@ -19,6 +19,11 @@ class ContactController extends Controller
         $from  = $request->email ?? 'anonymous@app';
         $body  = "New Feedback Received\n\nFrom: {$from}\n\nFeedback:\n{$request->feedback}";
 
+        \App\Models\ContactSubmission::create([
+            'type' => 'feedback',
+            'payload' => $request->all(),
+        ]);
+
         try {
             Mail::raw($body, function ($message) use ($from) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
@@ -61,6 +66,11 @@ class ContactController extends Controller
         $body .= "Designation: " . ($request->designation ?? 'N/A') . "\n";
         $body .= "Organizer / Coordinator: " . ($request->coordinator ?? 'N/A') . "\n";
         $body .= "Contact Email: " . ($request->contactEmail ?? 'N/A') . "\n";
+
+        \App\Models\ContactSubmission::create([
+            'type' => 'coverage',
+            'payload' => $request->all(),
+        ]);
 
         try {
             Mail::raw($body, function ($message) use ($request) {
@@ -110,21 +120,33 @@ class ContactController extends Controller
         $body .= "Gender: {$gender}\n";
         $body .= "Email: " . ($request->email ?? 'N/A') . "\n\n";
         $body .= "Attachments:\n";
-        $body .= "Photo: "       . ($photoPath   ? "Uploaded — {$photoPath}" : 'Not provided') . "\n";
-        $body .= "Consent Form: " . ($consentPath ? "Uploaded — {$consentPath}" : 'Not provided') . "\n";
+        $body .= "Photo: "       . ($photoPath   ? "Uploaded — " . asset('storage/' . $photoPath) : 'Not provided') . "\n";
+        $body .= "Consent Form: " . ($consentPath ? "Uploaded — " . asset('storage/' . $consentPath) : 'Not provided') . "\n";
 
         // Optional extra fields from web form
         if ($request->pubName)          $body .= "Publication Name: {$request->pubName}\n";
         if ($request->specificPosition) $body .= "Specific Position: {$request->specificPosition}\n";
         if ($request->classifications)  $body .= "Classifications: " . json_encode($request->classifications) . "\n";
 
+        \App\Models\ContactSubmission::create([
+            'type' => 'join_herald',
+            'payload' => $request->except(['photo', 'consentForm']),
+        ]);
+
         try {
-            Mail::raw($body, function ($message) use ($request) {
+            Mail::raw($body, function ($message) use ($request, $photoPath, $consentPath) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
                         ->subject('Membership Application - La Verdad Herald');
 
                 if ($request->email) {
                     $message->replyTo($request->email);
+                }
+
+                if ($photoPath) {
+                    $message->attach(storage_path('app/public/' . $photoPath));
+                }
+                if ($consentPath) {
+                    $message->attach(storage_path('app/public/' . $consentPath));
                 }
             });
         } catch (\Exception $e) {

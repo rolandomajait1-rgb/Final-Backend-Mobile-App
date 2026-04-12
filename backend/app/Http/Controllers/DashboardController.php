@@ -54,9 +54,9 @@ class DashboardController extends Controller
             'publishedCount'  => $published,
 
             // Forms (counts from ArticleInteraction or dedicated models if available)
-            'feedbackForms'       => \App\Models\ArticleInteraction::where('type', 'feedback')->count(),
-            'coverageRequests'    => \App\Models\ArticleInteraction::where('type', 'coverage')->count(),
-            'membershipApps'      => $totalUsers, // registered users as membership proxy
+            'feedbackForms'       => \App\Models\ContactSubmission::where('type', 'feedback')->count(),
+            'coverageRequests'    => \App\Models\ContactSubmission::where('type', 'coverage')->count(),
+            'membershipApps'      => \App\Models\ContactSubmission::where('type', 'join_herald')->count(),
 
             // Reach
             'studentReach'    => $totalUsers,
@@ -122,12 +122,26 @@ class DashboardController extends Controller
         }
 
         $logs = $query->paginate($perPage)->through(function ($log) {
+            $articleTitle = null;
+            
+            // Try to get article title from multiple sources
+            if ($log->model_type === 'App\\Models\\Article') {
+                // First try to find the article
+                $article = \App\Models\Article::find($log->model_id);
+                if ($article) {
+                    $articleTitle = $article->title;
+                } else {
+                    // If article doesn't exist (deleted), try old_values or new_values
+                    $articleTitle = $log->old_values['title'] 
+                        ?? $log->new_values['title'] 
+                        ?? null;
+                }
+            }
+            
             return [
                 'id'            => $log->id,
                 'action'        => $log->action,
-                'article_title' => $log->model_type === 'App\\Models\\Article'
-                    ? \App\Models\Article::find($log->model_id)?->title
-                    : null,
+                'article_title' => $articleTitle,
                 'user_email'    => $log->user?->email,
                 'created_at'    => $log->created_at,
             ];

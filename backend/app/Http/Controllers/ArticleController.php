@@ -322,6 +322,19 @@ class ArticleController extends Controller
                     Log::info('Tags attached', ['article_id' => $article->id, 'tag_count' => count($tagIds)]);
                 }
 
+                // Create audit log for article creation
+                try {
+                    \App\Models\Log::create([
+                        'user_id'    => Auth::id(),
+                        'action'     => $status === 'published' ? 'publish' : 'create_draft',
+                        'model_type' => 'App\\Models\\Article',
+                        'model_id'   => $article->id,
+                        'new_values' => json_encode(['title' => $article->title, 'status' => $status]),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to write audit log: ' . $e->getMessage());
+                }
+
                 Log::info('Article creation completed successfully', ['article_id' => $article->id]);
                 return response()->json($article->load('author.user', 'categories', 'tags'), 201);
             });
@@ -478,15 +491,22 @@ class ArticleController extends Controller
                 $article->tags()->sync($tagIds);
             }
 
+            // Determine if this is a status change that acts as a publish
+            $action = 'update';
+            $oldStatus = $oldValues['status'] ?? null;
+            if ($oldStatus === 'draft' && $article->status === 'published') {
+                $action = 'publish';
+            }
+
             // Log the update (non-critical — swallow errors)
             try {
                 \App\Models\Log::create([
                     'user_id'    => Auth::id(),
-                    'action'     => 'update',
+                    'action'     => $action,
                     'model_type' => 'App\\Models\\Article',
                     'model_id'   => $article->id,
-                    'old_values' => ['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null],
-                    'new_values' => ['title' => $article->title, 'status' => $article->status],
+                    'old_values' => json_encode(['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null]),
+                    'new_values' => json_encode(['title' => $article->title, 'status' => $article->status]),
                 ]);
             } catch (\Exception $e) {
                 Log::warning('Failed to write audit log: ' . $e->getMessage());
@@ -526,7 +546,7 @@ class ArticleController extends Controller
                 'action'     => 'delete',
                 'model_type' => 'App\\Models\\Article',
                 'model_id'   => $articleId,
-                'old_values' => ['id' => $articleId, 'title' => $articleTitle],
+                'old_values' => json_encode(['id' => $articleId, 'title' => $articleTitle]),
             ]);
 
             return response()->json(['message' => 'Article deleted successfully', 'id' => $articleId]);
