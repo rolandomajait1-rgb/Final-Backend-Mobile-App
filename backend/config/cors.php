@@ -24,7 +24,7 @@ return [
 
     // Allow preview/deployed Vercel subdomains via pattern
     'allowed_origins_patterns' => [
-        '/^https?:\/\/.*\.vercel\.app$/',
+        '/^https:\/\/official-laverdad-herald.*\.vercel\.app$/',
     ],
 
     'allowed_methods' => ['*'],
