@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ArticleController;
 
 Route::get('/', function () {
     return response()->json(['message' => 'La Verdad Herald API']);
@@ -15,6 +16,9 @@ Route::get('/sanctum/csrf-cookie', function () {
 Route::get('/verification-pending', function () {
     return view('verification-pending');
 })->name('verification.pending');
+
+// Article pages with Open Graph meta tags for social sharing
+Route::get('/articles/{slug}', [ArticleController::class, 'publicShow'])->name('articles.show');
 
 // Fallback login route for unauthenticated browser requests
 Route::get('/login', function () {
