@@ -41,29 +41,50 @@
     <meta property="twitter:image" content="{{ $article->featured_image }}">
     @endif
     
-    <!-- Redirect to React App -->
-    <script>
-        // Redirect to the React app article page
-        window.location.href = "{{ config('app.frontend_url', 'https://laverdadherald.com') }}/article/{{ $article->slug ?? $article->id }}";
-    </script>
-    
-    <!-- Fallback for users with JavaScript disabled -->
-    <noscript>
-        <meta http-equiv="refresh" content="0; url={{ config('app.frontend_url', 'https://laverdadherald.com') }}/article/{{ $article->slug ?? $article->id }}">
-    </noscript>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            color: #333; 
+            line-height: 1.6; 
+        }
+        .banner { 
+            background-color: #f0f9ff; 
+            padding: 20px; 
+            border-radius: 12px; 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border: 1px solid #bae6fd; 
+        }
+        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 5px; }
+        .btn-primary { background-color: #0284c7; color: white; }
+        .btn-secondary { background-color: white; color: #0f172a; border: 1px solid #cbd5e1; }
+        .article-img { width: 100%; border-radius: 12px; margin-bottom: 20px; }
+    </style>
 </head>
 <body>
-    <!-- Fallback content for crawlers that don't execute JavaScript -->
+    <div class="banner">
+        <h3 style="margin-top: 0; color: #0369a1; font-size: 20px;">Read on La Verdad Herald App</h3>
+        <p style="color: #0c4a6e; margin-bottom: 15px;">Experience fast, offline-ready reading on your Android phone.</p>
+        
+        <!-- Deep Link to Mobile App -->
+        <a href="laverdadherald://article/{{ $article->slug ?? $article->id }}" class="btn btn-primary">📱 Open in App</a>
+        
+        <!-- Direct APK Download from Backend -->
+        <a href="{{ asset('LaVerdadHerald.apk') }}" class="btn btn-secondary">⬇️ Download APK</a>
+    </div>
+
     <article>
-        <h1>{{ $article->title }}</h1>
+        <h1 style="font-size: 28px; line-height: 1.2;">{{ $article->title }}</h1>
+        <p style="color: #64748b; font-size: 14px;">By {{ $article->author_name ?? $article->author->user->name ?? 'La Verdad Herald' }} • {{ $article->published_at ? $article->published_at->format('M d, Y') : '' }}</p>
+        
         @if($article->featured_image)
-        <img src="{{ $article->featured_image }}" alt="{{ $article->title }}">
+        <img src="{{ $article->featured_image }}" alt="{{ $article->title }}" class="article-img">
         @endif
-        <p><strong>By {{ $article->author_name ?? $article->author->user->name ?? 'La Verdad Herald' }}</strong></p>
-        <p><em>Published: {{ $article->published_at ? $article->published_at->format('F j, Y') : '' }}</em></p>
-        <div>{!! $article->content !!}</div>
+        
+        <div style="font-size: 17px; color: #1e293b;">{!! $article->content !!}</div>
     </article>
-    
-    <p>Redirecting to <a href="{{ config('app.frontend_url', 'https://laverdadherald.com') }}/article/{{ $article->slug ?? $article->id }}">La Verdad Herald</a>...</p>
 </body>
 </html>

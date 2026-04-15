@@ -180,38 +180,68 @@ class ArticleController extends Controller
 
     public function publicBySlug($slug): JsonResponse
     {
-        $article = Article::published()
-            ->with('author.user', 'categories', 'tags')
-            ->where('slug', $slug)
-            ->firstOrFail();
+        try {
+            // Validate slug format
+            if (empty($slug) || strlen($slug) > 255) {
+                return response()->json(['message' => 'Invalid article slug'], 400);
+            }
 
-        // Increment view count
-        $article->increment('view_count');
+            $article = Article::published()
+                ->with('author.user', 'categories', 'tags')
+                ->where('slug', $slug)
+                ->first();
 
-        // Load like counts
-        $article->loadCount(['interactions as likes_count' => function ($query) {
-            $query->where('type', 'liked');
-        }]);
+            if (!$article) {
+                return response()->json(['message' => 'Article not found'], 404);
+            }
 
-        return response()->json($article);
+            // Increment view count
+            $article->increment('view_count');
+
+            // Load like counts
+            $article->loadCount(['interactions as likes_count' => function ($query) {
+                $query->where('type', 'liked');
+            }]);
+
+            return response()->json($article);
+        } catch (\Exception $e) {
+            Log::error('Article fetch by slug failed', [
+                'slug' => $slug,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Failed to fetch article'], 500);
+        }
     }
 
     public function publicById($id): JsonResponse
     {
-        $article = Article::with('author.user', 'categories', 'tags')->find($id);
-        if (! $article) {
-            return response()->json(['message' => 'Article not found'], 404);
+        try {
+            // Validate that ID is numeric
+            if (!is_numeric($id)) {
+                return response()->json(['message' => 'Invalid article ID'], 400);
+            }
+
+            $article = Article::with('author.user', 'categories', 'tags')->find($id);
+            if (! $article) {
+                return response()->json(['message' => 'Article not found'], 404);
+            }
+
+            // Increment view count
+            $article->increment('view_count');
+
+            // Load like counts
+            $article->loadCount(['interactions as likes_count' => function ($query) {
+                $query->where('type', 'liked');
+            }]);
+
+            return response()->json($article);
+        } catch (\Exception $e) {
+            Log::error('Article fetch by ID failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Failed to fetch article'], 500);
         }
-
-        // Increment view count
-        $article->increment('view_count');
-
-        // Load like counts
-        $article->loadCount(['interactions as likes_count' => function ($query) {
-            $query->where('type', 'liked');
-        }]);
-
-        return response()->json($article);
     }
 
     public function latestArticles(): JsonResponse
@@ -622,8 +652,20 @@ class ArticleController extends Controller
     public function destroy(Article $article): JsonResponse
     {
         try {
+            // Check if article exists
+            if (!$article || !$article->id) {
+                return response()->json(['error' => 'Article not found'], 404);
+            }
+
             $user = Auth::user();
-            if ($user && $user->isModerator()) {
+            
+            // Check if user is authenticated
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
+            // Moderators cannot delete articles
+            if ($user->isModerator()) {
                 return response()->json(['error' => 'Moderators cannot delete articles.'], 403);
             }
 
@@ -645,9 +687,16 @@ class ArticleController extends Controller
 
             return response()->json(['message' => 'Article deleted successfully', 'id' => $articleId]);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            Log::warning('Article deletion unauthorized', [
+                'article_id' => $article->id ?? null,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'Unauthorized to delete this article'], 403);
         } catch (\Exception $e) {
             Log::error('Article deletion failed', [
+                'article_id' => $article->id ?? null,
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
