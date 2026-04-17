@@ -73,7 +73,7 @@
         <a href="laverdadherald://article/{{ $article->slug ?? $article->id }}" class="btn btn-primary">📱 Open in App</a>
         
         <!-- Direct APK Download from Backend -->
-        <a href="{{ asset('LaVerdadHerald.apk') }}" class="btn btn-secondary">⬇️ Download APK</a>
+        <a href="{{ route('download.apk') }}" class="btn btn-secondary">⬇️ Download APK</a>
     </div>
 
     <article>

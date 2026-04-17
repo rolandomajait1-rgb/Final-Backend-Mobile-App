@@ -45,6 +45,34 @@ class DashboardController extends Controller
             ? round((($currentReaders - $previousReaders) / $previousReaders) * 100, 2)
             : 0;
 
+        // Dynamic Chart Data Generation (Cumulative Readership)
+        $chart = [
+            'monthly' => [
+                'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                'data' => [],
+            ],
+            'yearly' => [
+                'labels' => [],
+                'data' => [],
+            ]
+        ];
+
+        // Monthly cumulative data for current year
+        $usersBeforeThisYear = \App\Models\User::whereYear('created_at', '<', now()->year)->count();
+        for ($i = 1; $i <= 12; $i++) {
+            $usersThisYearSoFar = \App\Models\User::whereYear('created_at', now()->year)
+                                                  ->whereMonth('created_at', '<=', $i)
+                                                  ->count();
+            $chart['monthly']['data'][] = $usersBeforeThisYear + $usersThisYearSoFar;
+        }
+
+        // Yearly cumulative data (Last 4 years)
+        $currentYear = now()->year;
+        for ($y = $currentYear - 3; $y <= $currentYear; $y++) {
+            $chart['yearly']['labels'][] = (string) $y;
+            $chart['yearly']['data'][] = \App\Models\User::whereYear('created_at', '<=', $y)->count();
+        }
+
         return response()->json([
             // Engagement
             'totalViews'      => $totalViews,
@@ -64,6 +92,7 @@ class DashboardController extends Controller
             'growthPct'       => $growthPct,
             'currentReaders'  => $currentReaders,
             'previousReaders' => $previousReaders,
+            'chart'           => $chart,
 
             // Recent publications
             'recentArticles'  => \App\Models\Article::with('categories')
