@@ -448,6 +448,142 @@ class ArticleController extends Controller
         return view('articles.edit', compact('article', 'categories', 'tags'));
     }
 
+    /**
+     * Handle the scenario where a moderator edits a published article.
+     * This creates a new draft version instead of mutating the published record.
+     */
+    protected function handleModeratorPublishedEdit(Request $request, Article $article, Author $author, string $plainContent, $user): JsonResponse
+    {
+        $imagePath = $article->featured_image;
+        if ($request->has('featured_image_url') && $request->featured_image_url) {
+            $imagePath = $request->featured_image_url;
+        } elseif ($request->hasFile('featured_image')) {
+            try {
+                $newPath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
+                if ($newPath) {
+                    $imagePath = $newPath;
+                }
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Featured image failed to upload.'], 422);
+            }
+        }
+
+        $draft = Article::create([
+            'title'         => $request->title,
+            'content'       => $request->input('content'),
+            'author_id'     => $author->id,
+            'author_name'   => $request->author,
+            'status'        => 'draft',
+            'published_at'  => null,
+            'excerpt'       => Str::limit($plainContent, 150),
+            'featured_image'=> $imagePath,
+        ]);
+
+        if ($request->category) {
+            $category = Category::firstOrCreate(['name' => $request->category]);
+            $draft->categories()->sync([$category->id]);
+        }
+
+        if ($request->tags) {
+            $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
+            $tagIds = [];
+            foreach ($tags as $tagName) {
+                $cleanName = ltrim(trim($tagName), '#');
+                if ($cleanName === '') continue;
+                $tag = Tag::firstOrCreate(['name' => $cleanName]);
+                $tagIds[] = $tag->id;
+            }
+            $draft->tags()->sync($tagIds);
+        }
+
+        try {
+            \App\Models\Log::create([
+                'user_id'    => Auth::id(),
+                'action'     => 'create_draft',
+                'model_type' => 'App\\Models\\Article',
+                'model_id'   => $draft->id,
+                'new_values' => json_encode(['title' => $draft->title, 'status' => 'draft']),
+            ]);
+        } catch (\Exception $e) {
+            // silent catch
+        }
+
+        return response()->json($draft->load('author', 'categories', 'tags'));
+    }
+
+    protected function executeMainArticleUpdate(Request $request, Article $article, Author $author, string $plainContent, array $oldValues): JsonResponse
+    {
+        $data = [
+            'title'       => $request->title,
+            'content'     => $request->input('content'),
+            'author_id'   => $author->id,
+            'author_name' => $request->author,
+            'excerpt'     => Str::limit($plainContent, 150),
+        ];
+
+        // Handle status update
+        if ($request->has('status')) {
+            $data['status'] = $request->status;
+            if ($request->status === 'published' && ! $article->published_at) {
+                $data['published_at'] = now();
+            }
+        }
+
+        // Handle image
+        if ($request->has('featured_image_url') && $request->featured_image_url) {
+            $data['featured_image'] = $request->featured_image_url;
+        } elseif ($request->hasFile('featured_image')) {
+            try {
+                $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
+                if ($imagePath) {
+                    $data['featured_image'] = $imagePath;
+                }
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Featured image failed to upload to Cloudinary. Please try again.'], 422);
+            }
+        }
+
+        $article->update($data);
+
+        // Handle category
+        if ($request->category) {
+            $category = Category::firstOrCreate(['name' => $request->category]);
+            $article->categories()->sync([$category->id]);
+        }
+
+        // Handle tags
+        if ($request->tags) {
+            $tags = explode(',', $request->tags);
+            $tagIds = [];
+            foreach ($tags as $tagName) {
+                $cleanName = ltrim(trim($tagName), '#');
+                if ($cleanName === '') continue;
+                $tag = Tag::firstOrCreate(['name' => $cleanName]);
+                $tagIds[] = $tag->id;
+            }
+            $article->tags()->sync($tagIds);
+        }
+
+        $action = 'update';
+        $oldStatus = $oldValues['status'] ?? null;
+        if ($oldStatus === 'draft' && $article->status === 'published') {
+            $action = 'publish';
+        }
+
+        try {
+            \App\Models\Log::create([
+                'user_id'    => Auth::id(),
+                'action'     => $action,
+                'model_type' => 'App\\Models\\Article',
+                'model_id'   => $article->id,
+                'old_values' => json_encode(['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null]),
+                'new_values' => json_encode(['title' => $article->title, 'status' => $article->status]),
+            ]);
+        } catch (\Exception $e) {}
+
+        return response()->json($article->load('author', 'categories', 'tags'));
+    }
+
     public function update(Request $request, Article $article): JsonResponse
     {
         try {
@@ -487,57 +623,7 @@ class ArticleController extends Controller
 
                 if ($isPublished) {
                     // Edits to published articles by a moderator create a new draft for Admin approval
-                    $imagePath = $article->featured_image;
-                    if ($request->has('featured_image_url') && $request->featured_image_url) {
-                        $imagePath = $request->featured_image_url;
-                    } elseif ($request->hasFile('featured_image')) {
-                        try {
-                            $newPath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
-                            if ($newPath) $imagePath = $newPath;
-                        } catch (\Exception $e) {
-                            return response()->json(['error' => 'Featured image failed to upload.'], 422);
-                        }
-                    }
-
-                    $draft = Article::create([
-                        'title'         => $request->title,
-                        'content'       => $request->input('content'),
-                        'author_id'     => $author->id,
-                        'author_name'   => $request->author,
-                        'status'        => 'draft',
-                        'published_at'  => null,
-                        'excerpt'       => Str::limit($plainContent, 150),
-                        'featured_image'=> $imagePath,
-                    ]);
-
-                    if ($request->category) {
-                        $category = Category::firstOrCreate(['name' => $request->category]);
-                        $draft->categories()->sync([$category->id]);
-                    }
-
-                    if ($request->tags) {
-                        $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
-                        $tagIds = [];
-                        foreach ($tags as $tagName) {
-                            $cleanName = ltrim(trim($tagName), '#');
-                            if ($cleanName === '') continue;
-                            $tag = Tag::firstOrCreate(['name' => $cleanName]);
-                            $tagIds[] = $tag->id;
-                        }
-                        $draft->tags()->sync($tagIds);
-                    }
-
-                    try {
-                        \App\Models\Log::create([
-                            'user_id'    => Auth::id(),
-                            'action'     => 'create_draft',
-                            'model_type' => 'App\\Models\\Article',
-                            'model_id'   => $draft->id,
-                            'new_values' => json_encode(['title' => $draft->title, 'status' => 'draft']),
-                        ]);
-                    } catch (\Exception $e) {}
-
-                    return response()->json($draft->load('author', 'categories', 'tags'));
+                    return $this->handleModeratorPublishedEdit($request, $article, $author, $plainContent, $user);
                 } else {
                     // Cannot edit drafts created by Admins or other Moderators
                     $creatorLog = \App\Models\Log::where('model_type', 'App\\Models\\Article')
@@ -552,86 +638,10 @@ class ArticleController extends Controller
                 }
             }
 
-            // Authorize using policy (admins and moderators may update per policy)
+            // Authorize using policy
             $this->authorize('update', $article);
 
-            Log::info('Author resolved for update', ['author_id' => $author->id, 'name' => $author->name]);
-
-            $data = [
-                'title'       => $request->title,
-                'content'     => $request->input('content'),
-                'author_id'   => $author->id,
-                'author_name' => $request->author,
-                'excerpt'     => Str::limit($plainContent, 150),
-            ];
-
-            // Handle status update
-            if ($request->has('status')) {
-                $data['status'] = $request->status;
-                if ($request->status === 'published' && ! $article->published_at) {
-                    $data['published_at'] = now();
-                }
-            }
-
-            // Handle image: prefer Cloudinary URL (mobile upload), fallback to direct file
-            if ($request->has('featured_image_url') && $request->featured_image_url) {
-                $data['featured_image'] = $request->featured_image_url;
-                Log::info('Using Cloudinary URL for image update', ['url' => $request->featured_image_url]);
-            } elseif ($request->hasFile('featured_image')) {
-                try {
-                    $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
-                    if ($imagePath) {
-                        $data['featured_image'] = $imagePath;
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Cloudinary upload exception during update: '.$e->getMessage());
-                    return response()->json(['error' => 'Featured image failed to upload to Cloudinary. Please try again.'], 422);
-                }
-            }
-
-            $article->update($data);
-
-            // Handle category
-            if ($request->category) {
-                $category = Category::firstOrCreate(['name' => $request->category]);
-                $article->categories()->sync([$category->id]);
-            }
-
-            // Handle tags
-            if ($request->tags) {
-                $tags = explode(',', $request->tags);
-                $tagIds = [];
-                foreach ($tags as $tagName) {
-                    $cleanName = ltrim(trim($tagName), '#');
-                    if ($cleanName === '') continue;
-                    $tag = Tag::firstOrCreate(['name' => $cleanName]);
-                    $tagIds[] = $tag->id;
-                }
-                $article->tags()->sync($tagIds);
-            }
-
-            // Determine if this is a status change that acts as a publish
-            $action = 'update';
-            $oldStatus = $oldValues['status'] ?? null;
-            if ($oldStatus === 'draft' && $article->status === 'published') {
-                $action = 'publish';
-            }
-
-            // Log the update (non-critical — swallow errors)
-            try {
-                \App\Models\Log::create([
-                    'user_id'    => Auth::id(),
-                    'action'     => $action,
-                    'model_type' => 'App\\Models\\Article',
-                    'model_id'   => $article->id,
-                    'old_values' => json_encode(['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null]),
-                    'new_values' => json_encode(['title' => $article->title, 'status' => $article->status]),
-                ]);
-            } catch (\Exception $e) {
-                Log::warning('Failed to write audit log: ' . $e->getMessage());
-            }
-
-            return response()->json($article->load('author', 'categories', 'tags'));
+            return $this->executeMainArticleUpdate($request, $article, $author, $plainContent, $oldValues);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Article update validation failed', ['errors' => $e->errors(), 'article_id' => $article->id]);

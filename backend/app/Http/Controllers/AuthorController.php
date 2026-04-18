@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Article;
 use App\Models\Author;
 use App\Models\Log;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
@@ -30,7 +32,7 @@ class AuthorController extends Controller
         return view('authors.create');
     }
 
-    public function store(Request $request): Response
+    public function store(Request $request): RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255',
@@ -74,7 +76,7 @@ class AuthorController extends Controller
     public function publicShow(int $userId): View
     {
         $author = Author::where('user_id', $userId)->firstOrFail();
-        $articles = \App\Models\Article::published()
+        $articles = Article::published()
             ->where('author_id', $author->id)
             ->with('author.user', 'categories', 'tags')
             ->latest('published_at')
@@ -88,7 +90,7 @@ class AuthorController extends Controller
         return view('authors.edit', compact('author'));
     }
 
-    public function update(Request $request, Author $author): Response
+    public function update(Request $request, Author $author): RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255',
@@ -129,7 +131,7 @@ class AuthorController extends Controller
         return redirect()->route('authors.index')->with('success', 'Author updated successfully.');
     }
 
-    public function destroy(Author $author): Response
+    public function destroy(Author $author): RedirectResponse
     {
         $oldValues = [
             'name' => $author->user->name,
@@ -158,7 +160,7 @@ class AuthorController extends Controller
         $page = max(1, (int) $request->get('page', 1));
         $perPage = min(50, max(10, (int) $request->get('per_page', 20)));
 
-        $authors = \App\Models\Author::with('user:id,name,email')
+        $authors = Author::with('user:id,name,email')
             ->paginate($perPage, ['*'], 'page', $page);
 
         $formattedAuthors = $authors->map(function ($author) {
@@ -184,7 +186,7 @@ class AuthorController extends Controller
 
     public function publicAuthorsByName(Request $request, $authorName): JsonResponse
     {
-        $user = \App\Models\User::where('name', $authorName)
+        $user = User::where('name', $authorName)
             ->orWhere('email', $authorName)
             ->first();
 
@@ -192,7 +194,7 @@ class AuthorController extends Controller
             return response()->json(['message' => 'Author not found'], 404);
         }
 
-        $author = \App\Models\Author::where('user_id', $user->id)->first();
+        $author = Author::where('user_id', $user->id)->first();
         if (! $author) {
             return response()->json(['message' => 'Author profile not found'], 404);
         }
@@ -200,7 +202,7 @@ class AuthorController extends Controller
         $page = max(1, (int) $request->get('page', 1));
         $perPage = min(50, max(10, (int) $request->get('per_page', 20)));
 
-        $articles = \App\Models\Article::with('author.user', 'categories')
+        $articles = Article::with('author.user', 'categories')
             ->where('author_id', $author->id)
             ->where('status', 'published')
             ->latest('created_at')

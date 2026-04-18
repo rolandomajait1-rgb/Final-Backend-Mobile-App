@@ -7,6 +7,7 @@ use App\Models\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -25,7 +26,7 @@ class CategoryController extends Controller
         return view('categories.create');
     }
 
-    public function store(Request $request): JsonResponse|Response
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:categories',
@@ -82,7 +83,7 @@ class CategoryController extends Controller
         return view('categories.edit', compact('category'));
     }
 
-    public function update(Request $request, Category $category): JsonResponse|Response
+    public function update(Request $request, Category $category): JsonResponse|RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,'.$category->id,
@@ -113,7 +114,7 @@ class CategoryController extends Controller
         return redirect()->route('categories.index')->with('success', 'Category updated successfully.');
     }
 
-    public function destroy(Category $category): JsonResponse|Response
+    public function destroy(Category $category): JsonResponse|RedirectResponse
     {
         $oldValues = $category->toArray();
 

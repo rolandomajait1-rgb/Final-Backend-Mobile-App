@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Log;
 use App\Models\Tag;
+use App\Models\Article;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -30,7 +32,7 @@ class TagController extends Controller
         return view('tags.create');
     }
 
-    public function store(Request $request): JsonResponse|Response
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:tags',
@@ -66,7 +68,7 @@ class TagController extends Controller
     public function publicShow(string $slug): View
     {
         $tag = Tag::where('slug', $slug)->firstOrFail();
-        $articles = \App\Models\Article::published()
+        $articles = Article::published()
             ->whereHas('tags', function ($query) use ($tag) {
                 $query->where('tags.id', $tag->id);
             })

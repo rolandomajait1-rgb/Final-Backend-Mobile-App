@@ -7,6 +7,7 @@ use App\Models\Subscriber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -37,7 +38,7 @@ class SubscriberController extends Controller
         return view('subscribers.create');
     }
 
-    public function store(Request $request): Response
+    public function store(Request $request): RedirectResponse
     {
         $request->validate([
             'email' => 'required|email|unique:subscribers',
@@ -71,7 +72,7 @@ class SubscriberController extends Controller
         return view('subscribers.edit', compact('subscriber'));
     }
 
-    public function update(Request $request, Subscriber $subscriber): Response
+    public function update(Request $request, Subscriber $subscriber): RedirectResponse
     {
         $request->validate([
             'email' => 'required|email|unique:subscribers,email,'.$subscriber->id,
@@ -95,7 +96,7 @@ class SubscriberController extends Controller
         return redirect()->route('subscribers.index')->with('success', 'Subscriber updated successfully.');
     }
 
-    public function destroy(Subscriber $subscriber): Response
+    public function destroy(Subscriber $subscriber): RedirectResponse
     {
         $oldValues = $subscriber->toArray();
 
@@ -113,7 +114,7 @@ class SubscriberController extends Controller
     }
 
     // Public-facing: subscribe via homepage/footer
-    public function publicStore(Request $request): Response
+    public function publicStore(Request $request): RedirectResponse
     {
         $request->validate([
             'email' => 'required|email',
@@ -134,7 +135,7 @@ class SubscriberController extends Controller
     }
 
     // Public unsubscribe endpoint
-    public function unsubscribe(Request $request): Response
+    public function unsubscribe(Request $request): RedirectResponse
     {
         $token = $request->query('token');
 
@@ -163,7 +164,7 @@ class SubscriberController extends Controller
         $subscriberService = app(\App\Services\SubscriberService::class);
         $result = $subscriberService->sendNewsletter(
             $request->subject,
-            $request->content
+            $request->input('content')
         );
 
         return response()->json([

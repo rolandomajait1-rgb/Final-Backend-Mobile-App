@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DraftController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LogController;
@@ -105,10 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin & Moderator Shared Routes
     Route::middleware(['role:admin,moderator'])->group(function () {
-        Route::get('/admin/dashboard-stats', [\App\Http\Controllers\DashboardController::class, 'apiStats']);
-        Route::get('/admin/recent-activity', [\App\Http\Controllers\DashboardController::class, 'apiRecentActivity']);
-        Route::get('/admin/audit-logs', [\App\Http\Controllers\DashboardController::class, 'apiAuditLogs']);
-        Route::get('/admin/stats', [\App\Http\Controllers\DashboardController::class, 'apiAdminFullStats']);
+        Route::get('/admin/dashboard-stats', [DashboardController::class, 'apiStats']);
+        Route::get('/admin/recent-activity', [DashboardController::class, 'apiRecentActivity']);
+        Route::get('/admin/audit-logs', [DashboardController::class, 'apiAuditLogs']);
+        Route::get('/admin/stats', [DashboardController::class, 'apiAdminFullStats']);
 
         // Categories API (Write)
         Route::post('/categories', [CategoryController::class, 'store']);
@@ -130,13 +131,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin-Only Routes
     Route::middleware(['role:admin'])->group(function () {
-        Route::get('/admin/check-access', [\App\Http\Controllers\UserController::class, 'checkAdminAccess']);
+        Route::get('/admin/check-access', [UserController::class, 'checkAdminAccess']);
 
-        Route::get('/admin/moderators', [\App\Http\Controllers\UserController::class, 'getModerators']);
-        Route::post('/admin/moderators', [\App\Http\Controllers\UserController::class, 'addModerator']);
-        Route::delete('/admin/moderators/{id}', [\App\Http\Controllers\UserController::class, 'removeModerator']);
+        Route::get('/admin/moderators', [UserController::class, 'getModerators']);
+        Route::post('/admin/moderators', [UserController::class, 'addModerator']);
+        Route::delete('/admin/moderators/{id}', [UserController::class, 'removeModerator']);
 
-        Route::apiResource('admin/users', \App\Http\Controllers\UserController::class);
+        Route::apiResource('admin/users', UserController::class);
         Route::apiResource('staff', StaffController::class);
     });
 

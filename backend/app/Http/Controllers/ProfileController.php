@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
@@ -27,7 +28,7 @@ class ProfileController extends Controller
         return view('profile.edit', compact('user'));
     }
 
-    public function update(Request $request): Response
+    public function update(Request $request): RedirectResponse
     {
         $user = Auth::user();
 
@@ -48,7 +49,7 @@ class ProfileController extends Controller
         return redirect()->route('profile.show')->with('success', 'Profile updated successfully.');
     }
 
-    public function updatePassword(Request $request): Response
+    public function updatePassword(Request $request): RedirectResponse
     {
         $request->validate([
             'current_password' => 'required',
@@ -68,7 +69,7 @@ class ProfileController extends Controller
         return redirect()->route('profile.show')->with('success', 'Password updated successfully.');
     }
 
-    public function destroy(Request $request): Response
+    public function destroy(Request $request): RedirectResponse
     {
         $request->validate([
             'password' => 'required',
