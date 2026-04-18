@@ -20,6 +20,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
   useEffect(() => {
     verifyEmail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const verifyEmail = async () => {

@@ -17,7 +17,7 @@ export default function WelcomeScreen({ navigation }) {
         {/* Dark overlay */}
         <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1 items-center justify-between px-4 py-10">
+        <SafeAreaView className="flex-1 items-center justify-between px-4 py-20">
 
           {/* Logo + title block */}
           <View className="flex-1 items-center justify-center">
@@ -38,11 +38,11 @@ export default function WelcomeScreen({ navigation }) {
           </View>
 
           {/* Action buttons */}
-          <View className="w-full items-center gap-3 -mb-10 mt-12">
+          <View className="w-full items-center gap-4 -mb-4 mt-12">
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
               className="w-2/3 rounded-full items-center mb-2"
-              style={{ backgroundColor: '#0686f6ff', paddingVertical: 20 }}
+              style={{ backgroundColor: '#0686f6ff', paddingVertical: 24 }}
               activeOpacity={0.85}
             >
               <Text className="text-white font-bold text-lg">Log In</Text>
@@ -51,28 +51,20 @@ export default function WelcomeScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => navigation.navigate('Register')}
               className="w-2/3 rounded-full items-center mb-2"
-              style={{ backgroundColor: '#f8b200', paddingVertical: 20 }}
+              style={{ backgroundColor: '#f8b200', paddingVertical: 24 }}
               activeOpacity={0.85}
             >
               <Text className="text-white font-bold text-lg">Sign Up</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => navigation.replace('Main')}
-              className="items-center mt-1"
-              activeOpacity={0.7}
-            >
-              <Text className="text-gray-400 text-sm  underline">
-                Continue without signing in
-              </Text>
-            </TouchableOpacity>
+          
           </View>
 
         </SafeAreaView>
       </ImageBackground>
 
       {/* White view at the bottom */}
-      <View className="h-64 bg-white" />
+      <View className="h-20 bg-sky-900" />
     </View>
   );
 }

@@ -125,7 +125,7 @@ export default function LoginScreen({ navigation }) {
         </ImageBackground>
 
         {/* White view at the bottom */}
-        <View className="h-64 bg-white-500" />
+        <View className="h-20 bg-sky-900" />
       </View>
 
       <SafeAreaView className="absolute inset-0">
@@ -239,7 +239,7 @@ export default function LoginScreen({ navigation }) {
                 <TouchableOpacity
                   onPress={handleLogin}
                   disabled={isLoading}
-                  className="rounded-full py-4 items-center"
+                  className="rounded-full py-4 items-center mt-6"
                   style={{ backgroundColor: '#0686f6ff', width: 150, alignSelf: 'center' }}
                 >
                   {isLoading
@@ -250,16 +250,13 @@ export default function LoginScreen({ navigation }) {
 
                 {/* Sign up link */}
                 <View className="mt-6 flex-row justify-center">
-                  <Text className="text-lg text-black mb-1">Don't have an account? </Text>
+                  <Text className="text-lg text-black mb-1">{"Don't have an account? "}</Text>
                   <TouchableOpacity onPress={() => navigation.navigate('Register')}>
                     <Text className="text-lg text-blue-500">Sign up</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Skip */}
-                <TouchableOpacity onPress={() => navigation.replace('Main')} className="mt-4 items-center">
-                  <Text className="text-sm text-gray-400 underline">Continue without signing in</Text>
-                </TouchableOpacity>
+               
 
               </View>
 

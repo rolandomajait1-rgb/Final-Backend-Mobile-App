@@ -35,7 +35,11 @@ export const getCurrentUserFromStorage = async () => {
  */
 export const saveUserToStorage = async (user) => {
   try {
-    await AsyncStorage.setItem('user_data', JSON.stringify(user));
+    if (user) {
+      await AsyncStorage.setItem('user_data', JSON.stringify(user));
+    } else {
+      await AsyncStorage.removeItem('user_data');
+    }
   } catch (error) {
     console.error('Error saving user to storage:', error);
   }
