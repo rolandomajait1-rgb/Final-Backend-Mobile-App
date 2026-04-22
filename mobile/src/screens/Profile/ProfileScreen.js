@@ -174,11 +174,6 @@ export default function ProfileScreen({ navigation }) {
         onPress: async () => {
           try {
             await logout();
-            showAuditEventToast({
-              action: 'user_logout',
-              status: 'success',
-              message: 'Signed out successfully'
-            });
             setUser(null);
             setLikedArticles([]);
             setSharedArticles([]);
