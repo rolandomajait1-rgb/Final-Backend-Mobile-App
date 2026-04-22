@@ -203,6 +203,15 @@ class ArticleController extends Controller
                 $query->where('type', 'liked');
             }]);
 
+            // Load user_liked status if authenticated
+            if (Auth::check()) {
+                $article->loadExists(['interactions as user_liked' => function ($query) {
+                    $query->where('user_id', Auth::id())->where('type', 'liked');
+                }]);
+            } else {
+                $article->user_liked = false;
+            }
+
             return response()->json($article);
         } catch (\Exception $e) {
             Log::error('Article fetch by slug failed', [
@@ -233,6 +242,15 @@ class ArticleController extends Controller
             $article->loadCount(['interactions as likes_count' => function ($query) {
                 $query->where('type', 'liked');
             }]);
+
+            // Load user_liked status if authenticated
+            if (Auth::check()) {
+                $article->loadExists(['interactions as user_liked' => function ($query) {
+                    $query->where('user_id', Auth::id())->where('type', 'liked');
+                }]);
+            } else {
+                $article->user_liked = false;
+            }
 
             return response()->json($article);
         } catch (\Exception $e) {
@@ -736,18 +754,24 @@ class ArticleController extends Controller
         return response()->json(['liked' => true, 'likes_count' => $article->interactions()->where('type', 'liked')->count()]);
     }
 
-    public function share(Article $article): \Illuminate\Http\RedirectResponse
+    public function share(Article $article): JsonResponse
     {
-        ArticleInteraction::updateOrCreate(
-            [
+        // Increment the total share count on the article table
+        $article->increment('shares_count');
+
+        // If the user is logged in, record that they shared it
+        if (Auth::check()) {
+            ArticleInteraction::firstOrCreate([
                 'user_id' => Auth::id(),
                 'article_id' => $article->id,
                 'type' => 'shared',
-            ],
-            []
-        );
+            ]);
+        }
 
-        return back()->with('success', 'Article shared!');
+        return response()->json([
+            'shared' => true, 
+            'shares_count' => $article->shares_count
+        ]);
     }
 
     public function getLikedArticles(Request $request): JsonResponse
@@ -760,7 +784,7 @@ class ArticleController extends Controller
             $query->where('user_id', Auth::id())
                 ->where('type', 'liked');
         })
-            ->with('categories', 'tags')
+            ->with('categories', 'tags', 'author.user')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json($articles);
@@ -776,7 +800,7 @@ class ArticleController extends Controller
             $query->where('user_id', Auth::id())
                 ->where('type', 'shared');
         })
-            ->with('categories', 'tags')
+            ->with('categories', 'tags', 'author.user')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json($articles);

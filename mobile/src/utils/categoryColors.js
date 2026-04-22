@@ -1,12 +1,11 @@
-// Category color mapping based on Tailwind colors
 export const categoryColors = {
-  'news': '#2563eb',      // blue-600
-  'sports': '#dc2626',    // red-600
-  'opinion': '#4b5563',   // gray-600
-  'literary': '#16a34a',  // green-600
-  'features': '#ca8a04',  // yellow-600
-  'specials': '#4f46e5',  // indigo-600
-  'art': '#9333ea',       // purple-600
+  'news': '#3b82f6',      // blue-500
+  'sports': '#ef4444',    // red-500
+  'opinion': '#6b7280',   // gray-500
+  'literary': '#10b981',  // green-500
+  'features': '#f59e0b',  // amber-500
+  'specials': '#6366f1',  // indigo-500
+  'art': '#c026d3',       // fuchsia-600
 };
 
 // Get color for a category (case-insensitive)

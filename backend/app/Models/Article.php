@@ -24,6 +24,7 @@ class Article extends Model
         'published_at',
         'author_id',
         'author_name',
+        'shares_count',
     ];
 
     protected $casts = [
