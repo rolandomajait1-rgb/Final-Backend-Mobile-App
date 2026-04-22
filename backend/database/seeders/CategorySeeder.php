@@ -14,7 +14,7 @@ class CategorySeeder extends Seeder
     {
         Category::firstOrCreate(['name' => 'Technology'], ['slug' => 'technology', 'description' => 'Articles about technology']);
         Category::firstOrCreate(['name' => 'Science'], ['slug' => 'science', 'description' => 'Articles about science']);
-        Category::firstOrCreate(['name' => 'Health'], ['slug' => 'health', 'description' => 'Articles about health']);
+        // 'Health' removed — replaced by 'Opinion' (see line below)
         Category::firstOrCreate(['name' => 'Business'], ['slug' => 'business', 'description' => 'Articles about business']);
         Category::firstOrCreate(['name' => 'Culture'], ['slug' => 'culture', 'description' => 'Articles about culture']);
         Category::firstOrCreate(['name' => 'News'], ['slug' => 'news', 'description' => 'News articles']);

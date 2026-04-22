@@ -8,6 +8,13 @@ import {
   RefreshControl,
   Image,
 } from "react-native";
+import { isAdminOrModerator } from "../../utils/authUtils";
+import { deleteArticle } from "../../api/services/articleService";
+import { showAuditToast } from "../../utils/toastNotification";
+import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
+import { ArticleActionMenu } from "../../components/common";
+import { ALLOWED_CATEGORIES } from "../../constants/categories";
+import { formatArticleDate } from "../../utils/dateUtils";
 
 import { Ionicons } from "@expo/vector-icons";
 import client from "../../api/client";
@@ -26,16 +33,7 @@ const getAuthorName = (article) =>
   article.author?.user?.name ||
   "Unknown Author";
 
-const formatDate = (d) => {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+// formatDate removed in favor of formatArticleDate from dateUtils
 
 export default function CategoryScreen({
   navigation,
@@ -65,20 +63,25 @@ export default function CategoryScreen({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [menuArticle, setMenuArticle] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuY, setMenuY] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingArticle, setDeletingArticle] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     try {
       const res = await client.get("/api/categories");
-      const allowed = ["News", "Literary", "Opinion", "Sports", "Features", "Specials", "Art"];
-      setCategories((res.data ?? []).filter((c) => allowed.includes(c.name)));
+      setCategories((res.data ?? []).filter((c) => ALLOWED_CATEGORIES.includes(c.name)));
     } catch (err) {
       console.error("Error fetching categories:", err);
     }
   }, []);
 
-  const fetchArticles = useCallback(async (pageNum = 1, replace = false) => {
-    if (pageNum === 1) setLoading(true);
-    else setLoadingMore(true);
+  const fetchArticles = useCallback(async (pageNum = 1, replace = false, silent = false) => {
+    if (pageNum === 1 && !silent) setLoading(true);
+    else if (pageNum > 1) setLoadingMore(true);
     setError(null);
 
     try {
@@ -106,13 +109,57 @@ export default function CategoryScreen({
   }, [categoryName, categorySlug]);
 
   useEffect(() => {
+    checkAdminStatus();
     fetchCategories();
     fetchArticles(1, true);
   }, [categoryName, fetchCategories, fetchArticles]);
 
+  const checkAdminStatus = async () => {
+    const status = await isAdminOrModerator();
+    setIsAdminUser(status);
+  };
+
+  const handleMenuPress = (article, event) => {
+    if (isAdminUser) {
+      setMenuArticle(article);
+      if (event?.nativeEvent?.pageY) {
+        setMenuY(event.nativeEvent.pageY + 15);
+      }
+      setShowMenu(true);
+    }
+  };
+
+  const handleEdit = () => {
+    if (!menuArticle) return;
+    setShowMenu(false);
+    navigation.navigate("EditArticle", { articleId: menuArticle.id });
+  };
+
+  const handleDelete = () => {
+    if (!menuArticle) return;
+    setShowMenu(false);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!menuArticle?.id || deletingArticle) return;
+    try {
+      setDeletingArticle(true);
+      await deleteArticle(menuArticle.id);
+      setShowDeleteModal(false);
+      showAuditToast("success", "Article deleted successfully");
+      fetchArticles(1, true);
+    } catch (err) {
+      console.error("Error deleting article:", err);
+      showAuditToast("error", "Failed to delete article");
+    } finally {
+      setDeletingArticle(false);
+    }
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
-    fetchArticles(1, true);
+    fetchArticles(1, true, true);
   };
 
   const loadMore = () => {
@@ -255,10 +302,11 @@ export default function CategoryScreen({
                   title={item.title}
                   category={item.categories?.[0]?.name || categoryName}
                   author={getAuthorName(item)}
-                  date={formatDate(item.published_at || item.created_at)}
+                  date={formatArticleDate(item.published_at || item.created_at)}
                   image={item.featured_image_url || item.featured_image}
                   hashtags={item.tags?.map((t) => t.name) ?? []}
                   onPress={() => handleArticlePress(item)}
+                  onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
                   onTagPress={handleTagPress}
                   onAuthorPress={() => handleAuthorPress(item)}
                 />
@@ -270,6 +318,9 @@ export default function CategoryScreen({
             showsVerticalScrollIndicator={false}
             onEndReached={loadMore}
             onEndReachedThreshold={0.4}
+            initialNumToRender={5}
+            maxToRenderPerBatch={5}
+            windowSize={10}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -282,6 +333,38 @@ export default function CategoryScreen({
       )}
 
       <BottomNavigation navigation={navigation} activeTab="Home" />
+
+      {/* Edit/Delete Menu Modal */}
+      <ArticleActionMenu
+        visible={showMenu}
+        y={menuY}
+        onClose={() => setShowMenu(false)}
+        actions={[
+          {
+            label: "Edit",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: handleEdit,
+          },
+          {
+            label: "Delete",
+            icon: "trash-outline",
+            color: "#ef4444",
+            onPress: handleDelete,
+          },
+        ]}
+      />
+
+      <DeleteConfirmModal
+        visible={showDeleteModal}
+        loading={deletingArticle}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          if (!deletingArticle) {
+            setShowDeleteModal(false);
+          }
+        }}
+      />
     </View>
   );
 }

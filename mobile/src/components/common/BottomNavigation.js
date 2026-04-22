@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../../styles';
 
 export default function BottomNavigation({ navigation, activeTab = 'Home' }) {
   const insets = useSafeAreaInsets();
@@ -15,10 +16,10 @@ export default function BottomNavigation({ navigation, activeTab = 'Home' }) {
 
   return (
     <View 
-      className="border-t border-gray-200 flex-row justify-around items-center" 
+      className="flex-row justify-around items-center" 
       style={{ 
-        backgroundColor: '#2C5F7F',
-        paddingBottom: Math.max(insets.bottom, 20),
+        backgroundColor: colors.primary,
+        paddingBottom: Math.max(insets.bottom, 10),
         paddingTop: 10
       }}
     >

@@ -5,11 +5,10 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Modal,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { HomeScreenSkeleton, ArticleLargeCardSkeleton, ArticleCardSkeleton } from "../../components/common";
+import { HomeScreenSkeleton, ArticleActionMenu, Loader } from "../../components/common";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import ArticleMediumCard from "../../components/articles/ArticleMediumCard";
 import HomeHeader from "./HomeHeader";
@@ -26,6 +25,7 @@ import { isAdminOrModerator } from "../../utils/authUtils";
 import { colors } from "../../styles";
 import { debounce } from "../../utils/debounce";
 import { showAuditToast } from "../../utils/toastNotification";
+import { formatArticleDate } from "../../utils/dateUtils";
 
 // ─── ARTICLES LIST ────────────────────────────────────────────────────────────
 const ArticlesListContent = ({
@@ -65,19 +65,7 @@ const ArticlesListContent = ({
             author={
               article.author_name || article.author?.name || "Unknown Author"
             }
-            date={
-              article.created_at || article.published_at
-                ? new Date(
-                    article.created_at || article.published_at,
-                  ).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : ""
-            }
+            date={formatArticleDate(article.created_at || article.published_at)}
             image={article.featured_image_url || article.featured_image}
             onPress={() => onArticlePress(article)}
             onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
@@ -106,19 +94,7 @@ const ArticlesListContent = ({
               author={
                 article.author_name || article.author?.name || "Unknown Author"
               }
-              date={
-                article.created_at || article.published_at
-                  ? new Date(
-                      article.created_at || article.published_at,
-                    ).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : ""
-              }
+              date={formatArticleDate(article.created_at || article.published_at)}
               image={article.featured_image_url || article.featured_image}
               hashtags={article.tags}
               onPress={() => onArticlePress(article)}
@@ -370,19 +346,7 @@ export default function HomeScreen({ navigation }) {
                     article.author?.user?.name ||
                     "Unknown Author"
                   }
-                  date={
-                    article.created_at || article.published_at
-                      ? new Date(
-                          article.created_at || article.published_at,
-                        ).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Recently"
-                  }
+                  date={formatArticleDate(article.created_at || article.published_at)}
                   image={article.featured_image_url || article.featured_image}
                   onPress={() =>
                     navigation.navigate("ArticleDetail", {
@@ -444,40 +408,25 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Edit/Delete Menu Modal */}
-      <Modal
+      <ArticleActionMenu
         visible={showMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowMenu(false)}
-      >
-        <TouchableOpacity
-          className="flex-1 bg-black/40"
-          activeOpacity={1}
-          onPress={() => setShowMenu(false)}
-        >
-          <View style={{ position: 'absolute', top: menuY, right: 40 }}>
-            <View
-              className="bg-white rounded-xl shadow-lg border border-gray-50 py-1"
-              style={{ minWidth: 140, elevation: 5 }}
-            >
-              <TouchableOpacity
-                onPress={handleEdit}
-                className="flex-row items-center px-5 py-3"
-              >
-                <Ionicons name="create-outline" size={20} color="#0284c7" />
-                <Text className="ml-4 text-gray-700 text-[15px]">Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleDelete}
-                className="flex-row items-center px-5 py-3"
-              >
-                <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                <Text className="ml-4 text-red-500 text-[15px]">Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        y={menuY}
+        onClose={() => setShowMenu(false)}
+        actions={[
+          {
+            label: "Edit",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: handleEdit,
+          },
+          {
+            label: "Delete",
+            icon: "trash-outline",
+            color: "#ef4444",
+            onPress: handleDelete,
+          },
+        ]}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
@@ -499,22 +448,22 @@ export default function HomeScreen({ navigation }) {
           onPress={() => navigation.navigate('CreateArticle')}
           style={{
             position: 'absolute',
-            bottom: 110, // Adjusted higher
-            right: 20,
+            right: 18,
+            bottom: 112,
+            width: 72,
+            height: 72,
+            borderRadius: 999,
             backgroundColor: '#f39c12',
-            width: 70,
-            height: 70,
-            borderRadius: 100,
             justifyContent: 'center',
             alignItems: 'center',
-            elevation: 5,
+            elevation: 6,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.18,
+            shadowRadius: 8,
           }}
         >
-          <Ionicons name="add" size={48} color="white" />
+          <Ionicons name="add" size={40} color="#fff" />
         </TouchableOpacity>
       )}
     </View>

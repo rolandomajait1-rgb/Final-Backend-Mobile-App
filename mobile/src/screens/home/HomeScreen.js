@@ -3,8 +3,8 @@ import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Loader, ErrorMessage } from '../../components/common';
-import HomeHeader from '../../components/home/HomeHeader';
+import { Loader } from '../../components/common';
+import HomeHeader from '../homepage/HomeHeader';
 import { useArticles } from '../../context/ArticleContext';
 import { getArticles } from '../../api/services/articleService';
 import { getCategories } from '../../api/services/categoryService';
@@ -12,15 +12,17 @@ import { colors } from '../../styles';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen({ navigation }) {
-  const { latestArticles, historicalArticles, loading: articlesLoading, refreshArticles } = useArticles();
+  const { latestArticles, historicalArticles, refreshArticles } = useArticles();
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  // eslint-disable-next-line no-unused-vars
   const [articles, setArticles] = useState([]);
 
   const fetchCategories = async () => {
@@ -40,7 +42,7 @@ export default function HomeScreen({ navigation }) {
       setArticles(prev => replace ? data : [...prev, ...data]);
       setHasMore(pageNum < lastPage);
       setPage(pageNum);
-    } catch (e) {
+    } catch (_e) {
       setError('Failed to load articles. Pull down to retry.');
     }
   }, [selectedCategory]);

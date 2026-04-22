@@ -14,6 +14,8 @@ import { colors } from '../../styles';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import { ALLOWED_CATEGORIES } from '../../constants/categories';
+import { formatArticleDate } from '../../utils/dateUtils';
 
 export default function TagArticlesScreen({ route, navigation }) {
   const { tagName, authorId, authorName } = route.params;
@@ -29,8 +31,7 @@ export default function TagArticlesScreen({ route, navigation }) {
   const fetchCategories = useCallback(async () => {
     try {
       const response = await client.get('/api/categories');
-      const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
-      const filteredCategories = (response.data ?? []).filter(cat => allowedCategories.includes(cat.name));
+      const filteredCategories = (response.data ?? []).filter(cat => ALLOWED_CATEGORIES.includes(cat.name));
       setCategories(filteredCategories);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -192,15 +193,7 @@ export default function TagArticlesScreen({ route, navigation }) {
                   title={item.title}
                   category={item.categories?.[0]?.name || 'Uncategorized'}
                   author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
-                  date={(item.created_at || item.published_at)
-                    ? new Date(item.created_at || item.published_at).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Recently'}
+                  date={formatArticleDate(item.created_at || item.published_at)}
                   image={item.featured_image_url || item.featured_image}
                   hashtags={item.tags?.map((t) => t.name) || []}
                   onPress={() => handleArticlePress(item)}
@@ -221,6 +214,9 @@ export default function TagArticlesScreen({ route, navigation }) {
             )}
             contentContainerStyle={{ paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
+            initialNumToRender={5}
+            maxToRenderPerBatch={5}
+            windowSize={10}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

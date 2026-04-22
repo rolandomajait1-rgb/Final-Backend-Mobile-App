@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Linking from 'expo-linking';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TabNavigator from './TabNavigator';
 import ArticleDetailScreen from '../screens/articles/ArticleDetailScreen';
@@ -121,6 +121,20 @@ export default function AppNavigator() {
     checkAuth();
   }, []);
 
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('LOGOUT', () => {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
+    });
+    return () => subscription.remove();
+  }, [navigationRef]);
+
   // Show a branded loading spinner while checking auth state
   if (!initialRoute) {
     return (
@@ -132,7 +146,7 @@ export default function AppNavigator() {
 
   return (
     <ArticleProvider>
-      <NavigationContainer linking={linking} fallback={<WelcomeScreen />}>
+      <NavigationContainer ref={navigationRef} linking={linking} fallback={<WelcomeScreen />}>
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />

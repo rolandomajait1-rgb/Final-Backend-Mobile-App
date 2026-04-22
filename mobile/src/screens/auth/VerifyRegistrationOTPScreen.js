@@ -20,11 +20,18 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
+  const successTimeoutRef = useRef(null);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => { show.remove(); hide.remove(); };
+    return () => { 
+      show.remove(); 
+      hide.remove();
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
   }, []);
 
   const handleVerifyOTP = async () => {
@@ -61,7 +68,8 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
       await client.post('/api/resend-registration-otp', { email });
       setOtp('');
       setSuccessMsg('New OTP sent! Please check your email.');
-      setTimeout(() => setSuccessMsg(''), 4000);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
       let msg = 'Failed to resend OTP. Please try again.';
       if (err.response?.data?.message) {
@@ -162,7 +170,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
 
                 {/* Resend OTP */}
                 <View className="mt-4 flex-row justify-center">
-                  <Text className="text-sm text-gray-600">Didn't receive the code? </Text>
+                  <Text className="text-sm text-gray-600">Didn&apos;t receive the code? </Text>
                   <TouchableOpacity onPress={handleResendOTP} disabled={loading}>
                     <Text className="text-sm text-blue-600 font-medium">Resend</Text>
                   </TouchableOpacity>

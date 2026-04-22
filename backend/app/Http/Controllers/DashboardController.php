@@ -34,13 +34,14 @@ class DashboardController extends Controller
         $totalArticles = \App\Models\Article::count();
         $published     = \App\Models\Article::where('status', 'published')->count();
         $totalLikes    = \App\Models\ArticleInteraction::where('type', 'liked')->count();
-        $totalShares   = \App\Models\ArticleInteraction::where('type', 'shared')->count();
+        $totalShares   = (int) \App\Models\Article::sum('shares_count');
 
         // Simple reader growth: compare this month's vs last month's new users
+        $lastMonth       = now()->subMonth();
         $currentReaders  = \App\Models\User::whereMonth('created_at', now()->month)
                                            ->whereYear('created_at', now()->year)->count();
-        $previousReaders = \App\Models\User::whereMonth('created_at', now()->subMonth()->month)
-                                           ->whereYear('created_at', now()->subMonth()->year)->count();
+        $previousReaders = \App\Models\User::whereMonth('created_at', $lastMonth->month)
+                                           ->whereYear('created_at', $lastMonth->year)->count();
         $growthPct = $previousReaders > 0
             ? round((($currentReaders - $previousReaders) / $previousReaders) * 100, 2)
             : 0;
@@ -48,7 +49,7 @@ class DashboardController extends Controller
         // Dynamic Chart Data Generation (Cumulative Readership)
         $chart = [
             'monthly' => [
-                'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                'labels' => [],
                 'data' => [],
             ],
             'yearly' => [
@@ -57,12 +58,14 @@ class DashboardController extends Controller
             ]
         ];
 
-        // Monthly cumulative data for current year
+        // Monthly cumulative data for current year (up to current month)
         $usersBeforeThisYear = \App\Models\User::whereYear('created_at', '<', now()->year)->count();
-        for ($i = 1; $i <= 12; $i++) {
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for ($i = 1; $i <= now()->month; $i++) {
             $usersThisYearSoFar = \App\Models\User::whereYear('created_at', now()->year)
                                                   ->whereMonth('created_at', '<=', $i)
                                                   ->count();
+            $chart['monthly']['labels'][] = $months[$i - 1];
             $chart['monthly']['data'][] = $usersBeforeThisYear + $usersThisYearSoFar;
         }
 

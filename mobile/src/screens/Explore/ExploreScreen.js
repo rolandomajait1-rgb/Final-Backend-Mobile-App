@@ -4,12 +4,14 @@ import {
   RefreshControl, TouchableOpacity,
 } from 'react-native';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
-import { ArticleLargeCardSkeleton } from '../../components/common';
+import { Loader } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import { getArticles } from '../../api/services/articleService';
 import { colors } from '../../styles';
 import HomeHeader from '../homepage/HomeHeader';
 import client from '../../api/client';
+import { ALLOWED_CATEGORIES } from '../../constants/categories';
+import { formatArticleDate } from '../../utils/dateUtils';
 
 export default function ExploreScreen({ navigation }) {
   const [trendingArticles, setTrendingArticles] = useState([]);
@@ -24,8 +26,7 @@ export default function ExploreScreen({ navigation }) {
   const fetchCategories = async () => {
     try {
       const response = await client.get('/api/categories');
-      const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
-      const filteredCategories = (response.data ?? []).filter(cat => allowedCategories.includes(cat.name));
+      const filteredCategories = (response.data ?? []).filter(cat => ALLOWED_CATEGORIES.includes(cat.name));
       setCategories(filteredCategories);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -100,50 +101,9 @@ export default function ExploreScreen({ navigation }) {
   if (loading) {
     return (
       <View className="flex-1" style={{ backgroundColor: colors.background }}>
-        <View className="flex-shrink-0">
-          <HomeHeader categories={categories} navigation={navigation} />
-        </View>
-        
-        {/* Filter Section Skeleton */}
-        <View className="px-4 py-4 bg-white border-b border-gray-200">
-          <Text className="text-gray-500 text-xl font-bold mb-3 ml-3 tracking-widest">Filter</Text>
-          <View className="flex-row gap-3 justify-center">
-            <View className="px-6 py-2 rounded-full border border-gray-300 bg-white">
-              <Text className="text-gray-400">Author</Text>
-            </View>
-            <View className="px-10 py-2 rounded-full border border-gray-300 bg-white">
-              <Text className="text-gray-400">Tag</Text>
-            </View>
-            <View className="px-6 py-2 rounded-full border border-gray-300 bg-white">
-              <Text className="text-gray-400">Category</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Trending Articles Header */}
-        <View className="px-4 py-4 border-b border-gray-200 bg-white">
-          <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-            Trending Articles
-          </Text>
-          <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-            Most viewed articles
-          </Text>
-        </View>
-
-        {/* Article Skeletons */}
-        <FlatList
-          data={[1, 2, 3, 4, 5]}
-          keyExtractor={(item) => String(item)}
-          renderItem={() => (
-            <View className="px-4">
-              <ArticleLargeCardSkeleton />
-            </View>
-          )}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        />
-
-        <View className="absolute bottom-0 left-0 right-0">
-          <BottomNavigation navigation={navigation} activeTab="Explore" />
+        <HomeHeader categories={categories} navigation={navigation} />
+        <View className="flex-1 justify-center items-center">
+          <Loader />
         </View>
       </View>
     );
@@ -285,15 +245,7 @@ export default function ExploreScreen({ navigation }) {
               title={item.title}
               category={item.categories?.[0]?.name || 'Uncategorized'}
               author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
-              date={(item.created_at || item.published_at)
-                ? new Date(item.created_at || item.published_at).toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : 'Recently'}
+              date={formatArticleDate(item.created_at || item.published_at)}
               image={item.featured_image_url || item.featured_image}
               hashtags={item.tags?.map((t) => t.name) || []}
               onPress={() => handleArticlePress(item)}
@@ -312,6 +264,9 @@ export default function ExploreScreen({ navigation }) {
           </View>
         )}
         data={trendingArticles}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={10}
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center px-4 py-12">
             <Text className="text-center text-gray-500 text-lg">

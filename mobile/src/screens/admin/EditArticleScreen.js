@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { showAuditToast } from '../../utils/toastNotification';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { isAuthenticated } from '../../utils/authUtils';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
@@ -107,8 +107,7 @@ export default function EditArticleScreen({ navigation, route }) {
     setCategoriesLoading(true);
     try {
       const res = await getCategories();
-      const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
-      const filteredCategories = (res.data ?? []).filter(cat => allowedCategories.includes(cat.name));
+      const filteredCategories = (res.data ?? []).filter(cat => ALLOWED_CATEGORIES.includes(cat.name));
       setCategories(filteredCategories);
     } catch {
       // silently fail

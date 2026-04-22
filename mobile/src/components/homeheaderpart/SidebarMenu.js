@@ -8,7 +8,18 @@ import {
   SafeAreaView,
   Animated,
 } from 'react-native';
-import { colors } from '../../styles';
+import { Ionicons } from '@expo/vector-icons';
+import { ALLOWED_CATEGORIES } from '../../constants/categories';
+
+const categoryIcons = {
+  'Art': 'color-palette',
+  'Features': 'star',
+  'Literary': 'book',
+  'News': 'newspaper-outline',
+  'Opinion': 'chatbubble',
+  'Specials': 'diamond-outline',
+  'Sports': 'basketball-outline',
+};
 
 const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navigation }) => {
   const slideAnim = useRef(new Animated.Value(-300)).current;
@@ -24,7 +35,7 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
     'Art': 'ArtScreen',
   };
 
-  const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
+  // allowedCategories removed in favor of ALLOWED_CATEGORIES from constants
 
   useEffect(() => {
     if (visible) {
@@ -56,6 +67,9 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
     }
   };
 
+  // Ensure consistent color
+  const themeColor = "#075985"; // A deep sky blue / teal matching the reference
+
   return (
     <Modal
       visible={visible}
@@ -68,28 +82,36 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
           {/* Sidebar */}
           
           <Animated.View
-            className="w-80 bg-white"
+            className="w-[280px] bg-white"
             style={{
               transform: [{ translateX: slideAnim }],
             }}
           >
             {/* Header */}
-            <View className="px-6 items-center py-6 border-b border-gray-200">
-              <Text className="text-3xl font-bold text-gray-800">Categories</Text>
+            <View className="px-8 pt-8 pb-4">
+              <Text style={{ color: themeColor }} className="text-[26px] font-bold">Categories</Text>
             </View>
 
             {/* Categories List */}
-            <ScrollView className="flex-1 px-10 py-4">
+            <ScrollView className="flex-1 px-8 pt-4">
               {categories.length > 0 ? (
+                // Sort categories to ensure a consistent list layout (fallback to allowed display config if needed, otherwise rely on backend order)
+                // Filter first by allowedCategories.
                 categories
-                  .filter((category) => allowedCategories.includes(category.name))
+                  .filter((category) => ALLOWED_CATEGORIES.includes(category.name))
+                  .sort((a, b) => a.name.localeCompare(b.name)) // Sort alphabetically as seen in screenshot
                   .map((category) => (
                     <TouchableOpacity
                       key={category.id}
                       onPress={() => handleCategorySelect(category)}
-                      className="py-4"
+                      className="py-4 flex-row items-center gap-5"
                     >
-                      <Text className="text-xl text-gray-600 font-medium">
+                      <Ionicons
+                        name={categoryIcons[category.name] || 'list'}
+                        size={26}
+                        color={themeColor}
+                      />
+                      <Text style={{ color: '#334155' }} className="text-[20px] font-normal">
                         {category.name}
                       </Text>
                     </TouchableOpacity>
