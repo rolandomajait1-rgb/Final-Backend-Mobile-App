@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { getImageUri } from '../../utils/imageUtils';
 import { typography } from '../../styles';
 import { getCategoryColor } from '../../utils/categoryColors';
 
-const FALLBACK = 'https://via.placeholder.com/400x200/e2e8f0/64748b?text=No+Image';
 
-export default function ArticleCard({ article, onPress }) {
+export default function ArticleCard({ article, onPress, onAuthorPress, onTagPress }) {
   const category = article.categories?.[0]?.name ?? '';
   const author = article.author?.user?.name || article.author?.name || article.author_name || 'Unknown Author';
   const date = article.published_at
     ? new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
+
+  const hashtags = article.tags || [];
 
   return (
     <TouchableOpacity 
@@ -19,23 +21,25 @@ export default function ArticleCard({ article, onPress }) {
       activeOpacity={0.85}
     >
       <Image
-        source={{ uri: article.featured_image_url || article.featured_image || FALLBACK }}
+        source={{ uri: getImageUri(article.featured_image_url || article.featured_image) }}
         className="w-full h-44 bg-gray-200"
         resizeMode="cover"
       />
       
       <View className="p-4">
-        {category ? (
-          <Text 
-            className="text-xs font-bold mb-1 tracking-wider" 
-            style={{ color: getCategoryColor(category) }}
-          >
-            {category.toUpperCase()}
-          </Text>
-        ) : null}
+        <View className="flex-row justify-between items-start mb-1">
+          {category ? (
+            <Text 
+              className="text-xs font-bold tracking-wider" 
+              style={{ color: getCategoryColor(category) }}
+            >
+              {category.toUpperCase()}
+            </Text>
+          ) : <View />}
+        </View>
         
         <Text 
-          className="text-base font-bold text-gray-900 mb-1" 
+          className="text-base font-bold text-gray-900 mb-2" 
           style={{ 
             fontFamily: typography.fontFamily.serif,
             lineHeight: typography.fontSize.md * typography.lineHeight.normal 
@@ -44,10 +48,36 @@ export default function ArticleCard({ article, onPress }) {
         >
           {article.title}
         </Text>
+
+        {/* Tags */}
+        {hashtags.length > 0 && (
+          <View className="flex-row flex-wrap gap-1 mb-3">
+            {hashtags.map((tag, index) => (
+              <TouchableOpacity 
+                key={index} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onTagPress && onTagPress(tag.name || tag);
+                }}
+                className="bg-gray-100 rounded-full px-2 py-0.5"
+              >
+                <Text className="text-[10px] text-gray-600 font-medium">#{tag.name || tag}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         
-        <Text className="text-xs text-gray-500">
-          {[author, date].filter(Boolean).join(' · ')}
-        </Text>
+        <View className="flex-row items-center">
+          <TouchableOpacity 
+            onPress={(e) => {
+              e.stopPropagation();
+              onAuthorPress && onAuthorPress();
+            }}
+          >
+            <Text className="text-xs font-bold text-gray-700 underline">{author}</Text>
+          </TouchableOpacity>
+          {date ? <Text className="text-xs text-gray-500"> · {date}</Text> : null}
+        </View>
       </View>
     </TouchableOpacity>
   );

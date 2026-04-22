@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function SaveDraftModal({
   isOpen,
@@ -15,6 +16,7 @@ export default function SaveDraftModal({
   onSave,
   onDiscard,
   isSaving,
+  title = "Save Edit",
 }) {
   return (
     <Modal
@@ -25,8 +27,12 @@ export default function SaveDraftModal({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Ionicons name="close" size={24} color="#9ca3af" />
+          </TouchableOpacity>
+
           <View style={styles.content}>
-            <Text style={styles.title}>Save Draft</Text>
+            <Text style={styles.title}>{title}</Text>
             <Text style={styles.description}>
               Save your changes and come back to finish your article later.
             </Text>
@@ -77,7 +83,9 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 32,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 32,
     width: "85%",
     maxWidth: 400,
     shadowColor: "#000",
@@ -85,19 +93,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    position: "relative",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    padding: 4,
   },
   content: {
-    marginBottom: 32,
+    marginBottom: 24,
     alignItems: "center",
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 12,
+    color: "#000",
+    marginBottom: 8,
   },
   description: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#4b5563",
     textAlign: "center",
   },
@@ -105,7 +120,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   publishButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: "#0ea5e9", // Light blue matching image
     paddingVertical: 14,
     borderRadius: 50,
     alignItems: "center",
@@ -114,35 +129,35 @@ const styles = StyleSheet.create({
   publishButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
   saveButton: {
     backgroundColor: "#fff",
     paddingVertical: 14,
     borderRadius: 50,
     borderWidth: 1.5,
-    borderColor: "#3b82f6",
+    borderColor: "#0ea5e9", // Light blue matching image
     alignItems: "center",
     justifyContent: "center",
   },
   saveButtonText: {
-    color: "#3b82f6",
+    color: "#0ea5e9",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
   discardButton: {
     backgroundColor: "#fff",
     paddingVertical: 14,
     borderRadius: 50,
     borderWidth: 1.5,
-    borderColor: "#ef4444",
+    borderColor: "#ff4d4f", // Red color matching image
     alignItems: "center",
     justifyContent: "center",
   },
   discardButtonText: {
-    color: "#ef4444",
+    color: "#ff4d4f",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "bold",
   },
   disabledButton: {
     opacity: 0.5,

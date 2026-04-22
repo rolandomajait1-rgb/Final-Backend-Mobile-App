@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
-import { getCategoryBgClass } from '../../utils/categoryColors';
-import typography from '../../styles/typography';
+import { getCategoryColor } from '../../utils/categoryColors';
 
-const FALLBACK = 'https://via.placeholder.com/400x300/e2e8f0/64748b?text=No+Image';
 
 export default function ArticleLargeCard({ 
   title, 
@@ -18,6 +17,8 @@ export default function ArticleLargeCard({
   onTagPress,
   onAuthorPress
 }) {
+  const badgeColor = getCategoryColor(category);
+
   return (
     <TouchableOpacity 
       className="mb-6 bg-white"
@@ -25,59 +26,67 @@ export default function ArticleLargeCard({
       activeOpacity={0.85}
     >
       {/* Large Image with rounded corners */}
-      <View className="relative bg-[#d1dce6] rounded-2xl overflow-hidden mb-4">
+      <View className="relative bg-[#d1dce6] rounded-xl overflow-hidden mb-4">
         <Image
-          source={{ uri: image || FALLBACK }}
-          className="w-full h-64"
+          source={{ uri: getImageUri(image) }}
+          className="w-full h-[280px]"
           resizeMode="cover"
         />
 
-        {/* Menu Button - Top Right */}
-        <TouchableOpacity 
-          onPress={(e) => {
-            e.stopPropagation();
-            onMenuPress && onMenuPress();
-          }}
-          className="absolute top-4 right-4 z-10"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="ellipsis-vertical" size={24} color="#FFB800" />
-        </TouchableOpacity>
+        {/* Menu Button Overlay - Dark Teal Circle with White Dots */}
+        {onMenuPress && (
+          <TouchableOpacity 
+            onPress={(e) => {
+              e.stopPropagation();
+              onMenuPress(e);
+            }}
+            className="absolute top-4 right-4 z-10 rounded-full p-2"
+            style={{ backgroundColor: 'rgba(14, 116, 144, 0.6)' }} 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Content Section */}
       <View>
-        {/* Title with Category Badge */}
-        <View className="flex-row items-start justify-between mb-3">
+        {/* Title and Category Badge - Side by side vertically centered */}
+        <View className="flex-row items-center justify-between mb-3">
           <Text 
-            className="text-gray-900 text-2xl leading-7 flex-1 mr-3" 
-            style={{ fontFamily: 'Nunito Sans', fontWeight: '700' }}
+            className="text-gray-900 text-[28px] font-bold flex-1 mr-4" 
             numberOfLines={2}
           >
             {title}
           </Text>
           {category && (
-            <View className={`${getCategoryBgClass(category)} flex-wrap rounded-lg px-4 py-2 self-start`}>
-              <Text className="text-white font-bold text-xs uppercase">
+            <View 
+              style={{ backgroundColor: badgeColor + '15' }} // 15% opacity for background
+              className="rounded-md px-3 py-1.5 self-start ml-2"
+            >
+              <Text 
+                style={{ color: badgeColor }} 
+                className="font-bold text-[11px] uppercase tracking-widest"
+              >
                 {category}
               </Text>
             </View>
           )}
         </View>
         
-        {/* Hashtags - Circular with gray border */}
+        {/* Hashtags - Pill style */}
         {hashtags && hashtags.length > 0 && (
-          <View className="flex-row flex-wrap gap-2 mb-3">
+          <View className="flex-row flex-wrap gap-2 mb-4">
             {hashtags.map((tag, index) => (
               <TouchableOpacity 
                 key={index} 
-                className="bg-white border border-gray-300 rounded-full px-3 py-1"
+                className="bg-white border border-gray-300 rounded-full px-4 py-1"
                 onPress={(e) => {
                   e.stopPropagation();
                   onTagPress && onTagPress(tag);
                 }}
               >
-                <Text className="text-gray-600 text-xs font-medium">
+                <Text className="text-gray-500 text-xs font-semibold">
                   #{tag}
                 </Text>
               </TouchableOpacity>
@@ -86,7 +95,7 @@ export default function ArticleLargeCard({
         )}
 
         {/* Author and Date */}
-        <View className="flex-row items-center gap-2 pb-3 text-Nunito Sans">
+        <View className="flex-row items-center gap-2 mb-4">
           <TouchableOpacity 
             onPress={(e) => {
               e.stopPropagation();
@@ -94,20 +103,18 @@ export default function ArticleLargeCard({
             }}
             activeOpacity={0.7}
           >
-            <Text className="text-gray-600 text-base font-medium underline">
+            <Text className="text-gray-800 text-base font-semibold underline">
               {author}
             </Text>
           </TouchableOpacity>
-          {date && (
-            <>
-              <View className="w-1 h-1 bg-gray-400 rounded-full" />
-              <Text className="text-gray-500 text-sm">
-                {date}
-              </Text>
-            </>
-          )}
+          <View className="w-1.5 h-1.5 bg-gray-400 rounded-full mx-1.5" />
+          <Text className="text-gray-500 text-sm">
+            {date}
+          </Text>
         </View>
       </View>
+      {/* Bottom border divider */}
+      <View style={{ height: 2, backgroundColor: '#E5E7EB', marginTop: 4 }} />
     </TouchableOpacity>
   );
 }

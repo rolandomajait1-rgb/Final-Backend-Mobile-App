@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Text } from 'react-native';
-import { RichEditor, actions } from 'react-native-pell-rich-editor';
+import { View, ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { RichEditor } from 'react-native-pell-rich-editor';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import colors from '../../styles/colors';
 
@@ -12,13 +12,13 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
     italic: false,
     underline: false,
     strikethrough: false,
+    align: 'left',
   });
 
   const formats = ['Title', 'Heading', 'Subheading', 'Body', 'Monospaced'];
 
   const handleFormatChange = (format) => {
     setActiveFormat(format);
-    // Apply heading styles based on format using commandDOM
     if (format === 'Title') {
       richText.current?.commandDOM("document.execCommand('formatBlock', false, '<h1>')");
     } else if (format === 'Heading') {
@@ -34,32 +34,52 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
 
   const applyStyle = (command, styleKey) => {
     richText.current?.commandDOM(`document.execCommand('${command}', false, null)`);
-    // Toggle the active state
     setActiveStyles(prev => ({
       ...prev,
       [styleKey]: !prev[styleKey]
     }));
   };
 
+  const applyAlignment = (command, alignKey) => {
+    richText.current?.commandDOM(`document.execCommand('${command}', false, null)`);
+    setActiveStyles(prev => ({
+      ...prev,
+      align: alignKey
+    }));
+  };
+
+  const ToolButton = ({ onPress, isActive, children, style }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      className="items-center justify-center h-10 rounded-md"
+      style={[{
+        flex: 1,
+        backgroundColor: isActive ? '#fef3c7' : 'transparent', // Light gold bg for active
+      }, style]}
+    >
+      {children}
+    </TouchableOpacity>
+  );
+
   return (
-    <View>
-      {/* Custom Toolbar matching TextFormatToolbar design */}
-      <View style={{ backgroundColor: colors.primary }}>
+    <View style={styles.container}>
+      {/* Custom Toolbar */}
+      <View style={[styles.toolbarContainer, { backgroundColor: colors.primary }]}>
         {/* Format Tabs - First Row */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2 py-2">
-          <View className="flex-row gap-2">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-3 py-2.5">
+          <View className="flex-row gap-2 pr-6">
             {formats.map((format) => (
               <TouchableOpacity
                 key={format}
                 onPress={() => handleFormatChange(format)}
-                className="px-3 py-1 rounded"
+                className="px-4 py-2 rounded-full"
                 style={{
-                  backgroundColor: activeFormat === format ? '#ffffff' : 'rgba(255,255,255,0.2)',
+                  backgroundColor: activeFormat === format ? '#ffffff' : 'rgba(255,255,255,0.15)',
                 }}
               >
                 <Text
-                  className={`font-semibold text-xs ${
-                    activeFormat === format ? 'text-gray-800' : 'text-white'
+                  className={`font-medium text-sm ${
+                    activeFormat === format ? 'text-gray-900' : 'text-white'
                   }`}
                 >
                   {format}
@@ -69,124 +89,67 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
           </View>
         </ScrollView>
 
-        {/* Style and Alignment Buttons - Second Row */}
-        <View className="flex-row gap-2 px-2 py-2">
-          {/* Text Styles - Left Container */}
-          <View className="flex-row bg-white rounded p-1 gap-1 flex-1">
-            <TouchableOpacity
-              onPress={() => applyStyle('bold', 'bold')}
-              className="flex-1 items-center py-1 rounded"
-              style={{
-                backgroundColor: activeStyles.bold ? colors.primary + '20' : '#ffffff',
-              }}
-            >
-              <Text className="font-bold text-sm text-gray-800">B</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => applyStyle('italic', 'italic')}
-              className="flex-1 items-center py-1 rounded"
-              style={{
-                backgroundColor: activeStyles.italic ? colors.primary + '20' : '#ffffff',
-              }}
-            >
-              <Text className="font-bold text-sm text-gray-800">I</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => applyStyle('underline', 'underline')}
-              className="flex-1 items-center py-1 rounded"
-              style={{
-                backgroundColor: activeStyles.underline ? colors.primary + '20' : '#ffffff',
-              }}
-            >
-              <Text className="font-bold text-sm text-gray-800">U</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => applyStyle('strikeThrough', 'strikethrough')}
-              className="flex-1 items-center py-1 rounded"
-              style={{
-                backgroundColor: activeStyles.strikethrough ? colors.primary + '20' : '#ffffff',
-              }}
-            >
-              <Text className="font-bold text-sm text-gray-800">S</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Divider */}
+        <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
 
-          {/* Alignment Buttons - Right Container */}
-          <View className="flex-row bg-white rounded p-1 gap-1 flex-1">
-            <TouchableOpacity
-              onPress={() => applyStyle('justifyLeft')}
-              className="flex-1 items-center py-1"
-            >
-              <MaterialCommunityIcons
-                name="format-align-left"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => applyStyle('justifyCenter')}
-              className="flex-1 items-center py-1"
-            >
-              <MaterialCommunityIcons
-                name="format-align-center"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => applyStyle('justifyRight')}
-              className="flex-1 items-center py-1"
-            >
-              <MaterialCommunityIcons
-                name="format-align-right"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => applyStyle('justifyFull')}
-              className="flex-1 items-center py-1"
-            >
-              <MaterialCommunityIcons
-                name="format-align-justify"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+        {/* Style and Alignment Buttons - Second Row */}
+        <View className="px-3 py-3">
+          <View className="flex-row bg-white rounded-lg p-1 shadow-sm items-center w-full">
+            
+            {/* Text Styles */}
+            <ToolButton onPress={() => applyStyle('bold', 'bold')} isActive={activeStyles.bold} style={{marginRight: 2}}>
+              <Text className="font-bold text-base text-gray-800">B</Text>
+            </ToolButton>
+            <ToolButton onPress={() => applyStyle('italic', 'italic')} isActive={activeStyles.italic} style={{marginRight: 2}}>
+              <Text className="italic font-bold text-base text-gray-800">I</Text>
+            </ToolButton>
+            <ToolButton onPress={() => applyStyle('underline', 'underline')} isActive={activeStyles.underline} style={{marginRight: 2}}>
+              <Text className="underline font-bold text-base text-gray-800">U</Text>
+            </ToolButton>
+            <ToolButton onPress={() => applyStyle('strikeThrough', 'strikethrough')} isActive={activeStyles.strikethrough} style={{marginRight: 2}}>
+              <Text className="line-through font-bold text-base text-gray-800">S</Text>
+            </ToolButton>
+
+            {/* Vertical Separator */}
+            <View style={{ width: 1, height: 24, backgroundColor: '#E5E7EB', marginHorizontal: 2 }} />
+
+            {/* Alignment Buttons */}
+            <ToolButton onPress={() => applyAlignment('justifyLeft', 'left')} isActive={activeStyles.align === 'left'} style={{marginLeft: 2, marginRight: 2}}>
+              <MaterialCommunityIcons name="format-align-left" size={20} color={activeStyles.align === 'left' ? '#b45309' : colors.primary} />
+            </ToolButton>
+            <ToolButton onPress={() => applyAlignment('justifyCenter', 'center')} isActive={activeStyles.align === 'center'} style={{marginRight: 2}}>
+              <MaterialCommunityIcons name="format-align-center" size={20} color={activeStyles.align === 'center' ? '#b45309' : colors.primary} />
+            </ToolButton>
+            <ToolButton onPress={() => applyAlignment('justifyRight', 'right')} isActive={activeStyles.align === 'right'} style={{marginRight: 2}}>
+              <MaterialCommunityIcons name="format-align-right" size={20} color={activeStyles.align === 'right' ? '#b45309' : colors.primary} />
+            </ToolButton>
+            <ToolButton onPress={() => applyAlignment('justifyFull', 'justify')} isActive={activeStyles.align === 'justify'}>
+              <MaterialCommunityIcons name="format-align-justify" size={20} color={activeStyles.align === 'justify' ? '#b45309' : colors.primary} />
+            </ToolButton>
+
           </View>
         </View>
       </View>
 
       {/* Rich Text Editor */}
-      <View style={{
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        overflow: 'hidden',
-        height: height,
-        marginTop: 8,
-      }}>
+      <View style={[styles.editorContainer, { height }]}>
         <RichEditor
           ref={richText}
           onChange={onChange}
           placeholder="Write your article content here..."
           initialContentHTML={value}
           useContainer={false}
-          style={{
-            backgroundColor: '#FFFFFF',
-            flex: 1,
-          }}
+          style={styles.editor}
           editorStyle={{
             backgroundColor: '#FFFFFF',
-            color: '#000000',
+            color: '#1a1a1a',
             placeholderColor: '#9CA3AF',
             contentCSSText: `
               font-size: 16px;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
               padding: 16px;
-              color: #000000;
-              line-height: 1.6;
+              color: #1a1a1a;
+              line-height: 1.7;
               min-height: ${height - 40}px;
             `,
           }}
@@ -195,5 +158,37 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  toolbarContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  editorContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  editor: {
+    backgroundColor: '#FFFFFF',
+    flex: 1,
+  },
+});
 
 export default RichTextEditor;

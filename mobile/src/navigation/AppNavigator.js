@@ -1,14 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import TabNavigator from './TabNavigator';
 import ArticleDetailScreen from '../screens/articles/ArticleDetailScreen';
 import SearchScreen from '../screens/articles/SearchScreen';
-import AdminScreen from '../screens/admin/AdminScreen';
+import AdminScreen from '../screens/admin/AdminScreen.js';
 import CreateArticleScreen from '../screens/admin/CreateArticleScreen';
 import EditArticleScreen from '../screens/admin/EditArticleScreen';
 import PublishArticleScreen from '../screens/admin/PublishArticleScreen';
@@ -92,10 +91,49 @@ const linking = {
 };
 
 export default function AppNavigator() {
+  // Issue #1 Fix: Auto-login — check for existing auth session on app launch.
+  // If a valid token exists, skip Welcome and go straight to Main.
+  const [initialRoute, setInitialRoute] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem('auth_token');
+        if (!token) {
+          setInitialRoute('Welcome');
+          return;
+        }
+        // If user didn't check "Remember Me", clear session on app restart
+        const rememberMe = await AsyncStorage.getItem('remember_me');
+        if (rememberMe === 'false') {
+          await AsyncStorage.multiRemove([
+            'auth_token', 'user_email', 'user_name',
+            'user_role', 'user_data', 'remember_me',
+          ]);
+          setInitialRoute('Welcome');
+        } else {
+          setInitialRoute('Main');
+        }
+      } catch {
+        setInitialRoute('Welcome');
+      }
+    };
+    checkAuth();
+  }, []);
+
+  // Show a branded loading spinner while checking auth state
+  if (!initialRoute) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#2C5F7F' }}>
+        <ActivityIndicator size="large" color="#f8b200" />
+      </View>
+    );
+  }
+
   return (
     <ArticleProvider>
       <NavigationContainer linking={linking} fallback={<WelcomeScreen />}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />

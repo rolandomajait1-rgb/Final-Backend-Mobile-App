@@ -1,84 +1,121 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../styles';
 import { getCategoryColor } from '../../utils/categoryColors';
 
-const FALLBACK = 'https://via.placeholder.com/200x200/e2e8f0/64748b?text=No+Image';
-
-export default function ArticleMediumCard({ 
+// Bug #22 Fix: Memoize component to prevent unnecessary re-renders
+function ArticleMediumCard({ 
   title, 
   category, 
   author, 
   date, 
   image,
+  hashtags = [],
   onPress, 
-  onMenuPress 
+  onMenuPress,
+  onAuthorPress,
+  onTagPress 
 }) {
+  const badgeColor = getCategoryColor(category);
+
   return (
     <TouchableOpacity 
-      className="flex-row bg-white rounded-lg  overflow-hidden border border-gray-200 items-start" 
+      className="flex-row bg-white py-2 items-center mb-1" 
       onPress={onPress} 
-      activeOpacity={0.85}
+      activeOpacity={0.8}
     >
       {/* Image - Left Side */}
-      <Image
-        source={{ uri: image || FALLBACK }}
-        className="w-28 h-28 rounded-lg"
-        style={{ backgroundColor: colors.border }}
-        resizeMode="cover"
-      />
+      <View className="rounded-[10px] overflow-hidden bg-gray-100">
+        <Image
+          source={{ uri: getImageUri(image) }}
+          className="w-[110px] h-[110px]"
+          resizeMode="cover"
+        />
+      </View>
 
       {/* Content - Right Side */}
-      <View className="flex-1 p-6 justify-between">
-        <View className="flex-row justify-between items-start mb-1">
-          <View className="flex-1 mr-2">
+      <View className="flex-1 ml-4 justify-center">
+        <View className="flex-row justify-between items-start gap-2">
+          <View className="flex-1">
             <Text 
-              className="text-sm font-bold" 
-              style={{ 
-                color: colors.text.primary,
-                fontFamily: 'Nunito Sans',
-                fontWeight: '700',
-                letterSpacing: 1,
-                fontSize: 16,
-                lineHeight: 22
-
-              }} 
+              className="text-gray-900 text-[20px] font-bold leading-7 mb-2" 
               numberOfLines={2}
             >
               {title}
             </Text>
+            
+            {/* Category Badge */}
+            {category && (
+              <View 
+                style={{ backgroundColor: badgeColor + '15' }} // 15% opacity
+                className="rounded-md px-2 py-0.5 self-start mb-2"
+              >
+                <Text 
+                  style={{ color: badgeColor }}
+                  className="font-bold text-[9px] uppercase tracking-widest"
+                >
+                  {category}
+                </Text>
+              </View>
+            )}
+
+            {/* Tags - Compact style for Medium Card */}
+            {hashtags && hashtags.length > 0 && (
+              <View className="flex-row flex-wrap gap-1 mb-2">
+                {hashtags.slice(0, 3).map((tag, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      // Bug #19 Fix: Add null check before calling optional callback
+                      if (onTagPress) {
+                        onTagPress(tag.name || tag);
+                      }
+                    }}
+                  >
+                    <Text className="text-gray-500 text-[10px] font-medium">#{tag.name || tag}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Meta Info */}
+            <View className="flex-row items-center mt-1">
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  // Bug #19 Fix: Add null check before calling optional callback
+                  if (onAuthorPress) {
+                    onAuthorPress();
+                  }
+                }}
+              >
+                <Text className="text-gray-800 text-[13px] font-bold underline">{author}</Text>
+              </TouchableOpacity>
+              {date ? <Text className="text-gray-500 text-[11px] ml-1"> • {date}</Text> : null}
+            </View>
           </View>
-          <TouchableOpacity 
-            onPress={(e) => {
-              e.stopPropagation();
-              onMenuPress && onMenuPress();
-            }}
-            className="p-1 -mr-1"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="ellipsis-vertical" size={18} color={colors.text.muted} />
-          </TouchableOpacity>
+
+          {/* Menu Dots - Far Right */}
+          {onMenuPress && (
+            <TouchableOpacity 
+              onPress={(e) => {
+                e.stopPropagation();
+                // Bug #19 Fix: Callback already checked above, safe to call
+                onMenuPress(e);
+              }}
+              className="p-2 -mr-2"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="ellipsis-vertical" size={20} color="#0369a1" />
+            </TouchableOpacity>
+          )}
         </View>
-
-        {/* Category */}
-        {category ? (
-          <Text 
-            className="text-s font-bold mb-1" 
-            style={{ 
-              color: getCategoryColor(category),
-              letterSpacing: 1 
-            }}
-          >
-            {category.toUpperCase()}
-          </Text>
-        ) : null}
-
-        {/* Meta Info */}
-        <Text className="text-xs" style={{ color: colors.text.muted }}>
-          {[author, date].filter(Boolean).join(' • ')}
-        </Text>
       </View>
     </TouchableOpacity>
   );
 }
+
+// Bug #22 Fix: Export memoized component
+export default memo(ArticleMediumCard);
