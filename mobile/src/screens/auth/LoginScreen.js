@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../api/client';
+import client from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const bg = require('../../../assets/bg.jpg');
@@ -34,9 +34,11 @@ export default function LoginScreen({ navigation }) {
 
   const validate = () => {
     const e = {};
+    // Bug #15 Fix: Add proper email format validation with regex
+    const emailRegex = /^[^\s@]+@student\.laverdad\.edu\.ph$/;
     if (!email) e.email = 'Email is required';
-    else if (!email.endsWith('@student.laverdad.edu.ph'))
-      e.email = 'Only @student.laverdad.edu.ph emails are allowed';
+    else if (!emailRegex.test(email))
+      e.email = 'Please enter a valid @student.laverdad.edu.ph email';
     if (!password) e.password = 'Password is required';
     else if (password.length < 8) e.password = 'Password must be at least 8 characters';
     return e;
@@ -51,14 +53,15 @@ export default function LoginScreen({ navigation }) {
     setIsLoading(true);
     setErrors({});
     try {
-      const response = await axios.post('/api/login', { email, password });
+      const response = await client.post('/api/login', { email, password });
       const { token, user } = response.data;
       await AsyncStorage.multiSet([
         ['auth_token', token],
         ['user_email', email],
         ['user_name', user.name],
         ['user_role', user?.role || 'user'],
-        ['user_data', JSON.stringify(user)], // Save complete user object
+        ['user_data', JSON.stringify(user)],
+        ['remember_me', remember ? 'true' : 'false'],
       ]);
       setSuccessMessage('Welcome back to La Verdad Herald!');
       setTimeout(() => navigation.replace('Main'), 1200);
@@ -82,15 +85,18 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  // Bug #12 Fix: Add proper error handling for resend verification
   const handleResend = async () => {
     setIsResending(true);
     try {
-      await axios.post('/api/email/resend-verification', { email });
+      await client.post('/api/email/resend-verification', { email });
       setSuccessMessage('Verification email sent! Please check your inbox.');
       setShowResend(false);
       setErrors({});
-    } catch {
-      setErrors({ general: 'Failed to resend verification email. Please try again.' });
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to resend verification email. Please try again.';
+      setErrors({ general: errorMsg });
     } finally {
       setIsResending(false);
     }
@@ -98,7 +104,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View className="flex-1">
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar hidden={true} />
 
       <View className="flex-1">
         <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
@@ -125,7 +131,7 @@ export default function LoginScreen({ navigation }) {
         </ImageBackground>
 
         {/* White view at the bottom */}
-        <View className="h-64 bg-white-500" />
+        <View className="h-28 bg-sky-800" />
       </View>
 
       <SafeAreaView className="absolute inset-0">
@@ -255,11 +261,6 @@ export default function LoginScreen({ navigation }) {
                     <Text className="text-lg text-blue-500">Sign up</Text>
                   </TouchableOpacity>
                 </View>
-
-                {/* Skip */}
-                <TouchableOpacity onPress={() => navigation.replace('Main')} className="mt-4 items-center">
-                  <Text className="text-sm text-gray-400 underline">Continue without signing in</Text>
-                </TouchableOpacity>
 
               </View>
 

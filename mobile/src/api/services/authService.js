@@ -14,12 +14,15 @@ export const login = async (email, password) => {
   return response.data;
 };
 
+// Bug #13 Fix: Handle logout errors properly and clear storage regardless
 export const logout = async () => {
   try {
     await client.post(ENDPOINTS.LOGOUT);
+  } catch (error) {
+    console.error('Logout API error:', error);
+    // Continue to clear local storage even if API fails
   } finally {
-    await AsyncStorage.removeItem('auth_token');
-    await AsyncStorage.removeItem('user_data');
+    await AsyncStorage.multiRemove(['auth_token', 'user_data', 'user_email', 'user_name', 'user_role', 'remember_me']);
   }
 };
 

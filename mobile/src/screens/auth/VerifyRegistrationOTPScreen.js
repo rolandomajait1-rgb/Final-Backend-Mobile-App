@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../api/client';
+import client from '../../api/client';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -35,7 +35,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
     setLoading(true);
     setError('');
     try {
-      await axios.post('/api/verify-registration-otp', { email, otp });
+      await client.post('/api/verify-registration-otp', { email, otp });
       // Verification successful, redirect to login
       navigation.replace('Login');
     } catch (err) {
@@ -58,7 +58,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
     setError('');
     setSuccessMsg('');
     try {
-      await axios.post('/api/resend-registration-otp', { email });
+      await client.post('/api/resend-registration-otp', { email });
       setOtp('');
       setSuccessMsg('New OTP sent! Please check your email.');
       setTimeout(() => setSuccessMsg(''), 4000);
@@ -75,7 +75,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar hidden={true} />
 
       <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
         <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />

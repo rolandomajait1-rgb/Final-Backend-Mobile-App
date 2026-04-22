@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from '../../api/client';
+import client from '../../api/client';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -77,7 +77,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
       return;
     }
     try {
-      const response = await axios.post('/api/reset-password', {
+      const response = await client.post('/api/reset-password', {
         email: formData.email,
         token: formData.token,
         password: formData.password,
@@ -98,7 +98,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar hidden={true} />
 
       {/* Background layer — same as LoginScreen */}
       <View className="flex-1">
@@ -126,7 +126,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
         </ImageBackground>
 
         {/* White spacer at the bottom */}
-        <View className="h-64 bg-white-500" />
+        <View className="h-28 bg-sky-800" />
       </View>
 
       {/* Absolute overlay — card floats on top */}
