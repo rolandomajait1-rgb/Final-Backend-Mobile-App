@@ -1,27 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography, spacing } from '../../styles';
+import { View, Text } from 'react-native';
 
-export default function ErrorMessage({ message, style }) {
+export default function ErrorMessage({ message, className }) {
   if (!message) return null;
   return (
-    <View style={[styles.container, style]}>
-      <Text style={styles.text}>{message}</Text>
+    <View className={`bg-[#fdecea] border-l-4 border-[#e74c3c] rounded p-2 my-2 ${className || ''}`}>
+      <Text className="text-[#e74c3c] text-[13px]">{message}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#fdecea',
-    borderLeftWidth: 3,
-    borderLeftColor: colors.status.error,
-    borderRadius: 4,
-    padding: spacing.sm,
-    marginVertical: spacing.sm,
-  },
-  text: {
-    color: colors.status.error,
-    fontSize: typography.fontSize.sm,
-  },
-});

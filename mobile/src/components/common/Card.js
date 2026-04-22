@@ -1,31 +1,15 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import { colors, spacing } from '../../styles';
+import { View, Platform } from 'react-native';
 
-export default function Card({ children, style }) {
+export default function Card({ children, className }) {
+  const shadowStyle = Platform.select({
+    ios: 'shadow-sm',
+    android: 'elevation-3',
+  });
+
   return (
-    <View style={[styles.card, style]}>
+    <View className={`bg-white rounded-lg p-4 my-2 ${shadowStyle} ${className || ''}`}>
       {children}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-});

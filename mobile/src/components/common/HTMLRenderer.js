@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-const HTMLRenderer = ({ html, style }) => {
-  const [height, setHeight] = useState(500); // reasonable default, not 1000
+const HTMLRenderer = ({ html, className }) => {
+  const [height, setHeight] = useState(500);
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -24,7 +24,6 @@ const HTMLRenderer = ({ html, style }) => {
             padding: 16px;
             margin: 0;
             background: white;
-            /* FIX: prevent body from collapsing */
             width: 100%;
             overflow-x: hidden;
           }
@@ -110,7 +109,6 @@ const HTMLRenderer = ({ html, style }) => {
       <body>
         ${html || '<p>No content available</p>'}
         <script>
-          // FIX: More reliable height reporting
           function sendHeight() {
             var height = Math.max(
               document.body.scrollHeight,
@@ -123,7 +121,6 @@ const HTMLRenderer = ({ html, style }) => {
             }
           }
 
-          // FIX: Wait for all images to load before measuring
           function waitForImages() {
             var images = document.querySelectorAll('img');
             var total = images.length;
@@ -137,13 +134,18 @@ const HTMLRenderer = ({ html, style }) => {
                 loaded++;
                 if (loaded === total) sendHeight();
               } else {
-                img.addEventListener('load',  function() { loaded++; if (loaded === total) sendHeight(); });
-                img.addEventListener('error', function() { loaded++; if (loaded === total) sendHeight(); });
+                img.addEventListener('load', function() {
+                  loaded++;
+                  if (loaded === total) sendHeight();
+                });
+                img.addEventListener('error', function() {
+                  loaded++;
+                  if (loaded === total) sendHeight();
+                });
               }
             });
           }
 
-          // FIX: Multiple timed attempts to catch late-rendering content
           document.addEventListener('DOMContentLoaded', function() {
             sendHeight();
             waitForImages();
@@ -154,7 +156,6 @@ const HTMLRenderer = ({ html, style }) => {
             waitForImages();
           });
 
-          // Safety net retries
           setTimeout(sendHeight, 300);
           setTimeout(sendHeight, 800);
           setTimeout(sendHeight, 1500);
@@ -168,41 +169,39 @@ const HTMLRenderer = ({ html, style }) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'HEIGHT' && data.value > 0) {
-        // FIX: Only grow, never shrink — prevents flickering
         setHeight(prev => Math.max(prev, data.value + 32));
       }
-    } catch {
-      // fallback for plain number messages
+    } catch (error) {
+      console.error('Error parsing WebView message:', error);
       const newHeight = parseInt(event.nativeEvent.data, 10);
-      if (newHeight > 0) {
+      if (!isNaN(newHeight) && newHeight > 0) {
         setHeight(prev => Math.max(prev, newHeight + 32));
+      } else {
+        console.error('Malformed message received from WebView:', event.nativeEvent.data);
       }
     }
   };
 
+  const onWebViewError = (syntheticEvent) => {
+    const { nativeEvent } = syntheticEvent;
+    console.error('WebView error:', nativeEvent);
+  };
+
   return (
-    <View style={[styles.container, { height }, style]}>
+    <View className={`w-full ${className || ''}`} style={{ height }}>
       <WebView
         originWhitelist={['*']}
         source={{ html: htmlContent }}
         onMessage={onWebViewMessage}
+        onError={onWebViewError}
         javaScriptEnabled={true}
         scrollEnabled={false}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        style={styles.webview}
+        className="bg-transparent"
       />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  webview: {
-    backgroundColor: 'transparent',
-  },
-});
 
 export default HTMLRenderer;

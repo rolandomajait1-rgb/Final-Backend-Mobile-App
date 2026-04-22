@@ -131,7 +131,7 @@ export default function RegisterScreen({ navigation }) {
         </ImageBackground>
 
         {/* White spacer at the bottom */}
-        <View className="h-20 bg-sky-900" />
+        <View className="h-64 bg-white-500" />
       </View>
 
       {/* Absolute overlay — card floats on top */}
@@ -273,7 +273,11 @@ export default function RegisterScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
-             
+              {/* Skip */}
+              <TouchableOpacity onPress={() => navigation.replace('Main')} className="mt-4 items-center">
+                <Text className="text-sm text-gray-400 underline">Continue without signing in</Text>
+              </TouchableOpacity>
+
             </View>
 
           </ScrollView>

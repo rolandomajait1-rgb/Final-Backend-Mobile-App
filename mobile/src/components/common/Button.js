@@ -1,38 +1,18 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { colors, typography, spacing } from '../../styles';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 
-export default function Button({ title, onPress, style, textStyle, disabled = false, loading = false }) {
+export default function Button({ title, onPress, className, textClassName, disabled = false, loading = false }) {
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.button, (disabled || loading) && styles.disabled, style]}
+      className={`bg-[#215878ff] py-3 px-6 rounded-md items-center justify-center ${(disabled || loading) ? 'opacity-50' : ''} ${className || ''}`}
       activeOpacity={0.8}
     >
       {loading
-        ? <ActivityIndicator color={colors.text.inverse} size="small" />
-        : <Text style={[styles.text, textStyle]}>{title}</Text>
+        ? <ActivityIndicator color="#ffffff" size="small" />
+        : <Text className={`text-white text-base font-semibold ${textClassName || ''}`}>{title}</Text>
       }
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  text: {
-    color: colors.text.inverse,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-  },
-});
