@@ -7,10 +7,9 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
-import { colors } from '../../styles';
 import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
@@ -45,72 +44,99 @@ const SendFeedbackScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      <HomeHeader
-        categories={[]}
-        selectedCategory={null}
-        onCategorySelect={() => {}}
-        error={null}
-        ErrorMessage={ErrorMessage}
-        showCategories={false}
-        navigation={navigation}
-      />
-      {/* Custom Header with Title and Back Arrow */}
-      <View className="flex-row items-center px-4 py-4" style={{ borderColor: colors.border }}>
+    <View className="flex-1" style={{ backgroundColor: '#ffffff' }}>
+      <View className="flex-shrink-0">
+        <HomeHeader
+          categories={[]}
+          selectedCategory={null}
+          onCategorySelect={() => {}}
+          error={null}
+          ErrorMessage={ErrorMessage}
+          showCategories={false}
+          navigation={navigation}
+        />
+      </View>
+
+      {/* Header */}
+      <View className="flex-row items-center px-5 py-4 bg-white">
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back-outline" size={24} color={colors.text} />
+          <Ionicons name="arrow-back-outline" size={26} color="#000" />
         </TouchableOpacity>
-        <Text className="text-3xl font-bold flex-1 text-center" style={{ color: colors.text }}>
+        <Text className="flex-1 text-center" style={{ fontSize: 20, fontWeight: 'bold', color: '#000', marginRight: 26 }}>
           Send us Feedback
         </Text>
-        <View style={{ width: 24 }} />
       </View>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 16, paddingBottom: 100 }}>
+
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {isSubmitted ? (
-          <View className="flex-1 items-center justify-center">
-            <Ionicons name="checkmark-circle" size={100} color="#10b981" />
-            <Text className="text-green-600 font-semibold text-center mt-4 text-lg">
+          <View className="flex-1 items-center justify-center py-16">
+            <Ionicons name="checkmark-circle" size={100} color="#0ea5e9" />
+            <Text className="text-[#0ea5e9] font-semibold text-center mt-4 text-lg">
               Thank you for your feedback!
             </Text>
           </View>
         ) : (
           <>
             {/* Subtitle */}
-            <Text className="text-gray-600 text-xl mb-6 text-center">
-              Got suggestions? We'd love to hear them!
+            <Text style={{ fontSize: 15, color: '#374151', marginBottom: 8 }}>
+              Got suggestions? We&apos;d love to hear them!
             </Text>
+
             {/* Feedback Input */}
             <View className="mb-6">
               <TextInput
-                className="border rounded-lg p-4 text-gray-700"
                 style={{
-                  borderColor: colors.border,
+                  borderColor: '#D1D5DB',
                   borderWidth: 1,
-                  minHeight: 150,
+                  borderRadius: 6,
+                  paddingHorizontal: 14,
+                  paddingVertical: 14,
+                  fontSize: 13,
+                  color: '#000',
+                  backgroundColor: '#fff',
+                  minHeight: 180,
                   textAlignVertical: 'top',
                 }}
-                placeholder="Enter suggestions / comments here..."
-                placeholderTextColor={colors.textSecondary}
+                placeholder="Enter suggestions / comments here."
+                placeholderTextColor="#9CA3AF"
                 value={feedback}
                 onChangeText={setFeedback}
                 multiline
                 editable={!isLoading}
               />
             </View>
+
             {/* Error Message */}
-            {error && <Text className="text-red-600 text-sm mb-4">{error}</Text>}
+            {error && (
+              <Text style={{ color: '#ef4444', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
+                {error}
+              </Text>
+            )}
+
             {/* Submit Button */}
-            <View className="items-center">
+            <View className="items-center mb-8 mt-2">
               <TouchableOpacity
-                className="bg-blue-500 rounded-full p-4 w-1/2 flex-row items-center justify-center"
+                style={{
+                  backgroundColor: '#0ea5e9',
+                  borderRadius: 24,
+                  paddingVertical: 12,
+                  paddingHorizontal: 40,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: isLoading ? 0.7 : 1,
+                  minWidth: 140,
+                }}
                 onPress={handleSubmit}
                 disabled={isLoading}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text className="text-white font-bold text-lg text-center">Submit</Text>
+                  <Text style={{ color: 'white', fontWeight: '500', fontSize: 15 }}>
+                    Submit
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -118,7 +144,7 @@ const SendFeedbackScreen = ({ navigation }) => {
         )}
       </ScrollView>
       <BottomNavigation navigation={navigation} activeTab="PressHub" />
-    </SafeAreaView>
+    </View>
   );
 };
 

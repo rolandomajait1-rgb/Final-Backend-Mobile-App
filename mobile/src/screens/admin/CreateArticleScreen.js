@@ -7,24 +7,29 @@ import {
   TextInput,
   Image,
   Alert,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import { showAuditToast } from '../../utils/toastNotification';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isAuthenticated } from '../../utils/authUtils';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import SaveDraftModal from '../../components/common/SaveDraftModal';
 import RichTextEditor from '../../components/editor/RichEditor';
 import client from '../../api/client';
 import { getCategories } from '../../api/services/categoryService';
 import { ArticleContext } from '../../context/ArticleContext';
 import { uploadImageToCloudinary } from '../../api/services/cloudinaryService';
+import { getImageUri } from '../../utils/imageUtils';
+
+import { BASE_URL } from '../../constants/config';
 
 const MAX_TAGS = 10;
 const MAX_TITLE_LENGTH = 200;
-const BASE_URL = 'https://final-backend-mobile-app-2-4sfz.onrender.com';
 
 export default function CreateArticleScreen({ navigation }) {
   const { refreshArticles } = useContext(ArticleContext);
@@ -44,11 +49,9 @@ export default function CreateArticleScreen({ navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(null); // null=checking, true, false
 
   useEffect(() => {
     loadCategories();
-    checkConnection();
   }, []);
 
   // ─── Load Categories ───────────────────────────────────────────
@@ -67,15 +70,6 @@ export default function CreateArticleScreen({ navigation }) {
     }
   };
 
-  // ─── Backend Connection Check ──────────────────────────────────
-  const checkConnection = async () => {
-    try {
-      await client.get('/api/categories');
-      setIsOnline(true);
-    } catch {
-      setIsOnline(false);
-    }
-  };
 
   // ─── Image Picker ──────────────────────────────────────────────
   const pickImage = async () => {
@@ -148,8 +142,9 @@ export default function CreateArticleScreen({ navigation }) {
   const submitArticle = async (status, retryCount = 0) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-      if (!token) {
+      // Issue #6 Fix: Use centralized auth check instead of manual token fetch
+      const hasAuth = await isAuthenticated();
+      if (!hasAuth) {
         Alert.alert('Not Logged In', 'Please log in to create articles.');
         navigation.navigate('Login');
         return;
@@ -222,11 +217,11 @@ export default function CreateArticleScreen({ navigation }) {
 
       try { await refreshArticles(); } catch { /* non-critical */ }
 
-      Alert.alert(
-        'Success',
-        status === 'published' ? 'Article published!' : 'Article saved as draft.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Admin') }]
+      showAuditToast(
+        'success',
+        status === 'published' ? 'Article published successfully' : 'Article saved as draft successfully'
       );
+      navigation.navigate('Admin');
 
     } catch (error) {
       const msg = error.message || '';
@@ -286,11 +281,16 @@ export default function CreateArticleScreen({ navigation }) {
 
   const handlePublish = () => submitArticle('published');
   const handleSave    = () => submitArticle('draft');
-  const handleDiscard = () => { setShowModal(false); navigation.goBack(); };
+  const handleDiscard = () => { 
+    setShowModal(false); 
+    showAuditToast('success', 'Draft discarded successfully');
+    navigation.goBack(); 
+  };
 
   // ─── Render ────────────────────────────────────────────────────
   return (
-    <View className="flex-1 bg-white mt-10">
+    <View className="flex-1 bg-white">
+      <StatusBar hidden={true} />
 
       {/* Top Navigation Header */}
       <HomeHeader
@@ -310,13 +310,13 @@ export default function CreateArticleScreen({ navigation }) {
         </TouchableOpacity>
 
         <View className="flex-1 items-center">
-          <Text className="text-lg font-bold text-gray-900">Create New Article</Text>
-          {isOnline === true  && <Text className="text-xs text-green-600 mt-1">🟢 Connected</Text>}
-          {isOnline === false && <Text className="text-xs text-red-500 mt-1">🔴 Offline</Text>}
+          <Text className="text-xl font-bold text-gray-900">Create </Text>
+         <Text className="text-xl font-bold text-gray-900"> New Article</Text>
+         
         </View>
 
         <TouchableOpacity onPress={handleNext}>
-          <Text className="text-lg font-bold text-yellow-500">Next</Text>
+          <Text className="text-xl font-bold text-yellow-500 mr-2">Next</Text>
         </TouchableOpacity>
       </View>
 
@@ -346,7 +346,7 @@ export default function CreateArticleScreen({ navigation }) {
           >
             {image ? (
               <View className="relative w-full h-full">
-                <Image source={{ uri: image.uri }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+                <Image source={{ uri: getImageUri(image.uri) }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
                 <TouchableOpacity
                   onPress={() => setImage(null)}
                   className="absolute top-2 right-2 bg-red-500 rounded-full p-2"
@@ -468,42 +468,15 @@ export default function CreateArticleScreen({ navigation }) {
       {/* Bottom Navigation Bar */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
 
-      {/* Publish / Save / Discard Modal */}
-      <Modal
-        visible={showModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => !loading && setShowModal(false)}
-      >
-        <View className="flex-1 bg-black/40 items-center justify-center px-6">
-          <View className="w-full bg-white rounded-3xl px-8 py-12 items-center">
-            {loading ? (
-              <ActivityIndicator size="large" color="#0ea5e9" />
-            ) : (
-              <>
-                <Text className="text-4xl font-bold text-gray-900 text-center mb-4">
-                  Ready to Post?
-                </Text>
-                <Text className="text-gray-600 text-center text-base mb-12 leading-relaxed">
-                  Publish now or save as a draft to finish later.
-                </Text>
-
-                <TouchableOpacity onPress={handlePublish} className="w-full bg-blue-500 rounded-full py-4 mb-4">
-                  <Text className="text-white text-center font-bold text-lg">Publish</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleSave} className="w-full border-2 border-blue-500 rounded-full py-4 mb-4">
-                  <Text className="text-blue-500 text-center font-bold text-lg">Save as Draft</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleDiscard} className="w-full border-2 border-red-500 rounded-full py-4">
-                  <Text className="text-red-500 text-center font-bold text-lg">Discard</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <SaveDraftModal
+        isOpen={showModal}
+        onClose={() => !loading && setShowModal(false)}
+        onPublish={handlePublish}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        isSaving={loading}
+        title="Save Article"
+      />
 
     </View>
   );

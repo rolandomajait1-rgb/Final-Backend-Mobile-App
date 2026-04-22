@@ -16,7 +16,7 @@ const JoinHeraldCard = () => {
     >
       <Ionicons name="document" size={80} color={colors.primary} />
       <View className="flex-1 ml-4">
-        <Text className="text-3xl font-bold text-gray-800">Join The Herald</Text>
+        <Text className="text-2xl font-bold text-gray-800">Join The Herald</Text>
         <Text className="text-lg text-gray-600 mt-1">Become part of the La Verdad Herald team.</Text>
       </View>
       <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />

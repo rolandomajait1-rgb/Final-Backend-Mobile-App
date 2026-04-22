@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,28 +7,33 @@ import {
   TextInput,
   Image,
   Alert,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { showAuditToast } from '../../utils/toastNotification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isAuthenticated } from '../../utils/authUtils';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import SaveDraftModal from '../../components/common/SaveDraftModal';
 import RichTextEditor from '../../components/editor/RichEditor';
 import client from '../../api/client';
 import { getCategories } from '../../api/services/categoryService';
 import { ArticleContext } from '../../context/ArticleContext';
 import { uploadImageToCloudinary } from '../../api/services/cloudinaryService';
+import { getImageUri } from '../../utils/imageUtils';
+
+import { BASE_URL } from '../../constants/config';
 
 const MAX_TAGS = 10;
 const MAX_TITLE_LENGTH = 200;
-const BASE_URL = 'https://final-backend-mobile-app-2-4sfz.onrender.com';
 
 export default function EditArticleScreen({ navigation, route }) {
   const { articleId } = route.params;
-  const { refreshArticles, forceRefreshArticles } = useContext(ArticleContext);
+  const { forceRefreshArticles } = useContext(ArticleContext);
 
   // ─── Form State ────────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -47,16 +52,17 @@ export default function EditArticleScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [articleLoading, setArticleLoading] = useState(true);
+  // eslint-disable-next-line no-unused-vars
   const [isOnline, setIsOnline] = useState(null);
 
   useEffect(() => {
     loadCategories();
     loadArticle();
     checkConnection();
-  }, []);
+  }, [loadCategories, loadArticle, checkConnection]);
 
   // ─── Load Article Data ─────────────────────────────────────────
-  const loadArticle = async () => {
+  const loadArticle = useCallback(async () => {
     setArticleLoading(true);
     try {
       const res = await client.get(`/api/articles/${articleId}`);
@@ -94,10 +100,10 @@ export default function EditArticleScreen({ navigation, route }) {
     } finally {
       setArticleLoading(false);
     }
-  };
+  }, [articleId, navigation]);
 
   // ─── Load Categories ───────────────────────────────────────────
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     setCategoriesLoading(true);
     try {
       const res = await getCategories();
@@ -109,17 +115,17 @@ export default function EditArticleScreen({ navigation, route }) {
     } finally {
       setCategoriesLoading(false);
     }
-  };
+  }, []);
 
   // ─── Backend Connection Check ──────────────────────────────────
-  const checkConnection = async () => {
+  const checkConnection = useCallback(async () => {
     try {
       await client.get('/api/categories');
       setIsOnline(true);
     } catch {
       setIsOnline(false);
     }
-  };
+  }, []);
 
   // ─── Image Picker ──────────────────────────────────────────────
   const pickImage = async () => {
@@ -192,8 +198,9 @@ export default function EditArticleScreen({ navigation, route }) {
   const updateArticle = async (status, retryCount = 0) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-      if (!token) {
+      // Issue #6 Fix: Use centralized auth check instead of manual token fetch
+      const hasAuth = await isAuthenticated();
+      if (!hasAuth) {
         Alert.alert('Not Logged In', 'Please log in to edit articles.');
         navigation.navigate('Login');
         return;
@@ -269,11 +276,11 @@ export default function EditArticleScreen({ navigation, route }) {
 
       setShowModal(false);
 
-      Alert.alert(
-        'Success',
-        status === 'published' ? 'Article updated and published!' : 'Article updated as draft.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+      showAuditToast(
+        'success',
+        status === 'published' ? 'Article published successfully' : 'Article saved as draft successfully'
       );
+      navigation.navigate('Home');
 
     } catch (error) {
       const msg = error.message || '';
@@ -323,7 +330,11 @@ export default function EditArticleScreen({ navigation, route }) {
 
   const handlePublish = () => updateArticle('published');
   const handleSave = () => updateArticle('draft');
-  const handleDiscard = () => { setShowModal(false); navigation.goBack(); };
+  const handleDiscard = () => { 
+    setShowModal(false); 
+    showAuditToast('success', 'Changes discarded successfully');
+    navigation.goBack(); 
+  };
 
   // ─── Render ────────────────────────────────────────────────────
   if (articleLoading) {
@@ -336,7 +347,8 @@ export default function EditArticleScreen({ navigation, route }) {
   }
 
   return (
-    <View className="flex-1 bg-white mt-10">
+    <View className="flex-1 bg-white">
+      <StatusBar hidden={true} />
 
       {/* Top Navigation Header */}
       <HomeHeader
@@ -356,13 +368,12 @@ export default function EditArticleScreen({ navigation, route }) {
         </TouchableOpacity>
 
         <View className="flex-1 items-center">
-          <Text className="text-lg font-bold text-gray-900">Edit Article</Text>
-          {isOnline === true  && <Text className="text-xs text-green-600 mt-1">🟢 Connected</Text>}
-          {isOnline === false && <Text className="text-xs text-red-500 mt-1">🔴 Offline</Text>}
+          <Text className="text-2xl font-bold text-gray-900">Edit Article</Text>
+          
         </View>
 
         <TouchableOpacity onPress={handleNext}>
-          <Text className="text-lg font-bold text-yellow-500">Next</Text>
+          <Text className="text-xl font-bold text-yellow-500 mr-2">Next</Text>
         </TouchableOpacity>
       </View>
 
@@ -392,7 +403,7 @@ export default function EditArticleScreen({ navigation, route }) {
           >
             {image ? (
               <View className="relative w-full h-full">
-                <Image source={{ uri: image.uri }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+                <Image source={{ uri: getImageUri(image.uri) }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
                 <TouchableOpacity
                   onPress={() => setImage(null)}
                   className="absolute top-2 right-2 bg-red-500 rounded-full p-2"
@@ -514,42 +525,15 @@ export default function EditArticleScreen({ navigation, route }) {
       {/* Bottom Navigation Bar */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
 
-      {/* Publish / Save / Discard Modal */}
-      <Modal
-        visible={showModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => !loading && setShowModal(false)}
-      >
-        <View className="flex-1 bg-black/40 items-center justify-center px-6">
-          <View className="w-full bg-white rounded-3xl px-8 py-12 items-center">
-            {loading ? (
-              <ActivityIndicator size="large" color="#0ea5e9" />
-            ) : (
-              <>
-                <Text className="text-4xl font-bold text-gray-900 text-center mb-4">
-                  Save Changes?
-                </Text>
-                <Text className="text-gray-600 text-center text-base mb-12 leading-relaxed">
-                  Publish your changes or save as a draft.
-                </Text>
-
-                <TouchableOpacity onPress={handlePublish} className="w-full bg-blue-500 rounded-full py-4 mb-4">
-                  <Text className="text-white text-center font-bold text-lg">Publish</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleSave} className="w-full border-2 border-blue-500 rounded-full py-4 mb-4">
-                  <Text className="text-blue-500 text-center font-bold text-lg">Save as Draft</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleDiscard} className="w-full border-2 border-red-500 rounded-full py-4">
-                  <Text className="text-red-500 text-center font-bold text-lg">Discard</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <SaveDraftModal
+        isOpen={showModal}
+        onClose={() => !loading && setShowModal(false)}
+        onPublish={handlePublish}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        isSaving={loading}
+        title="Save Edit"
+      />
 
     </View>
   );

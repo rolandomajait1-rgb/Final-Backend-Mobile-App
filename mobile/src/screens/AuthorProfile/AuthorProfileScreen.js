@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { colors } from '../../styles';
@@ -27,12 +26,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    fetchCategories();
-    fetchAuthorArticles();
-  }, [authorId]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await client.get('/api/categories');
       const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
@@ -41,9 +35,9 @@ export default function AuthorProfileScreen({ route, navigation }) {
     } catch (err) {
       console.error('Error fetching categories:', err);
     }
-  };
+  }, []);
 
-  const fetchAuthorArticles = async () => {
+  const fetchAuthorArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -95,7 +89,12 @@ export default function AuthorProfileScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authorId]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchAuthorArticles();
+  }, [fetchCategories, fetchAuthorArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -108,33 +107,31 @@ export default function AuthorProfileScreen({ route, navigation }) {
   };
 
   const renderHeader = () => (
-    <View>
+    <View className="bg-white">
       {/* Author Info Header */}
-      <View className="px-4 py-6" style={{ backgroundColor: colors.primary }}>
-        <View className="flex-row items-center mb-4">
-          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
+      <View className="px-5 pt-2 pb-6 bg-white border-b-[3px]" style={{ borderBottomColor: '#075985' }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} className="mb-4 self-start p-1 -ml-1">
+          <Ionicons name="arrow-back" size={24} color="#075985" />
+        </TouchableOpacity>
 
-        <View className="flex-row items-center mb-4">
-          <View className="w-20 h-20 rounded-full bg-white items-center justify-center mr-4 border-4" style={{ borderColor: '#d4af37' }}>
-            <Image source={LOGO} style={{ width: 60, height: 60 }} resizeMode="contain" />
+        <View className="flex-row items-center">
+          <View className="w-[64px] h-[64px] rounded-full mr-4 overflow-hidden bg-white">
+            <Image source={LOGO} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
           </View>
-          <View className="flex-1">
-            <Text className="text-3xl font-bold text-white">
+          <View className="flex-1 justify-center">
+            <Text className="text-[26px] font-bold tracking-tight mb-0.5" style={{ color: '#075985' }}>
               {author?.user?.name || authorName || 'Author'}
             </Text>
-            <Text className="text-sm text-white opacity-80 mt-1">
-              Articles Found: {articles.length}
+            <Text className="text-[15px] italic font-medium" style={{ color: '#0284c7' }}>
+              Articles: {articles.length}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Latest Articles Header */}
-      <View className="px-4 py-4 bg-white border-b border-gray-300">
-        <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+      {/* Latest Articles Header Container Inside FlatList Header */}
+      <View className="px-5 pt-6 pb-4">
+        <Text className="text-[22px] text-gray-700 font-normal">
           Latest Articles
         </Text>
       </View>
@@ -157,23 +154,25 @@ export default function AuthorProfileScreen({ route, navigation }) {
         No Articles Yet
       </Text>
       <Text className="text-center mt-2" style={{ color: colors.textSecondary }}>
-        This author hasn't published any articles yet.
+        This author hasn&apos;t published any articles yet.
       </Text>
     </View>
   );
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <HomeHeader categories={categories} navigation={navigation} />
+      <View className="flex-1 bg-white">
+        <View className="flex-shrink-0 bg-white">
+          <HomeHeader categories={categories} navigation={navigation} />
+        </View>
         {renderLoadingState()}
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      <View className="flex-shrink-0">
+    <View className="flex-1 bg-white">
+      <View className="flex-shrink-0 bg-white">
         <HomeHeader
           categories={categories}
           onCategorySelect={() => {}}
@@ -196,46 +195,49 @@ export default function AuthorProfileScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={articles}
-          keyExtractor={(item) => String(item.id)}
-          ListHeaderComponent={renderHeader}
-          renderItem={({ item }) => (
-            <View className="px-4">
-              <ArticleMediumCard
-                title={item.title}
-                category={item.categories?.[0]?.name || 'Uncategorized'}
-                author={item.author?.user?.name || item.author?.name || authorName}
-                date={(item.created_at || item.published_at)
-                  ? new Date(item.created_at || item.published_at).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : 'Recently'}
-                image={item.featured_image_url || item.featured_image}
-                onPress={() => handleArticlePress(item)}
-                onMenuPress={() => {}}
+        <View className="flex-1 bg-white">
+          <FlatList
+            data={articles}
+            keyExtractor={(item) => String(item.id)}
+            ListHeaderComponent={renderHeader}
+            renderItem={({ item }) => (
+              <View className="px-5">
+                <ArticleMediumCard
+                  title={item.title}
+                  category={item.categories?.[0]?.name || 'Uncategorized'}
+                  author={item.author?.user?.name || item.author?.name || authorName}
+                  date={(item.created_at || item.published_at)
+                    ? new Date(item.created_at || item.published_at).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'Recently'}
+                  image={item.featured_image_url || item.featured_image}
+                  hashtags={item.tags}
+                  onPress={() => handleArticlePress(item)}
+                  onTagPress={(tag) => navigation.navigate('TagArticles', { tagName: tag })}
+                  onAuthorPress={() => {}} // Already on author profile
+                />
+              </View>
+            )}
+            ListEmptyComponent={renderEmptyState}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
               />
-            </View>
-          )}
-          ListEmptyComponent={renderEmptyState}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
-        />
+            }
+          />
+        </View>
       )}
 
-      <View className="absolute bottom-0 left-0 right-0">
-        <BottomNavigation navigation={navigation} activeTab="Home" />
-      </View>
-    </SafeAreaView>
+      <BottomNavigation navigation={navigation} activeTab="Home" />
+    </View>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { colors } from '../../styles';
@@ -26,12 +26,7 @@ export default function TagArticlesScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    fetchCategories();
-    fetchTagArticles();
-  }, [tagName]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await client.get('/api/categories');
       const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
@@ -40,16 +35,14 @@ export default function TagArticlesScreen({ route, navigation }) {
     } catch (err) {
       console.error('Error fetching categories:', err);
     }
-  };
+  }, []);
 
-  const fetchTagArticles = async () => {
+  const fetchTagArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       console.log('Fetching articles for tag:', tagName);
       console.log('Author ID filter:', authorId);
-      
-      const params = { tag: tagName };
       
       // If authorId is provided, filter by author too
       if (authorId) {
@@ -99,7 +92,12 @@ export default function TagArticlesScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tagName, authorId]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchTagArticles();
+  }, [fetchCategories, fetchTagArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -133,8 +131,9 @@ export default function TagArticlesScreen({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      <View className="flex-shrink-0">
+    <View className="flex-1 bg-white">
+      {/* Home Header with Gold Divider */}
+      <View className="flex-shrink-0 bg-white">
         <HomeHeader
           categories={categories}
           onCategorySelect={() => {}}
@@ -143,97 +142,98 @@ export default function TagArticlesScreen({ route, navigation }) {
       </View>
 
       {/* Tag Header */}
-      <View className="px-4 py-4 bg-white border-b border-gray-200">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <View>
-            <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-              #{tagName}
-            </Text>
-            {authorName && (
-              <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                by {authorName}
-              </Text>
-            )}
-            <Text className="text-sm" style={{ color: colors.textSecondary }}>
-              {articles.length} {articles.length === 1 ? 'article' : 'articles'}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {loading ? (
-        renderLoadingState()
-      ) : error ? (
-        <View className="flex-1 justify-center items-center px-4">
-          <Ionicons name="alert-circle" size={48} color={colors.error} />
-          <Text className="mt-4 text-center" style={{ color: colors.error }}>
-            {error}
+      <View className="px-5 pt-1 pb-4 bg-white border-b-[3px]" style={{ borderBottomColor: '#075985' }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} className="mb-2 self-start p-1 -ml-1">
+          <Ionicons name="arrow-back" size={24} color="#075985" />
+        </TouchableOpacity>
+        
+        <View>
+          <Text className="text-[26px] font-bold tracking-tight mb-0.5" style={{ color: '#075985' }}>
+            #{tagName}
           </Text>
-          <TouchableOpacity
-            className="mt-6 px-6 py-3 rounded-lg"
-            style={{ backgroundColor: colors.primary }}
-            onPress={fetchTagArticles}
-          >
-            <Text className="text-white font-semibold">Try Again</Text>
-          </TouchableOpacity>
+          <Text className="text-[15px] italic font-medium" style={{ color: '#0284c7' }}>
+            Article count : {articles.length}
+          </Text>
         </View>
-      ) : articles.length === 0 ? (
-        renderEmptyState()
-      ) : (
-        <FlatList
-          data={articles}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <View className="px-4">
-              <ArticleLargeCard
-                title={item.title}
-                category={item.categories?.[0]?.name || 'Uncategorized'}
-                author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
-                date={(item.created_at || item.published_at)
-                  ? new Date(item.created_at || item.published_at).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : 'Recently'}
-                image={item.featured_image_url || item.featured_image}
-                hashtags={item.tags?.map((t) => t.name) || []}
-                onPress={() => handleArticlePress(item)}
-                onMenuPress={() => {}}
-                onTagPress={(tag) => {
-                  // Navigate to another tag if clicked
-                  navigation.push('TagArticles', { tagName: tag });
-                }}
-                onAuthorPress={() => {
-                  if (item.author?.id) {
-                    navigation.navigate('AuthorProfile', {
-                      authorId: item.author.id,
-                      authorName: item.author.name || item.author.user?.name
-                    });
-                  }
-                }}
-              />
-            </View>
-          )}
-          contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
-        />
-      )}
-
-      <View className="absolute bottom-0 left-0 right-0">
-        <BottomNavigation navigation={navigation} activeTab="Home" />
       </View>
-    </SafeAreaView>
+
+      {/* Content Area */}
+      <View className="flex-1 bg-white pt-4">
+        {loading ? (
+          renderLoadingState()
+        ) : error ? (
+          <View className="flex-1 justify-center items-center px-4">
+            <Ionicons name="alert-circle" size={48} color={colors.error} />
+            <Text className="mt-4 text-center" style={{ color: colors.error }}>
+              {error}
+            </Text>
+            <TouchableOpacity
+              className="mt-6 px-6 py-3 rounded-lg"
+              style={{ backgroundColor: colors.primary }}
+              onPress={fetchTagArticles}
+            >
+              <Text className="text-white font-semibold">Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : articles.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <FlatList
+            data={articles}
+            keyExtractor={(item) => String(item.id)}
+            ListHeaderComponent={
+              <Text className="text-[22px] text-gray-700 mb-6 px-5 font-normal">
+                Latest Articles
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <View className="px-5">
+                <ArticleLargeCard
+                  title={item.title}
+                  category={item.categories?.[0]?.name || 'Uncategorized'}
+                  author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
+                  date={(item.created_at || item.published_at)
+                    ? new Date(item.created_at || item.published_at).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'Recently'}
+                  image={item.featured_image_url || item.featured_image}
+                  hashtags={item.tags?.map((t) => t.name) || []}
+                  onPress={() => handleArticlePress(item)}
+                  onTagPress={(tag) => {
+                    // Navigate to another tag if clicked
+                    navigation.push('TagArticles', { tagName: tag });
+                  }}
+                  onAuthorPress={() => {
+                    if (item.author?.id) {
+                      navigation.navigate('AuthorProfile', {
+                        authorId: item.author.id,
+                        authorName: item.author.name || item.author.user?.name
+                      });
+                    }
+                  }}
+                />
+              </View>
+            )}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+              />
+            }
+          />
+        )}
+      </View>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation navigation={navigation} activeTab="Home" />
+    </View>
   );
 }

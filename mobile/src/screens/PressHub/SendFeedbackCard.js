@@ -16,7 +16,7 @@ const SendFeedbackCard = () => {
     >
       <Ionicons name="hand-left" size={80} color={colors.primary} />
       <View className="flex-1 ml-4">
-        <Text className="text-3xl font-bold text-gray-800">Send us Feedback</Text>
+        <Text className="text-2xl font-bold text-gray-800">Send us Feedback</Text>
         <Text className="text-lg text-gray-600 mt-1">We value your opinion on our latest issues.</Text>
       </View>
       <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />

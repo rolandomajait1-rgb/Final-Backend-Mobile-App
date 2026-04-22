@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Alert, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import DeleteConfirmModal from '../../components/common/DeleteConfirmModal';
 import client from '../../api/client';
 import { deleteArticle } from '../../api/services/articleService';
+import { showAuditToast } from '../../utils/toastNotification';
 
 export default function DraftArticlesScreen({ navigation }) {
   const [draftArticles, setDraftArticles] = useState([]);
@@ -13,7 +16,10 @@ export default function DraftArticlesScreen({ navigation }) {
   const [error, setError] = useState(null);
   const [menuArticle, setMenuArticle] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [menuY, setMenuY] = useState(0);
   const [categories, setCategories] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingDraft, setDeletingDraft] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -68,6 +74,9 @@ export default function DraftArticlesScreen({ navigation }) {
   const handleMenuPress = (article, event) => {
     event.stopPropagation();
     setMenuArticle(article);
+    if (event?.nativeEvent?.pageY) {
+      setMenuY(event.nativeEvent.pageY + 10);
+    }
     setShowMenu(true);
   };
 
@@ -76,33 +85,37 @@ export default function DraftArticlesScreen({ navigation }) {
     navigation.navigate('EditArticle', { articleId: menuArticle.id });
   };
 
-  const handleDelete = () => {
+  const handlePublish = () => {
     setShowMenu(false);
-    Alert.alert(
-      'Delete Draft',
-      'Are you sure you want to delete this draft? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteArticle(menuArticle.id);
-              Alert.alert('Success', 'Draft deleted successfully');
-              await fetchDrafts();
-            } catch (error) {
-              console.error('Error deleting draft:', error);
-              Alert.alert('Error', 'Failed to delete draft. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    navigation.navigate('PublishArticle', { articleId: menuArticle.id, isDraft: true });
+  };
+
+  // Bug #8 Fix: Use toast + DeleteConfirmModal instead of Alert.alert
+  const handleDelete = () => {
+    if (!menuArticle) return;
+    setShowMenu(false);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!menuArticle?.id || deletingDraft) return;
+    try {
+      setDeletingDraft(true);
+      await deleteArticle(menuArticle.id);
+      setShowDeleteModal(false);
+      showAuditToast('success', 'Draft deleted successfully');
+      await fetchDrafts();
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+      showAuditToast('error', 'Failed to delete draft. Please try again.');
+    } finally {
+      setDeletingDraft(false);
+    }
   };
 
   return (
-    <View className="flex-1 bg-gray-50 mt-10">
+    <View className="flex-1 bg-gray-50">
+      <StatusBar hidden={true} />
       {/* Header */}
       <View className="flex-shrink-0">
         <HomeHeader
@@ -218,31 +231,71 @@ export default function DraftArticlesScreen({ navigation }) {
           activeOpacity={1}
           onPress={() => setShowMenu(false)}
         >
-          <View className="flex-1 items-center justify-center px-6">
-            <View className="bg-white rounded-lg shadow-lg" style={{ minWidth: 200 }}>
+          <View style={{ position: 'absolute', top: menuY, right: 40 }}>
+            <View className="bg-white rounded-xl shadow-lg border border-gray-50 py-1" style={{ minWidth: 140, elevation: 5 }}>
+              <TouchableOpacity
+                onPress={handlePublish}
+                className="flex-row items-center px-5 py-3"
+              >
+                <Ionicons name="cloud-upload-outline" size={20} color="#10b981" />
+                <Text className="ml-4 text-gray-700 text-[15px]">Publish</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleEdit}
-                className="flex-row items-center px-6 py-4 border-b border-gray-200"
+                className="flex-row items-center px-5 py-3"
               >
-                <Ionicons name="create-outline" size={24} color="#3b82f6" />
-                <Text className="ml-4 text-gray-800 font-medium text-base">Edit Draft</Text>
+                <Ionicons name="create-outline" size={20} color="#0284c7" />
+                <Text className="ml-4 text-gray-700 text-[15px]">Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleDelete}
-                className="flex-row items-center px-6 py-4"
+                className="flex-row items-center px-5 py-3"
               >
-                <Ionicons name="trash-outline" size={24} color="#ef4444" />
-                <Text className="ml-4 text-red-600 font-medium text-base">Delete Draft</Text>
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                <Text className="ml-4 text-red-500 text-[15px]">Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
         </TouchableOpacity>
       </Modal>
 
+      {/* Bug #8 Fix: Use DeleteConfirmModal for consistent delete UX */}
+      <DeleteConfirmModal
+        visible={showDeleteModal}
+        loading={deletingDraft}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          if (!deletingDraft) setShowDeleteModal(false);
+        }}
+      />
+
       {/* Bottom Navigation */}
       <View className="flex-shrink-0">
         <BottomNavigation navigation={navigation} activeTab="Home" />
       </View>
+
+      {/* Floating Action Button (Create Article) */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('CreateArticle')}
+        style={{
+          position: 'absolute',
+          bottom: 110,
+          right: 20,
+          backgroundColor: '#f39c12',
+          width: 70,
+          height: 70,
+          borderRadius: 100,
+          justifyContent: 'center',
+          alignItems: 'center',
+          elevation: 5,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+        }}
+      >
+        <Ionicons name="add" size={48} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }

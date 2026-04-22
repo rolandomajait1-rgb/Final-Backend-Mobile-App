@@ -7,10 +7,9 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
+import { Ionicons, Feather } from '@expo/vector-icons';
 import client from '../../api/client';
-import { colors } from '../../styles';
 import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
@@ -61,42 +60,43 @@ const RequestCoverageScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      <HomeHeader
-        categories={[]}
-        selectedCategory={null}
-        onCategorySelect={() => {}}
-        error={null}
-        ErrorMessage={ErrorMessage}
-        showCategories={false}
-        navigation={navigation}
-      />
-      {/* Custom Header with Title and Back Arrow */}
-      <View className="flex-row items-center px-4 py-4 border-b" style={{ borderColor: colors.border }}>
+    <View className="flex-1" style={{ backgroundColor: '#ffffff' }}>
+      <View className="flex-shrink-0">
+        <HomeHeader
+          categories={[]}
+          selectedCategory={null}
+          onCategorySelect={() => {}}
+          error={null}
+          ErrorMessage={ErrorMessage}
+          showCategories={false}
+          navigation={navigation}
+        />
+      </View>
+
+      {/* Header */}
+      <View className="flex-row items-center px-5 py-4 bg-white">
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back-outline" size={24} color={colors.text} />
+          <Ionicons name="arrow-back-outline" size={26} color="#000" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center" style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+        <Text className="flex-1 text-center" style={{ fontSize: 20, fontWeight: 'bold', color: '#000', marginRight: 26 }}>
           Request Coverage
         </Text>
-        <View style={{ width: 24 }} />
       </View>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 100 }}>
+
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {isSubmitted ? (
-          <View className="flex-1 items-center justify-center">
-            <Ionicons name="checkmark-circle" size={100} color="#10b981" />
-            <Text className="text-green-600 font-semibold text-center mt-4 text-lg">
+          <View className="flex-1 items-center justify-center py-16">
+            <Ionicons name="checkmark-circle" size={100} color="#0ea5e9" />
+            <Text className="text-[#0ea5e9] font-semibold text-center mt-4 text-lg">
               Thank you for your request!
             </Text>
           </View>
         ) : (
           <>
             {/* NOTE Section */}
-            <View className="mb-6 p-3 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>
-                NOTE :
-              </Text>
-              <Text style={{ fontSize: 13, color: '#4b5563', lineHeight: 20 }}>
+            <View className="mb-4">
+              <Text style={{ fontSize: 11, color: "#374151", lineHeight: 16, textAlign: 'justify' }}>
+                <Text style={{ fontWeight: "bold", color: "#000" }}>NOTE : </Text>
                 Kindly complete and submit this form at least two weeks prior to the event.
               </Text>
             </View>
@@ -107,38 +107,39 @@ const RequestCoverageScreen = ({ navigation }) => {
               { label: 'Purpose / Significance', field: 'purpose', placeholder: 'Enter purpose/significance here...', multiline: true },
               { label: 'Location', field: 'location', placeholder: 'Enter event location...', multiline: false },
               { label: 'Date and Time *', field: 'dateTime', placeholder: 'Enter date and time', multiline: false, icon: 'calendar' },
-              { label: 'Event Highlights', field: 'highlights', placeholder: 'Enter the main highlights of the event...', multiline: true },
+              { label: 'Event Highlights', field: 'highlights', placeholder: 'Enter the main highlights of the event...', multiline: false },
               { label: 'Full Name of Requestor', field: 'requesterName', placeholder: 'Enter your name here', multiline: false },
               { label: 'Designation', field: 'designation', placeholder: 'Enter your name here', multiline: false },
               { label: 'Organizer / Office Coordinator', field: 'coordinator', placeholder: "Enter Organizer's / Office Coordinator's name here.", multiline: false },
             ].map(({ label, field, placeholder, multiline, icon }) => (
               <View key={field} className="mb-5">
-                <Text style={{ fontSize: 15, fontWeight: '500', color: '#1f2937', marginBottom: 8 }}>
+                <Text style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>
                   {label}
                 </Text>
-                <View style={{ position: 'relative' }}>
+                <View style={{ position: 'relative', justifyContent: 'center' }}>
                   {icon && (
-                    <Ionicons
+                    <Feather
                       name={icon}
-                      size={18}
-                      color={colors.textSecondary}
-                      style={{ position: 'absolute', left: 12, top: 12, zIndex: 1 }}
+                      size={16}
+                      color="#6B7280"
+                      style={{ position: 'absolute', left: 14, zIndex: 1 }}
                     />
                   )}
                   <TextInput
                     style={{
-                      borderColor: colors.border,
+                      borderColor: '#D1D5DB',
                       borderWidth: 1,
-                      borderRadius: 8,
-                      paddingHorizontal: icon ? 40 : 12,
-                      paddingVertical: multiline ? 12 : 12,
-                      fontSize: 14,
-                      color: colors.text,
-                      minHeight: multiline ? 100 : 44,
+                      borderRadius: 6,
+                      paddingHorizontal: icon ? 38 : 14,
+                      paddingVertical: multiline ? 10 : 10,
+                      fontSize: 13,
+                      color: '#000',
+                      backgroundColor: '#fff',
+                      minHeight: multiline ? 100 : 42,
                       textAlignVertical: multiline ? 'top' : 'center',
                     }}
                     placeholder={placeholder}
-                    placeholderTextColor={colors.textSecondary}
+                    placeholderTextColor="#9CA3AF"
                     value={formData[field]}
                     onChangeText={(value) => handleChange(field, value)}
                     editable={!isLoading}
@@ -150,23 +151,24 @@ const RequestCoverageScreen = ({ navigation }) => {
 
             {/* Error Message */}
             {error && (
-              <Text style={{ color: '#dc2626', fontSize: 13, marginBottom: 16 }}>
+              <Text style={{ color: '#ef4444', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
                 {error}
               </Text>
             )}
 
             {/* Submit Button */}
-            <View className="items-center mt-6 mb-4">
+            <View className="items-center mb-8">
               <TouchableOpacity
                 style={{
                   backgroundColor: '#0ea5e9',
                   borderRadius: 24,
                   paddingVertical: 12,
-                  paddingHorizontal: 48,
+                  paddingHorizontal: 40,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: isLoading ? 0.7 : 1,
+                  minWidth: 140,
                 }}
                 onPress={handleSubmit}
                 disabled={isLoading}
@@ -175,7 +177,7 @@ const RequestCoverageScreen = ({ navigation }) => {
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                  <Text style={{ color: 'white', fontWeight: '500', fontSize: 15 }}>
                     Submit
                   </Text>
                 )}
@@ -185,7 +187,7 @@ const RequestCoverageScreen = ({ navigation }) => {
         )}
       </ScrollView>
       <BottomNavigation navigation={navigation} activeTab="PressHub" />
-    </SafeAreaView>
+    </View>
   );
 };
 
