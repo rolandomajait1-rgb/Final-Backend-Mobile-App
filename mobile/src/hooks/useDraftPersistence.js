@@ -6,6 +6,7 @@ const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
 export const useDraftPersistence = (formData, isModified) => {
   const autoSaveTimerRef = useRef(null);
+  const mountedRef = useRef(true); // Bug #9 Fix: Track mounted state
 
   // Auto-save draft
   useEffect(() => {
@@ -18,11 +19,14 @@ export const useDraftPersistence = (formData, isModified) => {
 
     // Set new timer
     autoSaveTimerRef.current = setTimeout(async () => {
-      try {
-        await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
-        console.log('Draft auto-saved');
-      } catch (error) {
-        console.error('Failed to save draft:', error);
+      // Bug #9 Fix: Only save if component is still mounted
+      if (mountedRef.current) {
+        try {
+          await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+          console.log('Draft auto-saved');
+        } catch (error) {
+          console.error('Failed to save draft:', error);
+        }
       }
     }, AUTO_SAVE_INTERVAL);
 
@@ -32,6 +36,16 @@ export const useDraftPersistence = (formData, isModified) => {
       }
     };
   }, [formData, isModified]);
+
+  // Bug #9 Fix: Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   // Load draft on mount
   const loadDraft = async () => {

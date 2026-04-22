@@ -38,17 +38,30 @@ export const useArticleForm = () => {
         if (!formData.author.trim()) newErrors.author = 'Author is required';
         break;
       case 2: // Media
-        // Optional step, but validate if image is provided
+        // Bug #16 Fix: Add validation for cover image if required by business logic
+        // Currently optional - uncomment if image becomes required
+        // if (!formData.coverImage) newErrors.coverImage = 'Cover image is required';
         break;
       case 3: // Content
         if (!formData.content.trim()) newErrors.content = 'Content is required';
+        // Bug #16 Fix: Add minimum content length validation
+        else if (formData.content.trim().length < 50) {
+          newErrors.content = 'Content must be at least 50 characters';
+        }
         break;
       case 4: // Review
-        // Final validation
+        // Final validation - check all required fields
         if (!formData.title.trim()) newErrors.title = 'Title is required';
         if (!formData.category) newErrors.category = 'Category is required';
         if (!formData.author.trim()) newErrors.author = 'Author is required';
         if (!formData.content.trim()) newErrors.content = 'Content is required';
+        else if (formData.content.trim().length < 50) {
+          newErrors.content = 'Content must be at least 50 characters';
+        }
+        // Bug #16 Fix: Validate tags if they exist
+        if (formData.tags && formData.tags.length > 10) {
+          newErrors.tags = 'Maximum 10 tags allowed';
+        }
         break;
       default:
         break;

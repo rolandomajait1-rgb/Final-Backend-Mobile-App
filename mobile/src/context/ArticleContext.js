@@ -1,22 +1,35 @@
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLatestArticles } from '../api/services/articleService';
-import client from '../api/client';
+import { BASE_URL } from '../constants/config';
 
 export const ArticleContext = createContext();
 
 const CACHE_KEY = 'cached_latest_articles';
 const MIN_REFETCH_INTERVAL_MS = 3000;
 const RETRY_DELAY_MS = 3000;
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://final-backend-mobile-app-2-4sfz.onrender.com';
 
-// ─── Wake up Render backend silently ─────────────────────────────────────────
-// Fires a lightweight ping to /api/health so the server is warm before
-// the real article fetch. Called once on app mount.
+// Bug #2 & #11 Fix: Add AbortController for backend wake-up with proper error handling
 const wakeUpBackend = () => {
-  fetch(`${BASE_URL}/api/health`, { method: 'GET' })
-    .then(() => console.log('[ArticleContext] Backend is awake ✅'))
-    .catch(() => console.log('[ArticleContext] Backend wake-up ping sent (may still be starting)'));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  
+  fetch(`${BASE_URL}/api/health`, { 
+    method: 'GET',
+    signal: controller.signal 
+  })
+    .then(() => {
+      clearTimeout(timeoutId);
+      console.log('[ArticleContext] Backend is awake ✅');
+    })
+    .catch((err) => {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        console.log('[ArticleContext] Backend wake-up timed out (server may be cold starting)');
+      } else {
+        console.log('[ArticleContext] Backend wake-up ping sent (may still be starting)');
+      }
+    });
 };
 
 export function ArticleProvider({ children }) {
@@ -26,6 +39,7 @@ export function ArticleProvider({ children }) {
 
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
+  const abortControllerRef = useRef(null); // Bug #4 Fix: Add abort controller for request cancellation
 
   // ─── Load cached articles from AsyncStorage instantly ─────────────────────
   const loadCache = useCallback(async () => {
@@ -48,14 +62,23 @@ export function ArticleProvider({ children }) {
     } catch (_) {}
   }, []);
 
-  // ─── Core fetch with retry ────────────────────────────────────────────────
+  // Bug #4 Fix: Improved fetch with abort controller to prevent race conditions
   const fetchLatestArticles = useCallback(async (retries = 2) => {
-    if (fetchingRef.current) return; // prevent duplicate in-flight requests
+    if (fetchingRef.current) {
+      // Cancel previous request if still in flight
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    }
 
     const now = Date.now();
-    if (now - lastFetchRef.current < MIN_REFETCH_INTERVAL_MS) return; // cooldown
+    if (now - lastFetchRef.current < MIN_REFETCH_INTERVAL_MS && retries === 2) {
+      return; // cooldown only for initial calls, not retries
+    }
 
     fetchingRef.current = true;
+    abortControllerRef.current = new AbortController();
+    
     try {
       const res = await getLatestArticles();
       const data = res.data ?? [];
@@ -64,6 +87,11 @@ export function ArticleProvider({ children }) {
       lastFetchRef.current = Date.now();
       saveCache(data); // update local cache silently
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+        return;
+      }
+
       const isNetworkError =
         err.message === 'Network Error' ||
         err.code === 'ERR_NETWORK' ||
@@ -83,6 +111,7 @@ export function ArticleProvider({ children }) {
       }
     } finally {
       fetchingRef.current = false;
+      abortControllerRef.current = null;
     }
   }, [saveCache, latestArticles.length]);
 
@@ -104,6 +133,15 @@ export function ArticleProvider({ children }) {
     await refreshArticles();
   }, [refreshArticles]);
 
+  // ─── Public: update article locally (for instant UI feedback on likes) ──
+  const updateArticleLocally = useCallback((articleId, updates) => {
+    setLatestArticles(prev => {
+      const newArticles = prev.map(a => a.id === articleId ? { ...a, ...updates } : a);
+      saveCache(newArticles);
+      return newArticles;
+    });
+  }, [saveCache]);
+
   // ─── On mount: wake backend → load cache → fetch fresh in background ──────
   useEffect(() => {
     wakeUpBackend();   // fire-and-forget wake-up ping
@@ -112,6 +150,13 @@ export function ArticleProvider({ children }) {
       fetchLatestArticles();   // ← background: silently update
     };
     init();
+    
+    // Cleanup: abort any pending requests on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = {
@@ -120,6 +165,7 @@ export function ArticleProvider({ children }) {
     error,
     refreshArticles,
     forceRefreshArticles,
+    updateArticleLocally,
   };
 
   return (

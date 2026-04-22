@@ -2,9 +2,7 @@ import client from '../client';
 import ENDPOINTS from '../endpoints';
 
 export const createArticle = (formData) =>
-  client.post(ENDPOINTS.ARTICLES, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  client.post(ENDPOINTS.ARTICLES, formData);
 
 export const getArticles = (params = {}) =>
   client.get(ENDPOINTS.ARTICLES_PUBLIC, { params });
@@ -24,10 +22,9 @@ export const getArticlesByCategory = (categoryId, params = {}) =>
 export const getLatestArticles = () =>
   client.get(ENDPOINTS.LATEST_ARTICLES);
 
+// Bug #1 Fix: Remove explicit Content-Type header - client interceptor handles FormData automatically
 export const updateArticle = (id, formData) =>
-  client.post(ENDPOINTS.ARTICLE_UPDATE(id), formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  client.post(ENDPOINTS.ARTICLE_UPDATE(id), formData);
 
 export const deleteArticle = (id) =>
   client.delete(ENDPOINTS.ARTICLE_DELETE(id));
