@@ -1,4 +1,5 @@
-import { View, Text, Animated, useEffect, useRef } from 'react-native';
+import { useRef, useEffect } from 'react';
+import { View, Text, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetwork } from '../../context/NetworkContext';
 
