@@ -11,7 +11,7 @@ const textlogo = require('../../../assets/la verdad herald.png');
 export default function WelcomeScreen({ navigation }) {
   return (
     <View className="flex-1">
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
 
       <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
         {/* Dark overlay */}
@@ -56,23 +56,13 @@ export default function WelcomeScreen({ navigation }) {
             >
               <Text className="text-white font-bold text-lg">Sign Up</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation.replace('Main')}
-              className="items-center mt-1"
-              activeOpacity={0.7}
-            >
-              <Text className="text-gray-400 text-sm  underline">
-                Continue without signing in
-              </Text>
-            </TouchableOpacity>
           </View>
 
         </SafeAreaView>
       </ImageBackground>
 
       {/* White view at the bottom */}
-      <View className="h-64 bg-white" />
+      <View className="h-28 bg-sky-800" />
     </View>
   );
 }
