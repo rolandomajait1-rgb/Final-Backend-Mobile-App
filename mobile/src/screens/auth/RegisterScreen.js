@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard,
+  ImageBackground, Image, StatusBar, Keyboard, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,8 @@ export default function RegisterScreen({ navigation }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -59,6 +61,9 @@ export default function RegisterScreen({ navigation }) {
       
     if (formData.password !== formData.password_confirmation)
       e.password_confirmation = ['Passwords do not match'];
+    
+    if (!consentAccepted) e.consent = ['You must accept the consent form to register'];
+    
     return e;
   };
 
@@ -250,6 +255,41 @@ export default function RegisterScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
                 {errors.password_confirmation && <Text className="mt-1 text-xs text-red-400">{errors.password_confirmation[0]}</Text>}
+              </View>
+
+              {/* Consent Form */}
+              <View className="mb-6">
+                <TouchableOpacity 
+                  onPress={() => {
+                    setConsentAccepted(!consentAccepted);
+                    if (errors.consent) {
+                      setErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors.consent;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  className="flex-row items-start"
+                  activeOpacity={0.7}
+                >
+                  <View className={`w-5 h-5 rounded border-2 mr-3 mt-1 items-center justify-center ${consentAccepted ? 'bg-blue-500 border-blue-500' : 'border-gray-400 bg-white'}`}>
+                    {consentAccepted && <Ionicons name="checkmark" size={14} color="white" />}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm text-gray-700 leading-5">
+                      I agree to the{' '}
+                      <Text 
+                        onPress={() => setShowConsentModal(true)}
+                        className="text-blue-500 underline font-semibold"
+                      >
+                        Parental Consent Form
+                      </Text>
+                      {' '}and give my full consent to join and participate as a member of <Text className="font-bold">La Verdad Student Publications</Text>.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {errors.consent && <Text className="mt-2 text-xs text-red-400 ml-8">{errors.consent[0]}</Text>}
               </View>
 
               {/* Submit */}

@@ -52,6 +52,19 @@ Route::middleware('throttle:5,1')->post('/contact/request-coverage', [ContactCon
 Route::middleware('throttle:5,1')->post('/contact/join-herald', [ContactController::class, 'joinHerald']);
 Route::middleware('throttle:10,1')->post('/contact/subscribe', [ContactController::class, 'subscribe']);
 
+// Download Parental Consent Form
+Route::get('/download/parental-consent-form', function () {
+    $filePath = storage_path('app/public/parental-consent-form.pdf');
+    
+    if (!file_exists($filePath)) {
+        return response()->json(['error' => 'File not found'], 404);
+    }
+    
+    return response()->download($filePath, 'parental-consent-form.pdf', [
+        'Content-Type' => 'application/pdf',
+    ]);
+});
+
 // Public unsubscribe endpoint
 Route::get('/unsubscribe', [SubscriberController::class, 'unsubscribe']);
 

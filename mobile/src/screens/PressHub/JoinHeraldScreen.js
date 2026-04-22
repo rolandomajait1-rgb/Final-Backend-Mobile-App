@@ -9,11 +9,14 @@ import {
   Linking,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import client from '../../api/client';
 import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
@@ -30,6 +33,50 @@ const JoinHeraldScreen = ({ navigation }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadConsentForm = async () => {
+    try {
+      setIsDownloading(true);
+      
+      // Backend URL for the consent form
+      const consentFormUrl = 'https://final-backend-mobile-app-2-4sfz.onrender.com/api/download/parental-consent-form';
+      
+      const fileUri = FileSystem.documentDirectory + 'parental-consent-form.pdf';
+      
+      const downloadResult = await FileSystem.downloadAsync(consentFormUrl, fileUri);
+      
+      if (downloadResult.status === 200) {
+        // Check if sharing is available
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        
+        if (isSharingAvailable) {
+          await Sharing.shareAsync(downloadResult.uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Save Parental Consent Form',
+            UTI: 'com.adobe.pdf',
+          });
+        } else {
+          Alert.alert(
+            'Download Complete',
+            'Consent form downloaded successfully. You can find it in your device files.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      Alert.alert(
+        'Download Failed',
+        'Unable to download consent form. Please try again or contact support.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -285,14 +332,45 @@ const JoinHeraldScreen = ({ navigation }) => {
                 Filled Consent Form
               </Text>
               <TouchableOpacity
-                onPress={() => Linking.openURL("https://laverdadherald.com/consent-form")}
+                onPress={handleDownloadConsentForm}
                 className="flex-row items-center mb-4"
+                disabled={isDownloading}
               >
-                <Text style={{ fontSize: 13, color: "#0ea5e9", fontWeight: "500", marginRight: 4 }}>
-                  Download Consent Form
-                </Text>
-                <Feather name="download" size={16} color="#0ea5e9" />
+                {isDownloading ? (
+                  <ActivityIndicator size="small" color="#0ea5e9" />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 13, color: "#0ea5e9", fontWeight: "500", marginRight: 4 }}>
+                      Download Consent Form
+                    </Text>
+                    <Feather name="download" size={16} color="#0ea5e9" />
+                  </>
+                )}
               </TouchableOpacity>
+
+              {/* Consent Form Details */}
+              <View style={{ backgroundColor: '#FEF3C7', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#FCD34D' }}>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#92400E', marginBottom: 8 }}>
+                  Parental Consent Form Requirements:
+                </Text>
+                <Text style={{ fontSize: 11, color: '#78350F', lineHeight: 16, marginBottom: 6 }}>
+                  Upon approval, members will be required to:
+                </Text>
+                <View style={{ marginLeft: 8 }}>
+                  <Text style={{ fontSize: 11, color: '#78350F', lineHeight: 16, marginBottom: 4 }}>
+                    • Attend regular training sessions and editorial meetings
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#78350F', lineHeight: 16, marginBottom: 4 }}>
+                    • Participate in journalistic activities (writing, editing, photography, broadcasting, competitions)
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#78350F', lineHeight: 16, marginBottom: 4 }}>
+                    • Engage in special events (SAP Day, Journalism Summits, and other related activities)
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 11, color: '#78350F', lineHeight: 16, marginTop: 6, fontStyle: 'italic' }}>
+                  Parent/Guardian must sign the downloaded form and upload it below.
+                </Text>
+              </View>
 
               <TouchableOpacity
                 style={{
