@@ -12,13 +12,14 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { showAuditToast } from '../../utils/toastNotification';
+import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isAuthenticated } from '../../utils/authUtils';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import SaveDraftModal from '../../components/common/SaveDraftModal';
+import ImageUploadProgress from '../../components/common/ImageUploadProgress';
 import RichTextEditor from '../../components/editor/RichEditor';
 import client from '../../api/client';
 import { getCategories } from '../../api/services/categoryService';
@@ -49,6 +50,8 @@ export default function CreateArticleScreen({ navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -60,8 +63,7 @@ export default function CreateArticleScreen({ navigation }) {
     try {
       const res = await getCategories();
       // Filter to only show allowed categories
-      const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
-      const filteredCategories = (res.data ?? []).filter(cat => allowedCategories.includes(cat.name));
+      const filteredCategories = (res.data ?? []).filter(cat => ALLOWED_CATEGORIES.includes(cat.name));
       setCategories(filteredCategories);
     } catch {
       // silently fail — user will see empty dropdown
@@ -163,7 +165,11 @@ export default function CreateArticleScreen({ navigation }) {
       if (image?.uri) {
         try {
           console.log('Uploading image to Cloudinary...');
-          cloudinaryUrl = await uploadImageToCloudinary(image.uri);
+          setUploading(true);
+          setUploadProgress(0);
+          cloudinaryUrl = await uploadImageToCloudinary(image.uri, (percent) => {
+            setUploadProgress(percent);
+          });
           console.log('Image uploaded successfully:', cloudinaryUrl);
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
@@ -179,8 +185,13 @@ export default function CreateArticleScreen({ navigation }) {
           });
           if (!shouldContinue) {
             setLoading(false);
+            setUploading(false);
+            setUploadProgress(0);
             return;
           }
+        } finally {
+          setUploading(false);
+          setUploadProgress(0);
         }
       }
 
@@ -477,6 +488,8 @@ export default function CreateArticleScreen({ navigation }) {
         isSaving={loading}
         title="Save Article"
       />
+
+      <ImageUploadProgress visible={uploading} progress={uploadProgress} />
 
     </View>
   );

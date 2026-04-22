@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://final-backend-mobile-app-2-4sfz.onrender.com';
+import { BASE_URL } from '../constants/config';
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -50,9 +51,49 @@ client.interceptors.request.use(
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
+      // Prevent infinite loop
+      if (originalRequest._retry) {
+        await AsyncStorage.removeItem('auth_token');
+        DeviceEventEmitter.emit('LOGOUT');
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      try {
+        // Try to refresh token
+        const refreshToken = await AsyncStorage.getItem('refresh_token');
+        if (refreshToken) {
+          const response = await axios.post(`${BASE_URL}/api/refresh`, {
+            refresh_token: refreshToken,
+          });
+
+          const { token, refresh_token } = response.data;
+          await AsyncStorage.multiSet([
+            ['auth_token', token],
+            ['refresh_token', refresh_token],
+          ]);
+
+          // Retry original request with new token
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return client(originalRequest);
+        }
+      } catch (refreshError) {
+        // Refresh failed, logout user
+        await AsyncStorage.multiRemove(['auth_token', 'refresh_token']);
+        DeviceEventEmitter.emit('LOGOUT');
+        return Promise.reject(refreshError);
+      }
+
+      // No refresh token, logout
       await AsyncStorage.removeItem('auth_token');
+      DeviceEventEmitter.emit('LOGOUT');
     }
+
     return Promise.reject(error);
   }
 );

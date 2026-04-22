@@ -4,7 +4,9 @@ import React, { useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ToastProvider } from "./src/context/ToastContext";
+import { NetworkProvider } from "./src/context/NetworkContext";
 import { ToastContainer } from "./src/components/common";
+import OfflineBanner from "./src/components/common/OfflineBanner";
 import SplashScreen from "./src/screens/SplashScreen";
 
 export default function App() {
@@ -15,16 +17,19 @@ export default function App() {
   }
 
   return (
-    <ToastProvider>
-      <>
-        <StatusBar
-          style="dark"
-          backgroundColor="transparent"
-          translucent={true}
-        />
-        <AppNavigator />
-        <ToastContainer />
-      </>
-    </ToastProvider>
+    <NetworkProvider>
+      <ToastProvider>
+        <>
+          <OfflineBanner />
+          <StatusBar
+            style="dark"
+            backgroundColor="transparent"
+            translucent={true}
+          />
+          <AppNavigator />
+          <ToastContainer />
+        </>
+      </ToastProvider>
+    </NetworkProvider>
   );
 }

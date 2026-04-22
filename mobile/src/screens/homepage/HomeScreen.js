@@ -223,9 +223,12 @@ export default function HomeScreen({ navigation }) {
       const res = await getArticles(params);
       const articles = res.data?.data ?? [];
       const lastPage = res.data?.last_page ?? 1;
+      
+      // Always update filteredArticles for pagination
       setFilteredArticles(prev =>
         pageNum === 1 ? articles : [...prev, ...articles]
       );
+      
       setHasMore(pageNum < lastPage);
       setPage(pageNum);
     } catch (e) {
@@ -410,8 +413,8 @@ export default function HomeScreen({ navigation }) {
           </ScrollView>
         ) : (
           <ArticlesListContent
-            // Bug #3 Fix: Use filteredArticles when a category is active, else latestArticles
-            latestArticles={selectedCategory ? filteredArticles : latestArticles}
+            // Use filteredArticles for pagination, fallback to latestArticles only on initial load
+            latestArticles={filteredArticles.length > 0 ? filteredArticles : latestArticles}
             refreshing={refreshing}
             onRefresh={onRefresh}
             loadingMore={loadingMore}

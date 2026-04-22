@@ -7,11 +7,12 @@ const CLOUDINARY_CLOUD_NAME = 'da9wvkqcl';
 const CLOUDINARY_UPLOAD_PRESET = 'mobile_articles'; // Create this in Cloudinary dashboard as unsigned preset
 
 /**
- * Upload image directly to Cloudinary
+ * Upload image directly to Cloudinary with progress tracking
  * @param {string} imageUri - Local image URI from ImagePicker
+ * @param {Function} onProgress - Callback for upload progress (0-100)
  * @returns {Promise<string>} - Cloudinary image URL
  */
-export const uploadImageToCloudinary = async (imageUri) => {
+export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
   try {
     console.log('Uploading image to Cloudinary:', imageUri);
     
@@ -24,24 +25,43 @@ export const uploadImageToCloudinary = async (imageUri) => {
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('folder', 'articles');
     
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-      {
-        method: 'POST',
-        body: formData,
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            onProgress(percentComplete);
+          }
+        });
       }
-    );
-    
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Cloudinary upload failed:', error);
-      throw new Error(error.error?.message || 'Upload failed');
-    }
-    
-    const data = await response.json();
-    console.log('Cloudinary upload success:', data.secure_url);
-    
-    return data.secure_url;
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          console.log('Cloudinary upload success:', data.secure_url);
+          resolve(data.secure_url);
+        } else {
+          const error = JSON.parse(xhr.responseText);
+          console.error('Cloudinary upload failed:', error);
+          reject(new Error(error.error?.message || 'Upload failed'));
+        }
+      });
+      
+      xhr.addEventListener('error', () => {
+        console.error('Network error during upload');
+        reject(new Error('Network error during upload'));
+      });
+      
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload cancelled'));
+      });
+      
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`);
+      xhr.send(formData);
+    });
   } catch (error) {
     console.error('Error uploading to Cloudinary:', error);
     throw error;
