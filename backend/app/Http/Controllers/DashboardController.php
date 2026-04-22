@@ -142,11 +142,41 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc');
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $driver = DB::connection()->getDriverName();
-                $like   = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+            $driver = DB::connection()->getDriverName();
+            $like   = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+            $titleExpressions = match ($driver) {
+                'pgsql' => [
+                    "old_values->>'title'",
+                    "new_values->>'title'",
+                ],
+                'sqlite' => [
+                    "json_extract(old_values, '$.title')",
+                    "json_extract(new_values, '$.title')",
+                ],
+                default => [
+                    "JSON_UNQUOTE(JSON_EXTRACT(old_values, '$.title'))",
+                    "JSON_UNQUOTE(JSON_EXTRACT(new_values, '$.title'))",
+                ],
+            };
+
+            [$oldTitleExpression, $newTitleExpression] = $titleExpressions;
+
+            $query->where(function ($q) use ($search, $like, $oldTitleExpression, $newTitleExpression) {
                 $q->where('action', $like, "%{$search}%")
-                  ->orWhereHas('user', fn ($u) => $u->where('email', $like, "%{$search}%"));
+                  ->orWhereHas('user', fn ($u) => $u->where('email', $like, "%{$search}%"))
+                  ->orWhere(function ($articleQuery) use ($search, $like, $oldTitleExpression, $newTitleExpression) {
+                      $articleQuery->where('model_type', \App\Models\Article::class)
+                          ->where(function ($titleQuery) use ($search, $like, $oldTitleExpression, $newTitleExpression) {
+                              $titleQuery->whereExists(function ($articleTitleQuery) use ($search, $like) {
+                                  $articleTitleQuery->selectRaw('1')
+                                      ->from('articles')
+                                      ->whereColumn('articles.id', 'logs.model_id')
+                                      ->where('articles.title', $like, "%{$search}%");
+                              })
+                              ->orWhereRaw("{$oldTitleExpression} {$like} ?", ["%{$search}%"])
+                              ->orWhereRaw("{$newTitleExpression} {$like} ?", ["%{$search}%"]);
+                          });
+                  });
             });
         }
 

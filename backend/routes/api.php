@@ -65,6 +65,7 @@ Route::get('/articles/search', [ArticleController::class, 'publicSearch']);
 Route::get('/articles/by-slug/{slug}', [ArticleController::class, 'publicBySlug']);
 Route::get('/articles/id/{id}', [ArticleController::class, 'publicById']);
 Route::get('/articles/author-public/{authorId}', [ArticleController::class, 'getArticlesByAuthorPublic']);
+Route::post('/articles/{article}/share', [ArticleController::class, 'share']);
 Route::get('/latest-articles', [ArticleController::class, 'latestArticles']);
 
 // Public Authors with pagination

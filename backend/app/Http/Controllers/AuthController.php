@@ -83,6 +83,19 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Audit log: successful login
+        try {
+            \App\Models\Log::create([
+                'user_id'    => $user->id,
+                'action'     => 'login',
+                'model_type' => 'App\\Models\\User',
+                'model_id'   => $user->id,
+                'new_values' => json_encode(['email' => $user->email]),
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to write login audit log: ' . $e->getMessage());
+        }
+
         return response()->json(['token' => $token, 'role' => $user->role, 'user' => $user]);
     }
 
@@ -111,6 +124,19 @@ class AuthController extends Controller
         try {
             $user = $this->authService->createUserWithVerification($request->validated());
 
+            // Audit log: successful registration
+            try {
+                \App\Models\Log::create([
+                    'user_id'    => $user->id,
+                    'action'     => 'register',
+                    'model_type' => 'App\\Models\\User',
+                    'model_id'   => $user->id,
+                    'new_values' => json_encode(['email' => $user->email, 'name' => $user->name]),
+                ]);
+            } catch (\Exception $logEx) {
+                Log::warning('Failed to write register audit log: ' . $logEx->getMessage());
+            }
+
             return response()->json([
                 'message' => 'Registration successful! Please check your email to verify your account before logging in.',
                 'user_id' => $user->id,
@@ -137,7 +163,22 @@ class AuthController extends Controller
 
     public function logoutApi(Request $request): JsonResponse
     {
-        $request->user()->tokens()->where('id', $request->user()->currentAccessToken()->id)->delete();
+        $user = $request->user();
+
+        // Audit log: logout
+        try {
+            \App\Models\Log::create([
+                'user_id'    => $user->id,
+                'action'     => 'logout',
+                'model_type' => 'App\\Models\\User',
+                'model_id'   => $user->id,
+                'new_values' => json_encode(['email' => $user->email]),
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to write logout audit log: ' . $e->getMessage());
+        }
+
+        $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
 
         return response()->json(['message' => 'Logged out successfully']);
     }
