@@ -499,19 +499,30 @@ export default function ArticleDetailScreen({ navigation, route }) {
 
   const confirmDelete = async () => {
     if (!article?.id || deletingArticle) {
+      console.log('Cannot delete: article.id =', article?.id, 'deletingArticle =', deletingArticle);
       return;
     }
 
     try {
       setDeletingArticle(true);
+      console.log('Attempting to delete article:');
+      console.log('  - Article ID:', article.id);
+      console.log('  - Article slug:', article.slug);
+      console.log('  - Full article object:', JSON.stringify(article, null, 2));
+      
       await deleteArticle(article.id);
       showArticleSuccessToast('deleted');
       setShowDeleteModal(false);
       navigation.goBack();
     } catch (error) {
       console.error("Error deleting article:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      console.error("Request URL:", error.config?.url);
       showArticleErrorToast('deleted');
-      Alert.alert("Error", "Failed to delete article. Please try again.");
+      
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete article. Please try again.';
+      Alert.alert("Error", errorMessage);
     } finally {
       setDeletingArticle(false);
     }

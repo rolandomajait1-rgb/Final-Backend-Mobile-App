@@ -109,7 +109,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
               <Text className="text-center font-bold text-3xl text-black mb-2">Forgot Password?</Text>
               <Text className="text-center text-sm text-gray-500 mb-6">
-                Enter your email and we'll send you a reset link.
+                Enter your email and we&apos;ll send you a reset link.
               </Text>
 
               {error !== '' && (

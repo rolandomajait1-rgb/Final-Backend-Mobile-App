@@ -6,10 +6,8 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
-  Linking,
   Alert,
   Image,
-  Platform,
 } from 'react-native';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -42,7 +40,7 @@ const JoinHeraldScreen = ({ navigation }) => {
       // Backend URL for the consent form
       const consentFormUrl = 'https://final-backend-mobile-app-2-4sfz.onrender.com/api/download/parental-consent-form';
       
-      const fileUri = FileSystem.documentDirectory + 'parental-consent-form.pdf';
+      const fileUri = `${FileSystem.documentDirectory}parental-consent-form.pdf`;
       
       const downloadResult = await FileSystem.downloadAsync(consentFormUrl, fileUri);
       

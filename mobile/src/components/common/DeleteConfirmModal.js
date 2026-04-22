@@ -18,12 +18,14 @@ export default function DeleteConfirmModal({
   const { showToast: displayToast } = useToast();
 
   const handleConfirm = async () => {
+    if (loading) return; // Prevent multiple clicks
+    
     try {
-      await onConfirm?.();
-      if (showToast) {
-        displayToast(successMessage, "success");
+      if (onConfirm) {
+        await onConfirm();
       }
     } catch (error) {
+      console.error('Delete confirmation error:', error);
       if (showToast) {
         displayToast(errorMessage, "error");
       }

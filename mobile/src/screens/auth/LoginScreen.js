@@ -256,7 +256,7 @@ export default function LoginScreen({ navigation }) {
 
                 {/* Sign up link */}
                 <View className="mt-6 flex-row justify-center">
-                  <Text className="text-lg text-black mb-1">Don't have an account? </Text>
+                  <Text className="text-lg text-black mb-1">Don&apos;t have an account? </Text>
                   <TouchableOpacity onPress={() => navigation.navigate('Register')}>
                     <Text className="text-lg text-blue-500">Sign up</Text>
                   </TouchableOpacity>
