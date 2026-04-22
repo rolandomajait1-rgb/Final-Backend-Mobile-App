@@ -1,7 +1,6 @@
 import { Modal, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../styles';
 
 const SideBar = ({ visible, onClose, onLogout, navigation, user }) => {
   const handleEditProfile = () => {
@@ -21,14 +20,14 @@ const SideBar = ({ visible, onClose, onLogout, navigation, user }) => {
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <RNSafeAreaView className="flex-1">
         <View className="flex-1 flex-row">
           {/* Overlay */}
           <TouchableOpacity
-            className="flex-1 bg-black/50"
+            className="flex-1 bg-black/60"
             onPress={onClose}
             activeOpacity={1}
           />
@@ -36,24 +35,27 @@ const SideBar = ({ visible, onClose, onLogout, navigation, user }) => {
           {/* Sidebar - Right Side */}
           <View className="w-80 bg-white">
             {/* Content - Centered */}
-            <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 48 }}>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 60 }}>
               <View style={{ alignItems: 'center' }}>
-                {/* Icon */}
-                <View className="w-16 h-16 rounded-full bg-gray-100 justify-center items-center mb-6">
-                  <Ionicons name="person" size={32} color={colors.primary} />
+                {/* Title */}
+                <Text className="text-[32px] font-bold text-[#075985] mb-10 tracking-tight">Profile</Text>
+
+                {/* Icon Block */}
+                <View className="w-[100px] h-[100px] rounded-full bg-[#075985] justify-center items-center mb-4">
+                  <Ionicons name="person-outline" size={54} color="white" />
                 </View>
 
-                {/* Title */}
-                <Text className="text-2xl font-bold text-gray-900 mb-8">Profile</Text>
+                {/* Settings Label */}
+                <Text className="text-[19px] font-medium text-[#075985] mb-10">Settings</Text>
 
                 {/* Edit Profile */}
-                <TouchableOpacity onPress={handleEditProfile} className="mb-6">
-                  <Text className="text-lg text-gray-600 font-medium">Edit Profile</Text>
+                <TouchableOpacity onPress={handleEditProfile} className="mb-4 p-2">
+                  <Text className="text-[20px] text-gray-500 font-normal">Edit Profile</Text>
                 </TouchableOpacity>
 
                 {/* Logout */}
-                <TouchableOpacity onPress={handleLogout}>
-                  <Text className="text-lg text-red-500 font-medium">Logout</Text>
+                <TouchableOpacity onPress={handleLogout} className="p-2">
+                  <Text className="text-[20px] text-red-500 font-normal">Logout</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>

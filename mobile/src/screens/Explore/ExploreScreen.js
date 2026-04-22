@@ -3,29 +3,27 @@ import {
   View, Text, FlatList,
   RefreshControl, TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
-import { Loader } from '../../components/common';
+import { ArticleLargeCardSkeleton } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import { getArticles } from '../../api/services/articleService';
-import { getCategories } from '../../api/services/categoryService';
 import { colors } from '../../styles';
 import HomeHeader from '../homepage/HomeHeader';
-import axios from '../../utils/axiosConfig';
+import client from '../../api/client';
 
 export default function ExploreScreen({ navigation }) {
   const [trendingArticles, setTrendingArticles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState(null); // 'author', 'tag', 'category'
   const [authors, setAuthors] = useState([]);
   const [tags, setTags] = useState([]);
 
+  // Bug #7 Fix: Use centralized client (has auth interceptors) instead of raw axios
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('/categories');
+      const response = await client.get('/api/categories');
       const allowedCategories = ['News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
       const filteredCategories = (response.data ?? []).filter(cat => allowedCategories.includes(cat.name));
       setCategories(filteredCategories);
@@ -36,7 +34,6 @@ export default function ExploreScreen({ navigation }) {
 
   const fetchTrendingArticles = useCallback(async () => {
     try {
-      setError(null);
       // Fetch articles and sort by view_count or created date
       const res = await getArticles({ limit: 20 });
       const data = res.data?.data ?? res.data ?? [];
@@ -77,7 +74,6 @@ export default function ExploreScreen({ navigation }) {
       setTags(uniqueTags);
     } catch (e) {
       console.error('Error fetching trending articles:', e);
-      setError('Failed to load trending articles. Pull down to retry.');
     }
   }, []);
 
@@ -89,7 +85,7 @@ export default function ExploreScreen({ navigation }) {
       setLoading(false);
     };
     loadData();
-  }, []);
+  }, [fetchTrendingArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -103,17 +99,58 @@ export default function ExploreScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <HomeHeader categories={categories} navigation={navigation} />
-        <View className="flex-1 justify-center items-center">
-          <Loader />
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
+        <View className="flex-shrink-0">
+          <HomeHeader categories={categories} navigation={navigation} />
         </View>
-      </SafeAreaView>
+        
+        {/* Filter Section Skeleton */}
+        <View className="px-4 py-4 bg-white border-b border-gray-200">
+          <Text className="text-gray-500 text-xl font-bold mb-3 ml-3 tracking-widest">Filter</Text>
+          <View className="flex-row gap-3 justify-center">
+            <View className="px-6 py-2 rounded-full border border-gray-300 bg-white">
+              <Text className="text-gray-400">Author</Text>
+            </View>
+            <View className="px-10 py-2 rounded-full border border-gray-300 bg-white">
+              <Text className="text-gray-400">Tag</Text>
+            </View>
+            <View className="px-6 py-2 rounded-full border border-gray-300 bg-white">
+              <Text className="text-gray-400">Category</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Trending Articles Header */}
+        <View className="px-4 py-4 border-b border-gray-200 bg-white">
+          <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+            Trending Articles
+          </Text>
+          <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+            Most viewed articles
+          </Text>
+        </View>
+
+        {/* Article Skeletons */}
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          keyExtractor={(item) => String(item)}
+          renderItem={() => (
+            <View className="px-4">
+              <ArticleLargeCardSkeleton />
+            </View>
+          )}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
+
+        <View className="absolute bottom-0 left-0 right-0">
+          <BottomNavigation navigation={navigation} activeTab="Explore" />
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <View className="flex-shrink-0">
         <HomeHeader
           categories={categories}
@@ -260,7 +297,6 @@ export default function ExploreScreen({ navigation }) {
               image={item.featured_image_url || item.featured_image}
               hashtags={item.tags?.map((t) => t.name) || []}
               onPress={() => handleArticlePress(item)}
-              onMenuPress={() => {}}
               onTagPress={(tag) => {
                 navigation.navigate('TagArticles', { tagName: tag });
               }}
@@ -296,6 +332,6 @@ export default function ExploreScreen({ navigation }) {
       <View className="absolute bottom-0 left-0 right-0">
         <BottomNavigation navigation={navigation} activeTab="Explore" />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -1,27 +1,31 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
-import { Loader } from "../../components/common";
+import { Ionicons } from "@expo/vector-icons";
+import { HomeScreenSkeleton, ArticleLargeCardSkeleton, ArticleCardSkeleton } from "../../components/common";
+import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import ArticleMediumCard from "../../components/articles/ArticleMediumCard";
 import HomeHeader from "./HomeHeader";
 import BottomNavigation from "../../components/common/BottomNavigation";
 import ArticleLargeCard from "../../components/articles/ArticleLargeCard";
 import { useArticles } from "../../context/ArticleContext";
-import { getArticles, searchArticles } from "../../api/services/articleService";
+import {
+  getArticles,
+  searchArticles,
+  deleteArticle,
+} from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
-import { deleteArticle } from "../../api/services/articleService";
 import { isAdminOrModerator } from "../../utils/authUtils";
 import { colors } from "../../styles";
+import { debounce } from "../../utils/debounce";
+import { showAuditToast } from "../../utils/toastNotification";
 
 // ─── ARTICLES LIST ────────────────────────────────────────────────────────────
 const ArticlesListContent = ({
@@ -35,6 +39,7 @@ const ArticlesListContent = ({
   handleMenuPress,
   onTagPress,
   onAuthorPress,
+  isAdminUser,
 }) => (
   <ScrollView
     showsVerticalScrollIndicator={false}
@@ -47,7 +52,9 @@ const ArticlesListContent = ({
     }
   >
     <View className="px-4 mt-2">
-      <Text className="text-3xl font-bold text-gray-900 mb-4 mt-2">Latest Articles</Text>
+      <Text className="text-3xl font-bold text-gray-900 mb-4 mt-2">
+        Latest Articles
+      </Text>
       {latestArticles?.length > 0 ? (
         latestArticles.slice(0, 1).map((article) => (
           <ArticleLargeCard
@@ -55,33 +62,40 @@ const ArticlesListContent = ({
             title={article.title}
             category={article.categories?.[0]?.name}
             hashtags={article.tags?.map((t) => t.name) || []}
-            author={article.author_name || article.author?.name || 'Unknown Author'}
+            author={
+              article.author_name || article.author?.name || "Unknown Author"
+            }
             date={
-              (article.created_at || article.published_at)
-                ? new Date(article.created_at || article.published_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
+              article.created_at || article.published_at
+                ? new Date(
+                    article.created_at || article.published_at,
+                  ).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
                   })
-                : ''
+                : ""
             }
             image={article.featured_image_url || article.featured_image}
             onPress={() => onArticlePress(article)}
-            onMenuPress={() => handleMenuPress(article)}
+            onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
             onTagPress={onTagPress}
             onAuthorPress={() => onAuthorPress(article)}
           />
         ))
       ) : (
-        <Text className="text-center text-gray-500 my-4">No recent articles</Text>
+        <Text className="text-center text-gray-500 my-4">
+          No recent articles
+        </Text>
       )}
     </View>
 
     <View className="px-4 mb-2">
-      <View className="border-2 border-gray-200 mb-4" />
-      <Text className="text-2xl font-bold text-gray-900 mb-4">Recent Articles</Text>
+      <Text className="text-2xl font-bold text-gray-900 mb-4 mt-2">
+        Recent Articles
+      </Text>
       {latestArticles?.length > 1 ? (
         <View className="gap-1">
           {latestArticles.slice(1, 6).map((article) => (
@@ -89,26 +103,35 @@ const ArticlesListContent = ({
               key={article.id}
               title={article.title}
               category={article.categories?.[0]?.name}
-              author={article.author_name || article.author?.name || 'Unknown Author'}
+              author={
+                article.author_name || article.author?.name || "Unknown Author"
+              }
               date={
-                (article.created_at || article.published_at)
-                  ? new Date(article.created_at || article.published_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
+                article.created_at || article.published_at
+                  ? new Date(
+                      article.created_at || article.published_at,
+                    ).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })
-                  : ''
+                  : ""
               }
               image={article.featured_image_url || article.featured_image}
+              hashtags={article.tags}
               onPress={() => onArticlePress(article)}
-              onMenuPress={() => handleMenuPress(article)}
+              onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
+              onAuthorPress={() => onAuthorPress(article)}
+              onTagPress={onTagPress}
             />
           ))}
         </View>
       ) : (
-        <Text className="text-center text-gray-500 my-4">No recent articles</Text>
+        <Text className="text-center text-gray-500 my-4">
+          No recent articles
+        </Text>
       )}
     </View>
 
@@ -120,7 +143,7 @@ const ArticlesListContent = ({
           className="py-2"
         >
           <Text className="text-blue-500 font-semibold text-base">
-            {loadingMore ? 'Loading...' : 'Load More'}
+            {loadingMore ? "Loading..." : "Load More"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -130,7 +153,7 @@ const ArticlesListContent = ({
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation }) {
-  const { latestArticles = [], refreshArticles, forceRefreshArticles } = useArticles();
+  const { latestArticles = [], refreshArticles } = useArticles();
   const hasMountedRef = useRef(false);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -142,9 +165,14 @@ export default function HomeScreen({ navigation }) {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [menuArticle, setMenuArticle] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [menuY, setMenuY] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingArticle, setDeletingArticle] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  // Local filtered articles for category selection
+  const [filteredArticles, setFilteredArticles] = useState([]);
 
   useEffect(() => {
     checkAdminStatus();
@@ -162,7 +190,7 @@ export default function HomeScreen({ navigation }) {
     } catch (_) {}
   };
 
-  const handleSearch = async (query) => {
+  const handleSearch = useCallback(async (query) => {
     setSearchQuery(query);
     if (query.trim().length < 3) {
       setSearchResults([]);
@@ -174,28 +202,36 @@ export default function HomeScreen({ navigation }) {
       const res = await searchArticles(query.trim());
       setSearchResults(res.data?.data ?? []);
     } catch (err) {
-      console.error('Search error:', err);
+      console.error("Search error:", err);
       setSearchResults([]);
     } finally {
       setSearching(false);
     }
-  };
+  }, []);
 
-  const fetchArticles = useCallback(
-    async (pageNum = 1, categoryId = null) => {
-      try {
-        const params = { limit: 10, page: pageNum };
-        if (categoryId) params.category = categoryId;
-        const res = await getArticles(params);
-        const lastPage = res.data?.last_page ?? 1;
-        setHasMore(pageNum < lastPage);
-        setPage(pageNum);
-      } catch (e) {
-        console.error('Error fetching articles:', e);
-      }
-    },
-    []
+  // Bug #2 Fix: Debounce created with useMemo — stable across renders
+  const debouncedSearch = useMemo(
+    () => debounce(handleSearch, 500),
+    [handleSearch]
   );
+
+  // Bug #3 Fix: fetchArticles now actually stores its results and filters by category
+  const fetchArticles = useCallback(async (pageNum = 1, categoryId = null) => {
+    try {
+      const params = { limit: 10, page: pageNum };
+      if (categoryId) params.category = categoryId;
+      const res = await getArticles(params);
+      const articles = res.data?.data ?? [];
+      const lastPage = res.data?.last_page ?? 1;
+      setFilteredArticles(prev =>
+        pageNum === 1 ? articles : [...prev, ...articles]
+      );
+      setHasMore(pageNum < lastPage);
+      setPage(pageNum);
+    } catch (e) {
+      console.error("Error fetching articles:", e);
+    }
+  }, []);
 
   useEffect(() => {
     fetchCategories();
@@ -209,7 +245,7 @@ export default function HomeScreen({ navigation }) {
       } else {
         hasMountedRef.current = true;
       }
-    }, [refreshArticles])
+    }, [refreshArticles]),
   );
 
   useEffect(() => {
@@ -217,13 +253,9 @@ export default function HomeScreen({ navigation }) {
     fetchArticles(1, selectedCategory).finally(() => setLoading(false));
   }, [selectedCategory, fetchArticles]);
 
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([
-      fetchArticles(1, selectedCategory),
-      refreshArticles(),
-    ]);
+    await Promise.all([fetchArticles(1, selectedCategory), refreshArticles()]);
     setRefreshing(false);
   };
 
@@ -234,47 +266,71 @@ export default function HomeScreen({ navigation }) {
     setLoadingMore(false);
   };
 
-  const handleMenuPress = (article) => {
+  const handleMenuPress = (article, event) => {
     if (isAdminUser) {
       setMenuArticle(article);
+      if (event?.nativeEvent?.pageY) {
+        setMenuY(event.nativeEvent.pageY + 15);
+      }     
       setShowMenu(true);
     }
   };
 
+  // Bug #10 Fix: null guard on menuArticle before accessing .id
   const handleEdit = () => {
+    if (!menuArticle) return;
     setShowMenu(false);
-    navigation.navigate('EditArticle', { articleId: menuArticle.id });
+    navigation.navigate("EditArticle", { articleId: menuArticle.id });
   };
 
   const handleDelete = () => {
+    if (!menuArticle) return;
     setShowMenu(false);
-    Alert.alert(
-      'Delete Article',
-      'Are you sure you want to delete this article? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteArticle(menuArticle.id);
-              Alert.alert('Success', 'Article deleted successfully');
-              await refreshArticles();
-            } catch (error) {
-              console.error('Error deleting article:', error);
-              Alert.alert('Error', 'Failed to delete article. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    setShowDeleteModal(true);
   };
 
-  if (loading) return <Loader />;
+  const confirmDelete = async () => {
+    if (!menuArticle?.id || deletingArticle) {
+      return;
+    }
+
+    try {
+      setDeletingArticle(true);
+      await deleteArticle(menuArticle.id);
+      setShowDeleteModal(false);
+      // Bug #5 Fix: Use toast instead of Alert
+      showAuditToast("success", "Article deleted successfully");
+      await refreshArticles();
+    } catch (error) {
+      console.error("Error deleting article:", error);
+      showAuditToast("error", "Failed to delete article. Please try again.");
+    } finally {
+      setDeletingArticle(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-gray-50">
+        <View className="flex-shrink-0">
+          <HomeHeader
+            categories={categories}
+            onCategorySelect={setSelectedCategory}
+            onMenuPress={() => {}}
+            onSearchPress={() => {}}
+            onGridPress={() => navigation.navigate("Admin")}
+            onSearch={debouncedSearch}
+            navigation={navigation}
+          />
+        </View>
+        <HomeScreenSkeleton />
+        <BottomNavigation navigation={navigation} activeTab="Home" />
+      </View>
+    );
+  }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: 40 }}>
+    <View className="flex-1 bg-gray-50">
       {/* Fixed Header */}
       <View className="flex-shrink-0">
         <HomeHeader
@@ -282,8 +338,8 @@ export default function HomeScreen({ navigation }) {
           onCategorySelect={setSelectedCategory}
           onMenuPress={() => {}}
           onSearchPress={() => {}}
-          onGridPress={() => navigation.navigate('Admin')}
-          onSearch={handleSearch}
+          onGridPress={() => navigation.navigate("Admin")}
+          onSearch={debouncedSearch}
           navigation={navigation}
         />
       </View>
@@ -294,7 +350,7 @@ export default function HomeScreen({ navigation }) {
           // Search Results View
           <ScrollView className="flex-1 px-4">
             <Text className="text-2xl font-bold text-gray-900 my-4">
-              Search Results for "{searchQuery}"
+              Search Results for {`"${searchQuery}"`}
             </Text>
             {searching ? (
               <Loader />
@@ -305,27 +361,42 @@ export default function HomeScreen({ navigation }) {
                   title={article.title}
                   category={article.categories?.[0]?.name}
                   hashtags={article.tags?.map((t) => t.name) || []}
-                  author={article.author_name || article.author?.name || article.author?.user?.name || 'Unknown Author'}
+                  author={
+                    article.author_name ||
+                    article.author?.name ||
+                    article.author?.user?.name ||
+                    "Unknown Author"
+                  }
                   date={
-                    (article.created_at || article.published_at)
-                      ? new Date(article.created_at || article.published_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
+                    article.created_at || article.published_at
+                      ? new Date(
+                          article.created_at || article.published_at,
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })
-                      : 'Recently'
+                      : "Recently"
                   }
                   image={article.featured_image_url || article.featured_image}
-                  onPress={() => navigation.navigate('ArticleDetail', { slug: article.slug, article })}
-                  onMenuPress={() => handleMenuPress(article)}
-                  onTagPress={(tag) => navigation.navigate('TagArticles', { tagName: tag })}
+                  onPress={() =>
+                    navigation.navigate("ArticleDetail", {
+                      slug: article.slug,
+                      article,
+                    })
+                  }
+                  onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
+                  onTagPress={(tag) =>
+                    navigation.navigate("TagArticles", { tagName: tag })
+                  }
                   onAuthorPress={() => {
                     if (article.author?.id) {
-                      navigation.navigate('AuthorProfile', {
+                      navigation.navigate("AuthorProfile", {
                         authorId: article.author.id,
-                        authorName: article.author.name || article.author.user?.name
+                        authorName:
+                          article.author.name || article.author.user?.name,
                       });
                     }
                   }}
@@ -333,26 +404,35 @@ export default function HomeScreen({ navigation }) {
               ))
             ) : (
               <Text className="text-center text-gray-500 my-8">
-                No results found for "{searchQuery}"
+                No results found for {`"${searchQuery}"`}
               </Text>
             )}
           </ScrollView>
         ) : (
           <ArticlesListContent
-            latestArticles={latestArticles}
+            // Bug #3 Fix: Use filteredArticles when a category is active, else latestArticles
+            latestArticles={selectedCategory ? filteredArticles : latestArticles}
             refreshing={refreshing}
             onRefresh={onRefresh}
             loadingMore={loadingMore}
             hasMore={hasMore}
             onLoadMore={onLoadMore}
-            onArticlePress={(article) => navigation.navigate('ArticleDetail', { slug: article.slug, article })}
-            handleMenuPress={handleMenuPress}
-            onTagPress={(tagName) => navigation.navigate('TagArticles', { tagName })}
+            onArticlePress={(article) =>
+              navigation.navigate("ArticleDetail", {
+                slug: article.slug,
+                article,
+              })
+            }
+            handleMenuPress={(article, e) => handleMenuPress(article, e)}
+            isAdminUser={isAdminUser}
+            onTagPress={(tagName) =>
+              navigation.navigate("TagArticles", { tagName })
+            }
             onAuthorPress={(article) => {
               if (article.author?.id) {
-                navigation.navigate('AuthorProfile', {
+                navigation.navigate("AuthorProfile", {
                   authorId: article.author.id,
-                  authorName: article.author.name || article.author.user?.name
+                  authorName: article.author.name || article.author.user?.name,
                 });
               }
             }}
@@ -372,21 +452,24 @@ export default function HomeScreen({ navigation }) {
           activeOpacity={1}
           onPress={() => setShowMenu(false)}
         >
-          <View className="flex-1 items-center justify-center px-6">
-            <View className="bg-white rounded-lg shadow-lg" style={{ minWidth: 200 }}>
+          <View style={{ position: 'absolute', top: menuY, right: 40 }}>
+            <View
+              className="bg-white rounded-xl shadow-lg border border-gray-50 py-1"
+              style={{ minWidth: 140, elevation: 5 }}
+            >
               <TouchableOpacity
                 onPress={handleEdit}
-                className="flex-row items-center px-6 py-4 border-b border-gray-200"
+                className="flex-row items-center px-5 py-3"
               >
-                <Ionicons name="create-outline" size={24} color="#3b82f6" />
-                <Text className="ml-4 text-gray-800 font-medium text-base">Edit Article</Text>
+                <Ionicons name="create-outline" size={20} color="#0284c7" />
+                <Text className="ml-4 text-gray-700 text-[15px]">Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleDelete}
-                className="flex-row items-center px-6 py-4"
+                className="flex-row items-center px-5 py-3"
               >
-                <Ionicons name="trash-outline" size={24} color="#ef4444" />
-                <Text className="ml-4 text-red-600 font-medium text-base">Delete Article</Text>
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                <Text className="ml-4 text-red-500 text-[15px]">Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -395,6 +478,42 @@ export default function HomeScreen({ navigation }) {
 
       {/* Bottom Navigation */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
+
+      <DeleteConfirmModal
+        visible={showDeleteModal}
+        loading={deletingArticle}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          if (!deletingArticle) {
+            setShowDeleteModal(false);
+          }
+        }}
+      />
+
+      {/* Floating Action Button (Create Article) - Only for Admins */}
+      {isAdminUser && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('CreateArticle')}
+          style={{
+            position: 'absolute',
+            bottom: 110, // Adjusted higher
+            right: 20,
+            backgroundColor: '#f39c12',
+            width: 70,
+            height: 70,
+            borderRadius: 100,
+            justifyContent: 'center',
+            alignItems: 'center',
+            elevation: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+          }}
+        >
+          <Ionicons name="add" size={48} color="white" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

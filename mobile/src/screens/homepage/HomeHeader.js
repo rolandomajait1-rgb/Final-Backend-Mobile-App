@@ -6,6 +6,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../styles';
 import SidebarMenu from '../../components/homeheaderpart/SidebarMenu';
 import { isAdminOrModerator } from '../../utils/authUtils';
@@ -25,6 +26,7 @@ const HomeHeader = ({
   const [searchQuery, setSearchQuery] = useState(externalSearchQuery);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAdminIcon, setShowAdminIcon] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     checkAdminStatus();
@@ -90,73 +92,81 @@ const HomeHeader = ({
         onCategorySelect={handleCategorySelect}
         navigation={navigation}
       />
-      <View className="bg-white border-b border-gray-200 pt-">
-      {isSearchActive ? (
-        // Search Active - Full width search bar
-        <View className="flex-row items-center px-4 py-2 ">
-          {/* Menu Icon */}
-          <TouchableOpacity onPress={handleMenuPress} className="p-2">
-            <Ionicons name="menu" size={28} color={colors.primary} />
-          </TouchableOpacity>
-
-          {/* Search Input */}
-          <View className="flex-1 flex-row items-center px-3 bg-gray-100 rounded-full gap-2">
-            <Ionicons name="search" size={20} color="#252424ff" />
-            <TextInput
-              className="flex-1 text-gray-800 text-base py-3"
-              placeholder="Search"
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={handleSearch}
-              onBlur={handleSearchBlur}
-              autoFocus
-            />
-            <TouchableOpacity onPress={handleSearchClose}>
-              <Ionicons name="close" size={20} color="#999" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Grid Icon - Only show for admin/moderator */}
-          {showAdminIcon && (
-            <TouchableOpacity onPress={handleGridPress} className="p-2">
-              <MaterialCommunityIcons name="view-grid" size={24} color={colors.icons} />
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        // Normal Header
-        <View className="flex-row items-center justify-between px-3 py-2">
-          {/* Menu Icon */}
-          <TouchableOpacity onPress={handleMenuPress} className="p-2">
-            <Ionicons name="menu" size={28} color={colors.primary} />
-          </TouchableOpacity>
-
-          {/* Logo - Center */}
-          <View className="flex-1 items-center justify-center ml-10">
-            <Image
-              source={require('../../../assets/logo.png')}
-              className="w-12 h-12"
-              resizeMode="contain"
-            />
-          </View>
-
-          {/* Search and Grid Icons */}
-          <View className="flex-row items-center gap-0">
-            {enableSearch && (
-              <TouchableOpacity onPress={handleSearchIconPress} className="p-2">
-                <Ionicons name="search" size={24} color={colors.primary} />
+      <View className="bg-white" style={{ paddingTop: Math.max(insets.top, 0) }}>
+        {isSearchActive ? (
+          // Search Active - Full width search bar
+          <View className="flex-row items-center px-4" style={{ height: 60 }}>
+            {/* Menu Icon */}
+            <View className="w-10">
+              <TouchableOpacity onPress={handleMenuPress} className="py-2">
+                <Ionicons name="menu" size={28} color={colors.primary} />
               </TouchableOpacity>
-            )}
-            {/* Grid Icon - Only show for admin/moderator */}
-            {showAdminIcon && (
-              <TouchableOpacity onPress={handleGridPress} className="p-2">
-                <MaterialCommunityIcons name="view-grid" size={24} color={colors.icons} />
+            </View>
+
+            {/* Search Input */}
+            <View className="flex-1 flex-row items-center px-3 bg-gray-100 rounded-full gap-2 h-11">
+              <Ionicons name="search" size={20} color="#252424ff" />
+              <TextInput
+                className="flex-1 text-gray-800 text-base py-0"
+                placeholder="Search..."
+                placeholderTextColor="#999"
+                value={searchQuery}
+                onChangeText={handleSearch}
+                onBlur={handleSearchBlur}
+                autoFocus
+              />
+              {/* Always show X button when search is active */}
+              <TouchableOpacity onPress={handleSearchClose}>
+                <Ionicons name="close-circle" size={20} color="#999" />
               </TouchableOpacity>
-            )}
+            </View>
+
+            {/* Right Side - Only show Grid icon for admin */}
+            <View className="w-12 flex-row items-center justify-end">
+              {showAdminIcon && (
+                <TouchableOpacity onPress={handleGridPress} className="p-2">
+                  <MaterialCommunityIcons name="view-grid" size={24} color={colors.icons} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
-      )}
-    </View>
+        ) : (
+          // Normal Header
+          <View className="flex-row items-center px-4" style={{ height: 60 }}>
+            {/* Left Side Container (Menu) */}
+            <View className="w-20 items-start">
+              <TouchableOpacity onPress={handleMenuPress} className="p-1">
+                <Ionicons name="menu" size={28} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Logo Container (Center) */}
+            <View className="flex-1 items-center justify-center">
+              <Image
+                source={require('../../../assets/logo.png')}
+                style={{ width: 44, height: 44 }}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Right Side Container (Action Icons) - Balanced width with Left */}
+            <View className="w-20 flex-row items-center justify-end">
+              {enableSearch && (
+                <TouchableOpacity onPress={handleSearchIconPress} className="p-2">
+                  <Ionicons name="search" size={24} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+              {showAdminIcon && (
+                <TouchableOpacity onPress={handleGridPress} className="p-2">
+                  <MaterialCommunityIcons name="view-grid" size={24} color={colors.icons} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+        {/* Gray divider at the bottom */}
+        <View className="h-0.5 bg-amber-400" />
+      </View>
     </>
   );
 };

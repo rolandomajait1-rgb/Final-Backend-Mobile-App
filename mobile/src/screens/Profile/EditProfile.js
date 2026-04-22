@@ -1,20 +1,20 @@
 import { useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
-import { colors } from '../../styles';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import SaveProfileModal from '../../components/common/SaveProfileModal';
+import { showAuditToast } from '../../utils/toastNotification';
 
 const validatePassword = (password) => {
   if (password.length < 8) {
@@ -42,12 +42,43 @@ export default function EditProfile({ navigation, route }) {
     confirmPassword: '',
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+
+  const handleCopyEmail = async () => {
+    if (userData.email) {
+      await Clipboard.setStringAsync(userData.email);
+      showAuditToast('success', 'Email copied to clipboard');
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = async () => {
+  const handleSavePress = () => {
+    // Bug #12 Fix: Validate password fields BEFORE opening modal
+    if (formData.oldPassword || formData.newPassword || formData.confirmPassword) {
+      if (formData.newPassword !== formData.confirmPassword) {
+        showAuditToast('error', 'Passwords do not match');
+        return;
+      }
+      const passwordError = validatePassword(formData.newPassword);
+      if (passwordError) {
+        showAuditToast('error', passwordError);
+        return;
+      }
+      if (!formData.oldPassword) {
+        showAuditToast('error', 'Please enter your current password');
+        return;
+      }
+    }
+    setShowSaveModal(true);
+  };
+
+  const confirmSave = async () => {
     if (isSaving) return;
 
     try {
@@ -60,21 +91,8 @@ export default function EditProfile({ navigation, route }) {
         updated = true;
       }
 
-      // Change password if provided
+      // Change password if provided (validation already passed in handleSavePress)
       if (formData.oldPassword && formData.newPassword) {
-        if (formData.newPassword !== formData.confirmPassword) {
-          Alert.alert('Error', 'Passwords do not match');
-          setIsSaving(false);
-          return;
-        }
-
-        const passwordError = validatePassword(formData.newPassword);
-        if (passwordError) {
-          Alert.alert('Error', passwordError);
-          setIsSaving(false);
-          return;
-        }
-
         await client.post('/api/change-password', {
           current_password: formData.oldPassword,
           password: formData.newPassword,
@@ -84,108 +102,175 @@ export default function EditProfile({ navigation, route }) {
       }
 
       if (updated) {
-        Alert.alert('Success', 'Profile updated successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+        setShowSaveModal(false);
+        showAuditToast('success', 'Profile updated successfully');
+        navigation.goBack();
       } else {
+        setShowSaveModal(false);
         navigation.goBack();
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update profile');
+      setShowSaveModal(false);
+      showAuditToast('error', err.response?.data?.message || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleDiscard = () => {
+    setShowSaveModal(false);
+    showAuditToast('success', 'Changes discarded');
+    navigation.goBack();
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        {/* HomeHeader */}
+    <View className="flex-1 bg-white">
+      <View className="flex-shrink-0 bg-white">
         <HomeHeader
           categories={[]}
           onCategorySelect={() => {}}
           navigation={navigation}
         />
+        <View style={{ height: 2, backgroundColor: '#f39c12' }} />
+      </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
         {/* Account Settings Header */}
-        <View className="flex-row items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+        <View className="flex-row items-center px-6 py-5 bg-white relative justify-center">
+          <TouchableOpacity onPress={() => navigation.goBack()} className="absolute left-6 z-10 p-2 -ml-2">
+            <Ionicons name="arrow-back" size={28} color="#000" />
           </TouchableOpacity>
-          <Text className="text-3xl font-bold text-gray-900">Account Settings</Text>
-          <TouchableOpacity onPress={handleSave} disabled={isSaving}>
-            <Text className="text-lg font-semibold" style={{ color: isSaving ? '#ccc' : '#FFB800' }}>
-              {isSaving ? 'Saving...' : 'Next'}
-            </Text>
-          </TouchableOpacity>
+          <Text className="text-[26px] font-bold text-gray-900 tracking-tight">Account Settings</Text>
         </View>
 
         {/* Main Content */}
         <ScrollView
           className="flex-1 bg-white"
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 60 }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {/* Name Field */}
           <View className="mb-6">
-            <Text className="text-base font-semibold text-gray-700 mb-2">Name</Text>
+            <Text className="text-[14px] font-medium text-gray-800 mb-2">Name</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900 bg-white"
+              className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-white"
               placeholder="Enter Name"
-              placeholderTextColor="#D1D5DB"
+              placeholderTextColor="#cbd5e1"
               value={formData.name}
               onChangeText={(value) => handleChange('name', value)}
               style={{ fontSize: 16 }}
             />
           </View>
 
+          {/* Email Field (Read Only) */}
+          <View className="mb-6">
+            <Text className="text-[14px] font-medium text-gray-800 mb-2">Email</Text>
+            <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50 px-4 py-3.5">
+              <Text className="flex-1 text-gray-500" style={{ fontSize: 16 }}>
+                {userData.email || 'No email provided'}
+              </Text>
+              {userData.email && (
+                <TouchableOpacity onPress={handleCopyEmail} className="ml-2 p-1">
+                  <Ionicons name="copy-outline" size={20} color="#0ea5e9" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
           {/* Old Password Field */}
           <View className="mb-6">
-            <Text className="text-base font-semibold text-gray-700 mb-2">Old Password</Text>
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900 bg-white"
-              placeholder="Enter your password"
-              placeholderTextColor="#D1D5DB"
-              secureTextEntry
-              value={formData.oldPassword}
-              onChangeText={(value) => handleChange('oldPassword', value)}
-              style={{ fontSize: 16 }}
-            />
+            <Text className="text-[14px] font-medium text-gray-800 mb-2">Old Password</Text>
+            <View className="flex-row items-center border border-gray-200 rounded-xl bg-white px-4">
+              <TextInput
+                className="flex-1 py-3.5 text-gray-900"
+                placeholder="Enter your password"
+                placeholderTextColor="#cbd5e1"
+                secureTextEntry={!showOldPassword}
+                value={formData.oldPassword}
+                onChangeText={(value) => handleChange('oldPassword', value)}
+                style={{ fontSize: 16 }}
+              />
+              <TouchableOpacity onPress={() => setShowOldPassword(!showOldPassword)} className="p-2">
+                <Ionicons name={showOldPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* New Password Field */}
           <View className="mb-6">
-            <Text className="text-base font-semibold text-gray-700 mb-2">New Password</Text>
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900 bg-white"
-              placeholder="Enter your password"
-              placeholderTextColor="#D1D5DB"
-              secureTextEntry
-              value={formData.newPassword}
-              onChangeText={(value) => handleChange('newPassword', value)}
-              style={{ fontSize: 16 }}
-            />
+            <Text className="text-[14px] font-medium text-gray-800 mb-2">New Password</Text>
+            <View className="flex-row items-center border border-gray-200 rounded-xl bg-white px-4">
+              <TextInput
+                className="flex-1 py-3.5 text-gray-900"
+                placeholder="Enter your password"
+                placeholderTextColor="#cbd5e1"
+                secureTextEntry={!showNewPassword}
+                value={formData.newPassword}
+                onChangeText={(value) => handleChange('newPassword', value)}
+                style={{ fontSize: 16 }}
+              />
+              <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} className="p-2">
+                <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Confirm New Password Field */}
-          <View className="mb-6">
-            <Text className="text-base font-semibold text-gray-700 mb-2">Confirm New Password</Text>
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900 bg-white"
-              placeholder="Enter your password"
-              placeholderTextColor="#D1D5DB"
-              secureTextEntry
-              value={formData.confirmPassword}
-              onChangeText={(value) => handleChange('confirmPassword', value)}
-              style={{ fontSize: 16 }}
-            />
+          <View className="mb-8">
+            <Text className="text-[14px] font-medium text-gray-800 mb-2">Confirm New Password</Text>
+            <View className="flex-row items-center border border-gray-200 rounded-xl bg-white px-4">
+              <TextInput
+                className="flex-1 py-3.5 text-gray-900"
+                placeholder="Enter your password"
+                placeholderTextColor="#cbd5e1"
+                secureTextEntry={!showConfirmPassword}
+                value={formData.confirmPassword}
+                onChangeText={(value) => handleChange('confirmPassword', value)}
+                style={{ fontSize: 16 }}
+              />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="p-2">
+                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View className="items-center px-6 mt-4">
+            <TouchableOpacity 
+              onPress={handleSavePress} 
+              disabled={isSaving}
+              className="w-2/3   bg-[#0ea5e9] rounded-full py-4 items-center justify-center mb-4"
+            >
+              <Text className="text-white text-[17px] font-semibold">
+                Update Profile
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              disabled={isSaving}
+              className="w-full py-2 items-center justify-center"
+            >
+              <Text className="text-[#0ea5e9] text-[17px] font-medium">
+                Cancel
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
       <BottomNavigation navigation={navigation} activeTab="Profile" />
-    </SafeAreaView>
+      
+      <SaveProfileModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={confirmSave}
+        onDiscard={handleDiscard}
+        isSaving={isSaving}
+      />
+    </View>
   );
 }
