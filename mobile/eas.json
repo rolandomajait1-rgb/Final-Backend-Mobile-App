@@ -15,7 +15,7 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleDebug"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://final-backend-mobile-app-2-4sfz.onrender.com"
