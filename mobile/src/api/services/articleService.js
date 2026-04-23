@@ -19,8 +19,8 @@ export const searchArticles = (query, params = {}) =>
 export const getArticlesByCategory = (categoryId, params = {}) =>
   client.get(ENDPOINTS.CATEGORY_ARTICLES(categoryId), { params });
 
-export const getLatestArticles = () =>
-  client.get(ENDPOINTS.LATEST_ARTICLES);
+export const getLatestArticles = (config = {}) =>
+  client.get(ENDPOINTS.LATEST_ARTICLES, config);
 
 // Bug #1 Fix: Remove explicit Content-Type header - client interceptor handles FormData automatically
 export const updateArticle = (id, formData) =>

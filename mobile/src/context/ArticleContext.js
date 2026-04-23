@@ -6,7 +6,7 @@ import { BASE_URL } from '../constants/config';
 export const ArticleContext = createContext();
 
 const CACHE_KEY = 'cached_latest_articles';
-const MIN_REFETCH_INTERVAL_MS = 3000;
+const MIN_REFETCH_INTERVAL_MS = 500; // Reduced from 3000ms for faster updates
 const RETRY_DELAY_MS = 3000;
 
 // Bug #2 & #11 Fix: Add AbortController for backend wake-up with proper error handling
@@ -80,7 +80,7 @@ export function ArticleProvider({ children }) {
     abortControllerRef.current = new AbortController();
     
     try {
-      const res = await getLatestArticles();
+      const res = await getLatestArticles({ signal: abortControllerRef.current.signal });
       const data = res.data ?? [];
       setLatestArticles(data);
       setError(null);

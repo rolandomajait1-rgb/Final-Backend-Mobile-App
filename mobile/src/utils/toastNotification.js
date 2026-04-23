@@ -51,3 +51,48 @@ export const showAuditEventToast = (auditEvent) => {
     message || `${action} ${isSuccess ? 'Successfully' : 'Unsuccessfully'}`
   );
 };
+
+/**
+ * Show success toast for profile operations
+ */
+export const showProfileSuccessToast = (action) => {
+  const messages = {
+    updated: 'Profile Updated Successfully',
+    password_changed: 'Password Changed Successfully',
+    discarded: 'Changes Discarded Successfully',
+  };
+  showAuditToast('success', messages[action] || 'Operation Successful');
+};
+
+/**
+ * Show error toast for profile operations
+ */
+export const showProfileErrorToast = (action) => {
+  const messages = {
+    updated: 'Profile Update Failed',
+    password_changed: 'Password Change Failed',
+  };
+  showAuditToast('error', messages[action] || 'Operation Failed');
+};
+
+/**
+ * Show success toast for moderator operations
+ */
+export const showModeratorSuccessToast = (action) => {
+  const messages = {
+    added: 'Moderator Added Successfully',
+    removed: 'Moderator Removed Successfully',
+  };
+  showAuditToast('success', messages[action] || 'Operation Successful');
+};
+
+/**
+ * Show error toast for moderator operations
+ */
+export const showModeratorErrorToast = (action) => {
+  const messages = {
+    added: 'Failed to Add Moderator',
+    removed: 'Failed to Remove Moderator',
+  };
+  showAuditToast('error', messages[action] || 'Operation Failed');
+};

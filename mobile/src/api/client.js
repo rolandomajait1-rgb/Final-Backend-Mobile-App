@@ -52,9 +52,10 @@ client.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isAuthRoute = originalRequest.url?.includes('/login') || originalRequest.url?.includes('/register');
 
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
+    // Handle 401 Unauthorized globally EXCEPT for auth routes which handle it locally
+    if (error.response?.status === 401 && !isAuthRoute) {
       // Prevent infinite loop
       if (originalRequest._retry) {
         await AsyncStorage.removeItem('auth_token');
