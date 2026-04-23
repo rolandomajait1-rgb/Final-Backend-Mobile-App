@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { View, Image, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as SplashScreenNative from 'expo-splash-screen';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreenNative.preventAutoHideAsync();
 
 const logo = require('../../assets/logo.png');
 const textLogo = require('../../assets/la verdad herald.png');
@@ -16,6 +20,18 @@ export default function SplashScreen({ onFinish }) {
   const shineAnim = useRef(new Animated.Value(-1)).current;
 
   useEffect(() => {
+    // Hide native splash screen immediately when custom one is ready
+    SplashScreenNative.hideAsync().catch(() => {});
+
+    // Safety timeout - force finish after 5 seconds if animation fails
+    const safetyTimeout = setTimeout(() => {
+      console.log('Splash screen timeout - forcing finish');
+      if (onFinish) {
+        onFinish();
+      }
+    }, 5000);
+
+    try {
     // Shine animation that loops
     const shineLoop = Animated.loop(
       Animated.sequence([
@@ -73,11 +89,27 @@ export default function SplashScreen({ onFinish }) {
       // Stop shine animation
       shineLoop.stop();
       
+      // Clear safety timeout
+      clearTimeout(safetyTimeout);
+      
       // Animation complete, call onFinish
       if (onFinish) {
         onFinish();
       }
     });
+    } catch (error) {
+      console.error('Splash screen animation error:', error);
+      clearTimeout(safetyTimeout);
+      // Force finish on error
+      if (onFinish) {
+        onFinish();
+      }
+    }
+
+    // Cleanup
+    return () => {
+      clearTimeout(safetyTimeout);
+    };
   }, [fadeAnim, scaleAnim, textFadeAnim, shineAnim, onFinish]);
 
   // Interpolate shine position
