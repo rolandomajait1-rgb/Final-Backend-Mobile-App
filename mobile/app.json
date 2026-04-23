@@ -3,54 +3,13 @@
     "name": "La Verdad Herald",
     "slug": "laverdadherald",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "scheme": "laverdadherald",
-    "statusBar": {
-      "barStyle": "dark-content",
-      "hidden": false,
-      "backgroundColor": "#ffffff"
+    "runtimeVersion": "1.0.0",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2C5F7F"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.laverdadherald.app",
-      "runtimeVersion": {
-        "policy": "appVersion"
-      }
-    },
-    "android": {
-      "package": "com.laverdadherald.app",
-      "softwareKeyboardLayoutMode": "pan",
-      "statusBar": {
-        "barStyle": "dark-content",
-        "hidden": false,
-        "backgroundColor": "#ffffff"
-      },
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "laverdadherald"
-            },
-            {
-              "scheme": "exp"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ],
-      "runtimeVersion": "1.0.0"
-    },
-    "plugins": [
-      "expo-asset",
-      "expo-font",
-      "@react-native-community/datetimepicker"
-    ],
     "extra": {
       "eas": {
         "projectId": "fb469747-9638-474f-b584-36626bfce0b6"
@@ -58,6 +17,9 @@
     },
     "updates": {
       "url": "https://u.expo.dev/fb469747-9638-474f-b584-36626bfce0b6"
+    },
+    "android": {
+      "package": "com.landzki.laverdadherald"
     }
   }
 }
