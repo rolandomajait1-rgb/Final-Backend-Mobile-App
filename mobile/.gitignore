@@ -9,5 +9,3 @@ dist/
 *.mobileprovision
 *.orig.*
 web-build/
-/android
-/ios
