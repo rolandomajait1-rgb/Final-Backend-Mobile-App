@@ -8,6 +8,8 @@ import BottomNavigation from "../../components/common/BottomNavigation";
 import { searchArticles } from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
 import { colors } from "../../styles";
+import { handleAuthorPress } from "../../utils/authorNavigation";
+
 
 const MIN_QUERY_LENGTH = 3;
 const BRAND_BLUE = "#075985";
@@ -130,9 +132,15 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
             </View>
 
             <View>
-              <Text className="text-[13px] font-semibold text-[#075985]">
-                {authorName}
-              </Text>
+              <TouchableOpacity 
+                onPress={onOpenAuthor}
+                disabled={!authorId}
+                activeOpacity={0.7}
+              >
+                <Text className="text-[13px] font-semibold text-[#075985] underline">
+                  {authorName}
+                </Text>
+              </TouchableOpacity>
               <Text className="mt-1 text-[12px] text-slate-500">
                 {formatSearchDate(item.created_at || item.published_at)}
               </Text>
@@ -284,20 +292,6 @@ export default function SearchScreen({ navigation }) {
     navigation.navigate("ArticleDetail", { slug: article.slug, article });
   };
 
-  const handleAuthorPress = (article) => {
-    const authorId = article.author?.id || article.author_id;
-    if (!authorId) {
-      return;
-    }
-
-    navigation.navigate("AuthorProfile", {
-      authorId,
-      authorName:
-        article.author?.name ||
-        article.author?.user?.name ||
-        article.author_name,
-    });
-  };
 
   const trimmedQuery = query.trim();
   const isTypingBelowMinimum =
@@ -318,7 +312,7 @@ export default function SearchScreen({ navigation }) {
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       <View className="flex-shrink-0 bg-white">
         <HomeHeader

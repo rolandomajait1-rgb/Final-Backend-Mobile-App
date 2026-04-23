@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useContext, useRef } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -7,7 +8,7 @@ import {
   ScrollView,
   Alert,
   Share,
-  ActivityIndicator,
+  Animated,
 } from "react-native";
 import { getImageUri } from "../../utils/imageUtils";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,22 +18,26 @@ import BottomNavigation from "../../components/common/BottomNavigation";
 import HTMLRenderer from "../../components/common/HTMLRenderer";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import { ArticleDetailSkeleton } from "../../components/common";
+import ArticleActionMenu from "../../components/common/ArticleActionMenu";
 import HomeHeader from "../homepage/HomeHeader";
 import { isAdminOrModerator } from "../../utils/authUtils";
 import { ArticleContext } from "../../context/ArticleContext";
 import { deleteArticle } from "../../api/services/articleService";
 import { showArticleSuccessToast, showArticleErrorToast, showAuditToast } from "../../utils/toastNotification";
+import { handleAuthorPress } from "../../utils/authorNavigation";
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 function ArticleHero({
   article,
   navigation,
   isAdminUser,
-  showMenu,
-  setShowMenu,
+  isAdmin,
   onEdit,
   onDelete,
 }) {
+  const menuBtnRef = useRef(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const formattedDate =
     article.created_at || article.published_at
       ? new Date(article.created_at || article.published_at)
@@ -73,7 +78,7 @@ function ArticleHero({
             onPress={() => navigation.goBack()}
             className="rounded-full p-2"
             style={{
-              backgroundColor: "#215878",
+              backgroundColor: "rgba(14, 116, 144, 0.6)",
               width: 44,
               height: 44,
               alignItems: "center",
@@ -82,13 +87,19 @@ function ArticleHero({
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          {/* Bug #9 Fix: Only render the admin menu button for admin users */}
+          {/* 3-dots admin menu button */}
           {isAdminUser && (
             <TouchableOpacity
-              onPress={() => setShowMenu(!showMenu)}
+              ref={menuBtnRef}
+              onPress={() => {
+                menuBtnRef.current?.measure((_fx, _fy, _w, h, px, py) => {
+                  setMenuPos({ x: px, y: py + h });
+                  setMenuVisible(true);
+                });
+              }}
               className="rounded-full p-2"
               style={{
-                backgroundColor: "#215878",
+                backgroundColor: "rgba(14, 116, 144, 0.6)",
                 width: 44,
                 height: 44,
                 alignItems: "center",
@@ -101,76 +112,28 @@ function ArticleHero({
         </View>
       </SafeAreaView>
 
-      {showMenu && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 30,
-          }}
-        >
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={1}
-            onPress={() => setShowMenu(false)}
-          >
-            <SafeAreaView
-              style={{ position: "absolute", top: 50, right: 16, zIndex: 40 }}
-            >
-              <View
-                className="bg-white rounded-lg shadow-lg"
-                style={{ minWidth: 180, elevation: 10, marginTop: 56 }}
-              >
-                {isAdminUser ? (
-                  <>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onEdit();
-                      }}
-                      className="flex-row items-center px-5 py-4 border-b border-gray-200"
-                    >
-                      <Ionicons
-                        name="create-outline"
-                        size={22}
-                        color="#3b82f6"
-                      />
-                      <Text className="ml-3 text-gray-800 font-medium text-base">
-                        Edit Article
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                      }}
-                      className="flex-row items-center px-5 py-4"
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={22}
-                        color="#ef4444"
-                      />
-                      <Text className="ml-3 text-red-600 font-medium text-base">
-                        Delete Article
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <View className="px-5 py-4">
-                    <Text className="text-gray-600 text-sm">
-                      Admin access required
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </SafeAreaView>
-          </TouchableOpacity>
-        </View>
-      )}
+      <ArticleActionMenu
+        visible={menuVisible}
+        x={menuPos.x}
+        y={menuPos.y}
+        onClose={() => setMenuVisible(false)}
+        actions={[
+          {
+            label: "Edit Article",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: onEdit,
+          },
+          // Only show delete for admin, not moderator
+          ...(isAdmin ? [{
+            label: "Delete Article",
+            icon: "trash-outline",
+            color: "#ef4444",
+            labelColor: "#ef4444",
+            onPress: onDelete,
+          }] : []),
+        ]}
+      />
 
       <View
         style={{
@@ -208,20 +171,7 @@ function ArticleHero({
         </Text>
         <View>
           <TouchableOpacity
-            onPress={() => {
-              // Bug #20 Fix: Validate author data before navigation
-              const authorId = article.author?.id || article.author_id;
-              const authorName = article.author_name || article.author?.name;
-              
-              if (authorId) {
-                navigation.navigate("AuthorProfile", {
-                  authorId,
-                  authorName: authorName || "Unknown Author",
-                });
-              } else {
-                Alert.alert("Info", "Author information is not available.");
-              }
-            }}
+            onPress={() => handleAuthorPress(article, navigation)}
           >
             <Text
               style={{
@@ -257,23 +207,45 @@ function ArticleHero({
 }
 
 function ArticleActions({ likes, liked, shares, onLike, onShare }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handleLikePress = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.3,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 3,
+        useNativeDriver: true,
+      })
+    ]).start();
+    onLike();
+  };
+
   return (
     <View className="flex-row items-center justify-end gap-4 py-4 border-b px-4 border-gray-200">
       <TouchableOpacity
         className="flex-row items-center gap-2"
-        onPress={onLike}
+        onPress={handleLikePress}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Ionicons
-          name={liked ? "thumbs-up" : "thumbs-up-outline"}
-          size={20}
-          color={liked ? "#3b82f6" : "#666"}
-        />
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <Ionicons
+            name={liked ? "thumbs-up" : "thumbs-up-outline"}
+            size={22}
+            color={liked ? "#3b82f6" : "#666"}
+          />
+        </Animated.View>
         <Text className="text-gray-600 font-medium text-sm">{likes}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         className="flex-row items-center gap-2"
         onPress={onShare}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <Ionicons name="arrow-redo-outline" size={20} color="#666" />
         <Text className="text-gray-600 font-medium text-sm">
@@ -306,14 +278,14 @@ function ArticleTags({ tags, navigation }) {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function ArticleDetailScreen({ navigation, route }) {
-  const { id, slug, article: passedArticle } = route.params;
+  const { id, slug, article: passedArticle } = route.params ?? {};
   const [article, setArticle] = useState(passedArticle || null);
   const [loading, setLoading] = useState(!passedArticle);
   const [likes, setLikes] = useState(passedArticle?.likes_count || 0);
   const [liked, setLiked] = useState(passedArticle?.user_liked || false);
   const [shares, setShares] = useState(passedArticle?.shares_count || 0);
   const [isAdminUser, setIsAdminUser] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); // Only admin, not moderator
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingArticle, setDeletingArticle] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -327,6 +299,17 @@ export default function ArticleDetailScreen({ navigation, route }) {
   const checkAdminStatus = useCallback(async () => {
     const adminStatus = await isAdminOrModerator();
     setIsAdminUser(adminStatus);
+    
+    // Check if user is specifically admin (not moderator)
+    try {
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setIsAdmin(user.role === 'admin');
+      }
+    } catch (error) {
+      console.error('Failed to check admin status:', error);
+    }
   }, []);
 
   const fetchCategories = useCallback(async () => {
@@ -468,7 +451,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
 
         // Bug #14 Fix: Add error handling for share API call
         try {
-          await client.post(`/api/articles/${article.id}/share`);
+          await client.post(`/api/articles/${article.id}/share`, {});
           showAuditToast("success", "Article shared successfully!");
         } catch (shareErr) {
           console.error("Error recording share:", shareErr);
@@ -487,13 +470,10 @@ export default function ArticleDetailScreen({ navigation, route }) {
   };
 
   const handleEdit = () => {
-    setShowMenu(false);
-    showArticleSuccessToast('edited');
     navigation.navigate("EditArticle", { articleId: article.id });
   };
 
   const handleDelete = () => {
-    setShowMenu(false);
     setShowDeleteModal(true);
   };
 
@@ -511,18 +491,41 @@ export default function ArticleDetailScreen({ navigation, route }) {
       console.log('  - Full article object:', JSON.stringify(article, null, 2));
       
       await deleteArticle(article.id);
-      showArticleSuccessToast('deleted');
+      
+      // Refresh articles list
+      try { 
+        await articleContext?.forceRefreshArticles?.(); 
+      } catch { /* non-critical */ }
+      
       setShowDeleteModal(false);
+      
+      // Navigate first, then show toast after navigation completes
       navigation.goBack();
+      
+      // Show toast after a short delay to ensure navigation completes
+      setTimeout(() => {
+        showArticleSuccessToast('deleted');
+      }, 300);
     } catch (error) {
       console.error("Error deleting article:", error);
       console.error("Error response:", error.response?.data);
       console.error("Error status:", error.response?.status);
       console.error("Request URL:", error.config?.url);
-      showArticleErrorToast('deleted');
       
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete article. Please try again.';
-      Alert.alert("Error", errorMessage);
+      // Check if it's a 404 error (article already deleted or doesn't exist)
+      if (error.response?.status === 404) {
+        // Article doesn't exist anymore, navigate back anyway
+        setShowDeleteModal(false);
+        navigation.goBack();
+        
+        setTimeout(() => {
+          showAuditToast("info", "Article was already deleted");
+        }, 300);
+      } else {
+        showArticleErrorToast('deleted');
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete article. Please try again.';
+        Alert.alert("Error", errorMessage);
+      }
     } finally {
       setDeletingArticle(false);
     }
@@ -573,8 +576,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
             article={article}
             navigation={navigation}
             isAdminUser={isAdminUser}
-            showMenu={showMenu}
-            setShowMenu={setShowMenu}
+            isAdmin={isAdmin}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />

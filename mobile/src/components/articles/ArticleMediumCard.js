@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,18 +18,30 @@ function ArticleMediumCard({
   onTagPress 
 }) {
   const badgeColor = getCategoryColor(category);
+  const menuBtnRef = useRef(null);
 
   return (
     <TouchableOpacity 
-      className="flex-row bg-white py-2 items-center mb-1" 
+      className="flex-row bg-white items-center mb-3 p-3 rounded-lg" 
+      style={{
+        shadowColor: "#075985",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 3,
+        marginHorizontal: 0,
+        marginTop: 4,
+        borderWidth: 1,
+        borderColor: "rgba(0,0,0,0.03)"
+      }}
       onPress={onPress} 
       activeOpacity={0.8}
     >
       {/* Image - Left Side */}
-      <View className="rounded-[10px] overflow-hidden bg-gray-100">
+      <View className="rounded-xl overflow-hidden bg-gray-100">
         <Image
           source={{ uri: getImageUri(image) }}
-          className="w-[110px] h-[110px]"
+          className="w-[100px] h-[100px]"
           resizeMode="cover"
         />
       </View>
@@ -47,9 +59,10 @@ function ArticleMediumCard({
             
             {/* Category Badge */}
             {category && (
-              <View 
+              <TouchableOpacity 
                 style={{ backgroundColor: badgeColor + '15' }} // 15% opacity
                 className="rounded-md px-2 py-0.5 self-start mb-2"
+                onPress={() => onTagPress && onTagPress(category)}
               >
                 <Text 
                   style={{ color: badgeColor }}
@@ -57,7 +70,7 @@ function ArticleMediumCard({
                 >
                   {category}
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Tags - Compact style for Medium Card */}
@@ -66,8 +79,7 @@ function ArticleMediumCard({
                 {hashtags.slice(0, 3).map((tag, index) => (
                   <TouchableOpacity 
                     key={index} 
-                    onPress={(e) => {
-                      e.stopPropagation();
+                    onPress={() => {
                       // Bug #19 Fix: Add null check before calling optional callback
                       if (onTagPress) {
                         onTagPress(tag.name || tag);
@@ -83,8 +95,7 @@ function ArticleMediumCard({
             {/* Meta Info */}
             <View className="flex-row items-center mt-1">
               <TouchableOpacity 
-                onPress={(e) => {
-                  e.stopPropagation();
+                onPress={() => {
                   // Bug #19 Fix: Add null check before calling optional callback
                   if (onAuthorPress) {
                     onAuthorPress();
@@ -100,10 +111,11 @@ function ArticleMediumCard({
           {/* Menu Dots - Far Right */}
           {onMenuPress && (
             <TouchableOpacity 
-              onPress={(e) => {
-                e.stopPropagation();
-                // Bug #19 Fix: Callback already checked above, safe to call
-                onMenuPress(e);
+              ref={menuBtnRef}
+              onPress={() => {
+                menuBtnRef.current?.measure((_fx, _fy, _w, h, px, py) => {
+                  onMenuPress({ px, py: py + h });
+                });
               }}
               className="p-2 -mr-2"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
