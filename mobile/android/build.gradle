@@ -18,6 +18,13 @@ allprojects {
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
   }
+  
+  // Fix for native module variant matching
+  configurations.all {
+    resolutionStrategy {
+      force 'com.facebook.react:react-native:0.76.0'
+    }
+  }
 }
 
 apply plugin: "expo-root-project"
