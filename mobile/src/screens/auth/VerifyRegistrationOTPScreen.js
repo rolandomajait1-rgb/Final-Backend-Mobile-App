@@ -83,7 +83,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
         <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
@@ -117,7 +117,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
                   <Ionicons name="close" size={24} color="#6b7280" />
                 </TouchableOpacity>
 
-                <Text className="text-center font-bold text-3xl text-black mb-2">Verify Email</Text>
+                <Text className="text-center font-bold text-4xl text-black mb-2">Verify Email</Text>
                 <Text className="text-center text-sm text-gray-500 mb-6">
                   Enter the 6-digit code sent to {email}
                 </Text>

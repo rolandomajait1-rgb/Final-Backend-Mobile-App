@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity,
-  ImageBackground, Image, StatusBar, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import { useToast } from '../../context/ToastContext';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -17,6 +19,8 @@ export default function VerifyEmailScreen({ navigation, route }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [verified, setVerified] = useState(false);
+  const { showToast } = useToast();
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     verifyEmail();
@@ -26,6 +30,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
     if (!token) {
       setError('Invalid verification link');
       setLoading(false);
+      showToast('Invalid verification link', 'error');
       return;
     }
 
@@ -34,8 +39,10 @@ export default function VerifyEmailScreen({ navigation, route }) {
         params: { token },
         headers: { Accept: 'application/json' },
       });
-      setMessage(response.data.message || 'Email verified successfully!');
+      const successMsg = response.data.message || 'Email verified successfully!';
+      setMessage(successMsg);
       setVerified(true);
+      showToast(successMsg, 'success');
       setTimeout(() => navigation.replace('Login'), 2000);
     } catch (err) {
       let msg = 'Email verification failed';
@@ -45,6 +52,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
         msg = 'Network error. Please check your connection.';
       }
       setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -52,51 +60,107 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
-      <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
-        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
+      {/* Background layer - same as LoginScreen */}
+      <View className="flex-1">
+        <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
+          {/* Dark blue overlay */}
+          <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1 justify-center px-6">
-          <View className="items-center mb-8">
-            <Image source={logo} style={{ width: 260, height: 150, marginBottom: 14 }} resizeMode="contain" />
-            <Image source={textlogo} style={{ width: 360, height: 54 }} resizeMode="contain" />
+          {/* Logo block - part of background */}
+          <View className="items-center mt-40">
+            <Image
+              source={logo}
+              style={{ width: 260, height: 150, marginBottom: 14, opacity: 0.3 }}
+              resizeMode="contain"
+            />
+            <Image
+              source={textlogo}
+              style={{ width: 360, height: 54 }}
+              resizeMode="contain"
+            />
+            <Text className="text-gray-300 text-lg text-center px-2 mt-2">
+              The Official Higher Education Student Publication of{'\n'}
+              La Verdad Christian College, Inc.
+            </Text>
           </View>
+        </ImageBackground>
 
-          <View className="rounded-3xl bg-white p-8">
-            {loading && (
-              <View className="items-center py-8">
-                <ActivityIndicator size="large" color="#f8b200" />
-                <Text className="text-center text-gray-600 mt-4">Verifying your email...</Text>
-              </View>
-            )}
+        {/* White spacer at the bottom */}
+        <View className="h-28 bg-sky-800" />
+      </View>
 
-            {!loading && verified && (
-              <View className="items-center">
-                <Ionicons name="checkmark-circle" size={64} color="#16a34a" style={{ marginBottom: 16 }} />
-                <Text className="text-center font-bold text-2xl text-green-700 mb-2">Email Verified!</Text>
-                <Text className="text-center text-gray-600 mb-6">{message}</Text>
-                <Text className="text-center text-sm text-gray-500">Redirecting to login...</Text>
-              </View>
-            )}
+      {/* Absolute overlay - card floats on top */}
+      <SafeAreaView className="absolute inset-0">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          className="flex-1"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            className="px-6"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+          >
 
-            {!loading && error && (
-              <View className="items-center">
-                <Ionicons name="close-circle" size={64} color="#dc2626" style={{ marginBottom: 16 }} />
-                <Text className="text-center font-bold text-2xl text-red-700 mb-2">Verification Failed</Text>
-                <Text className="text-center text-gray-600 mb-6">{error}</Text>
-                <TouchableOpacity
-                  onPress={() => navigation.replace('Login')}
-                  className="rounded-full py-3 px-8 items-center"
-                  style={{ backgroundColor: '#f8b200' }}
-                >
-                  <Text className="font-bold text-white">Go to Login</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </ImageBackground>
+            {/* Card */}
+            <View className="rounded-3xl bg-white mt-60 p-10">
+
+              {/* X close */}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Welcome')}
+                className="absolute top-4 right-4 z-10"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+
+              <Text className="text-center font-bold text-4xl text-black mb-2">Verify Email</Text>
+              <Text className="text-center text-sm text-gray-500 mb-6">
+                Verifying your email address...
+              </Text>
+
+              {loading && (
+                <View className="items-center py-8">
+                  <ActivityIndicator size="large" color="#f8b200" />
+                  <Text className="text-center text-gray-600 mt-4">Verifying your email...</Text>
+                </View>
+              )}
+
+              {!loading && verified && (
+                <View className="items-center">
+                  <Ionicons name="checkmark-circle" size={64} color="#16a34a" style={{ marginBottom: 16 }} />
+                  <Text className="text-center font-bold text-2xl text-green-700 mb-2">Email Verified!</Text>
+                  <Text className="text-center text-gray-600 mb-6">{message}</Text>
+                  <Text className="text-center text-sm text-gray-500">Redirecting to login...</Text>
+                </View>
+              )}
+
+              {!loading && error && (
+                <View className="items-center">
+                  <Ionicons name="close-circle" size={64} color="#dc2626" style={{ marginBottom: 16 }} />
+                  <Text className="text-center font-bold text-2xl text-red-700 mb-2">Verification Failed</Text>
+                  <Text className="text-center text-gray-600 mb-6">{error}</Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.replace('Login')}
+                    className="rounded-full py-4 items-center"
+                    style={{ backgroundColor: '#f8b200' }}
+                  >
+                    <Text className="font-bold text-white text-lg">Go to Login</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+            </View>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
