@@ -66,7 +66,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
     setLoading(true);
     setError('');
     try {
-      await client.post('/api/forgot-password', { email });
+      await client.post('/api/forgot-password', { email: email.trim() });
       setOtp('');
       setError('');
       showToast('OTP resent successfully! Check your email.', 'success');

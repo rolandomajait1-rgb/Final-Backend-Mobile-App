@@ -46,11 +46,14 @@ export default function LoginScreen({ navigation }) {
     setIsLoading(true);
     setErrors({});
     try {
-      const response = await client.post('/api/login', { email, password });
+      const response = await client.post('/api/login', { 
+        email: email.trim(), 
+        password 
+      });
       const { token, user } = response.data;
       await AsyncStorage.multiSet([
         ['auth_token', token],
-        ['user_email', email],
+        ['user_email', email.trim()],
         ['user_name', user.name],
         ['user_role', user?.role || 'user'],
         ['user_data', JSON.stringify(user)],
@@ -94,7 +97,7 @@ export default function LoginScreen({ navigation }) {
   const handleResend = async () => {
     setIsResending(true);
     try {
-      await client.post('/api/email/resend-verification', { email });
+      await client.post('/api/email/resend-verification', { email: email.trim() });
       setSuccessMessage('Verification email sent! Please check your inbox.');
       setShowResend(false);
       setErrors({});

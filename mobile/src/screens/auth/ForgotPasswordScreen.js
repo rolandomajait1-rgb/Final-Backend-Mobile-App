@@ -26,9 +26,9 @@ export default function ForgotPasswordScreen({ navigation }) {
     setLoading(true);
     setError('');
     try {
-      await client.post('/api/forgot-password', { email });
+      await client.post('/api/forgot-password', { email: email.trim() });
       // Navigate to OTP verification screen
-      navigation.navigate('VerifyOTP', { email });
+      navigation.navigate('VerifyOTP', { email: email.trim() });
     } catch (err) {
       let msg = 'Failed to send OTP. Please try again.';
       if (err.response?.data?.message) {
