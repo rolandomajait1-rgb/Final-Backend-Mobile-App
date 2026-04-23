@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -13,12 +13,21 @@ import client from '../../api/client';
 import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import { useToast } from '../../context/ToastContext';
 
 const SendFeedbackScreen = ({ navigation }) => {
   const [feedback, setFeedback] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const isMountedRef = useRef(true);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
@@ -28,18 +37,27 @@ const SendFeedbackScreen = ({ navigation }) => {
     setIsLoading(true);
     setError(null);
     try {
-      await client.post('/contact/feedback', { feedback });
-      setIsSubmitted(true);
-      setFeedback('');
-      setTimeout(() => {
-        navigation.goBack();
-      }, 2000);
+      await client.post('/api/contact/feedback', { feedback, email });
+      if (isMountedRef.current) {
+        showToast('Feedback sent successfully!', 'success');
+        setFeedback('');
+        setEmail('');
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            navigation.goBack();
+          }
+        }, 1500);
+      }
     } catch (err) {
       console.error('Error sending feedback:', err);
       const msg = err.response?.data?.message || 'Failed to send feedback. Please try again.';
-      setError(msg);
+      if (isMountedRef.current) {
+        setError(msg);
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -68,22 +86,43 @@ const SendFeedbackScreen = ({ navigation }) => {
       </View>
 
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        {isSubmitted ? (
-          <View className="flex-1 items-center justify-center py-16">
-            <Ionicons name="checkmark-circle" size={100} color="#0ea5e9" />
-            <Text className="text-[#0ea5e9] font-semibold text-center mt-4 text-lg">
-              Thank you for your feedback!
-            </Text>
-          </View>
-        ) : (
           <>
             {/* Subtitle */}
             <Text style={{ fontSize: 15, color: '#374151', marginBottom: 8 }}>
               Got suggestions? We&apos;d love to hear them!
             </Text>
 
+            {/* Email Input */}
+            <View className="mb-4">
+              <Text style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>
+                Email Address (Optional)
+              </Text>
+              <TextInput
+                style={{
+                  borderColor: '#D1D5DB',
+                  borderWidth: 1,
+                  borderRadius: 6,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  fontSize: 13,
+                  color: '#000',
+                  backgroundColor: '#fff',
+                }}
+                placeholder="your.email@example.com"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+            </View>
+
             {/* Feedback Input */}
             <View className="mb-6">
+              <Text style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>
+                Feedback / Suggestions
+              </Text>
               <TextInput
                 style={{
                   borderColor: '#D1D5DB',
@@ -141,9 +180,10 @@ const SendFeedbackScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </>
-        )}
       </ScrollView>
-      <BottomNavigation navigation={navigation} activeTab="PressHub" />
+      <View className="flex-shrink-0">
+        <BottomNavigation navigation={navigation} activeTab="PressHub" />
+      </View>
     </View>
   );
 };

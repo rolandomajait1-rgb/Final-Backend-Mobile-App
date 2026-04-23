@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,71 +8,76 @@ import {
   ScrollView,
   Alert,
   Image,
+  Linking,
 } from 'react-native';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import client from '../../api/client';
+import { BASE_URL } from '../../constants/config';
 import HomeHeader from '../homepage/HomeHeader';
-import { ErrorMessage } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import { ErrorMessage } from '../../components/common';
+import { colors } from '../../styles';
+import { useToast } from '../../context/ToastContext';
 
 const JoinHeraldScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     courseYear: '',
     gender: '',
+    email: '',
   });
   const [photo, setPhoto] = useState(null);           
   const [consentForm, setConsentForm] = useState(null); 
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const isMountedRef = useRef(true);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleDownloadConsentForm = async () => {
     try {
-      setIsDownloading(true);
+      // Google Drive link to the parental consent form
+      // Replace this with your actual Google Drive link
+      const googleDriveLink = 'https://drive.google.com/drive/folders/1YvBuoCi5IlB6IKOlBw9EB-lag_KPbL8g?usp=drive_link';
       
-      // Backend URL for the consent form
-      const consentFormUrl = 'https://final-backend-mobile-app-2-4sfz.onrender.com/api/download/parental-consent-form';
+      // Check if the link is valid
+      if (!googleDriveLink.includes('drive.google.com')) {
+        Alert.alert(
+          'Configuration Error',
+          'Google Drive link is not configured. Please contact support.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       
-      const fileUri = `${FileSystem.documentDirectory}parental-consent-form.pdf`;
-      
-      const downloadResult = await FileSystem.downloadAsync(consentFormUrl, fileUri);
-      
-      if (downloadResult.status === 200) {
-        // Check if sharing is available
-        const isSharingAvailable = await Sharing.isAvailableAsync();
-        
-        if (isSharingAvailable) {
-          await Sharing.shareAsync(downloadResult.uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: 'Save Parental Consent Form',
-            UTI: 'com.adobe.pdf',
-          });
-        } else {
-          Alert.alert(
-            'Download Complete',
-            'Consent form downloaded successfully. You can find it in your device files.',
-            [{ text: 'OK' }]
-          );
-        }
+      // Open the Google Drive link in browser
+      const canOpen = await Linking.canOpenURL(googleDriveLink);
+      if (canOpen) {
+        await Linking.openURL(googleDriveLink);
       } else {
-        throw new Error('Download failed');
+        Alert.alert(
+          'Cannot Open Link',
+          'Unable to open the consent form link. Please try again.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (err) {
-      console.error('Download error:', err);
+      console.error('Error opening consent form:', err);
       Alert.alert(
-        'Download Failed',
-        'Unable to download consent form. Please try again or contact support.',
+        'Error',
+        'Unable to open consent form. Please try again or contact support.',
         [{ text: 'OK' }]
       );
-    } finally {
-      setIsDownloading(false);
     }
   };
 
@@ -88,13 +93,21 @@ const JoinHeraldScreen = ({ navigation }) => {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
+        
+        // Check file size (5MB limit)
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+          Alert.alert('File Too Large', 'Photo must be less than 5MB.');
+          return;
+        }
+        
         setPhoto({
           uri: asset.uri,
           name: asset.fileName ?? `photo-${Date.now()}.jpg`,
@@ -114,10 +127,25 @@ const JoinHeraldScreen = ({ navigation }) => {
       });
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
+        
+        // Check file size (10MB limit for consent form)
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        if (fileInfo.size && fileInfo.size > 10 * 1024 * 1024) {
+          Alert.alert('File Too Large', 'Consent form must be less than 10MB.');
+          return;
+        }
+        
+        // Validate file type
+        const fileType = asset.mimeType ?? 'application/pdf';
+        if (!fileType.includes('pdf') && !fileType.includes('image')) {
+          Alert.alert('Invalid File Type', 'Please upload a PDF or image file.');
+          return;
+        }
+        
         setConsentForm({
-          uri:      asset.uri,
-          name:     asset.name,
-          mimeType: asset.mimeType ?? 'application/pdf',
+          uri: asset.uri,
+          name: asset.name,
+          type: fileType,
         });
       }
     } catch (_err) {
@@ -126,10 +154,19 @@ const JoinHeraldScreen = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.fullName.trim() || !formData.courseYear.trim() || !formData.gender.trim()) {
-      setError('Please fill in all required fields (Name, Course & Year, Gender).');
+    // Validate required fields
+    if (!formData.fullName.trim() || !formData.courseYear.trim() || !formData.gender.trim() || !formData.email.trim()) {
+      setError('Please fill in all required fields (Name, Course & Year, Gender, Email).');
       return;
     }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    
     if (!photo) {
       setError('Please upload your 1x1 photo.');
       return;
@@ -146,6 +183,7 @@ const JoinHeraldScreen = ({ navigation }) => {
       body.append('fullName',   formData.fullName.trim());
       body.append('courseYear', formData.courseYear.trim());
       body.append('gender',     formData.gender);
+      body.append('email',      formData.email.trim());
 
       body.append('photo', {
         uri:  photo.uri,
@@ -156,20 +194,41 @@ const JoinHeraldScreen = ({ navigation }) => {
       body.append('consentForm', {
         uri:  consentForm.uri,
         name: consentForm.name,
-        type: consentForm.mimeType,
+        type: consentForm.type,
       });
 
       await client.post('/api/contact/join-herald', body, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setIsSubmitted(true);
-      setTimeout(() => navigation.goBack(), 2500);
+      if (isMountedRef.current) {
+        showToast('Application submitted successfully!', 'success');
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            navigation.goBack();
+          }
+        }, 1500);
+      }
     } catch (err) {
       console.error('Error joining Herald:', err);
-      const msg = err.response?.data?.message || 'Failed to submit application. Please try again.';
-      setError(msg);
+      let msg = 'Failed to submit application. Please try again.';
+      
+      if (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') {
+        msg = 'Network error. Please check your connection and try again.';
+      } else if (err.response?.status === 422) {
+        msg = err.response?.data?.message || 'Please check your form inputs.';
+      } else if (err.response?.status === 413) {
+        msg = 'Files are too large. Please use smaller files.';
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      }
+      
+      if (isMountedRef.current) {
+        setError(msg);
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -190,22 +249,14 @@ const JoinHeraldScreen = ({ navigation }) => {
       {/* Header */}
       <View className="flex-row items-center px-5 py-4 bg-white">
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back-outline" size={26} color="#000" />
+          <Ionicons name="arrow-back-outline" size={26} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text className="flex-1 text-center" style={{ fontSize: 20, fontWeight: 'bold', color: '#000', marginRight: 26 }}>
+        <Text className="flex-1 text-center" style={{ fontSize: 20, fontWeight: 'bold', color: colors.text.primary, marginRight: 26 }}>
           Join The Herald
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        {isSubmitted ? (
-          <View className="flex-1 items-center justify-center py-16">
-            <Ionicons name="checkmark-circle" size={100} color="#0ea5e9" />
-            <Text className="text-[#0ea5e9] font-semibold text-center mt-4 text-lg">
-              Application Submitted!{"\n"}We&apos;ll be in touch soon.
-            </Text>
-          </View>
-        ) : (
           <>
             {/* Data Privacy Notice */}
             <View className="mb-4">
@@ -258,6 +309,26 @@ const JoinHeraldScreen = ({ navigation }) => {
                 placeholderTextColor="#9CA3AF"
                 value={formData.courseYear}
                 onChangeText={(v) => handleChange("courseYear", v)}
+                editable={!isLoading}
+              />
+            </View>
+
+            {/* Email Address */}
+            <View className="mb-5">
+              <Text style={{ fontSize: 14, color: "#374151", marginBottom: 6 }}>
+                Email Address
+              </Text>
+              <TextInput
+                style={{
+                  borderColor: '#D1D5DB', borderWidth: 1, borderRadius: 6,
+                  paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, color: '#000', backgroundColor: '#fff'
+                }}
+                placeholder="Enter email address"
+                placeholderTextColor="#9CA3AF"
+                value={formData.email}
+                onChangeText={(v) => handleChange("email", v)}
+                keyboardType="email-address"
+                autoCapitalize="none"
                 editable={!isLoading}
               />
             </View>
@@ -335,13 +406,13 @@ const JoinHeraldScreen = ({ navigation }) => {
                 disabled={isDownloading}
               >
                 {isDownloading ? (
-                  <ActivityIndicator size="small" color="#0ea5e9" />
+                  <ActivityIndicator size="small" color={colors.status.info} />
                 ) : (
                   <>
-                    <Text style={{ fontSize: 13, color: "#0ea5e9", fontWeight: "500", marginRight: 4 }}>
+                    <Text style={{ fontSize: 13, color: colors.status.info, fontWeight: "500", marginRight: 4 }}>
                       Download Consent Form
                     </Text>
-                    <Feather name="download" size={16} color="#0ea5e9" />
+                    <Feather name="download" size={16} color={colors.status.info} />
                   </>
                 )}
               </TouchableOpacity>
@@ -383,7 +454,7 @@ const JoinHeraldScreen = ({ navigation }) => {
               >
                 {consentForm ? (
                   <>
-                    <Feather name="file-text" size={32} color="#0ea5e9" style={{ marginBottom: 6 }} />
+                    <Feather name="file-text" size={32} color={colors.status.info} style={{ marginBottom: 6 }} />
                     <Text style={{ fontSize: 12, color: "#374151", textAlign: 'center', paddingHorizontal: 10 }}>{consentForm.name}</Text>
                   </>
                 ) : (
@@ -407,7 +478,7 @@ const JoinHeraldScreen = ({ navigation }) => {
             <View className="items-center mb-8">
               <TouchableOpacity
                 style={{
-                  backgroundColor: "#0ea5e9", borderRadius: 24,
+                  backgroundColor: colors.status.info, borderRadius: 24,
                   paddingVertical: 12, paddingHorizontal: 40,
                   flexDirection: "row", alignItems: "center", justifyContent: "center",
                   opacity: isLoading ? 0.7 : 1,
@@ -425,9 +496,8 @@ const JoinHeraldScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </>
-        )}
       </ScrollView>
-      <BottomNavigation navigation={navigation} activeTab="PressHub" />
+      <BottomNavigation navigation={navigation} activeTab="Home" />
     </View>
   );
 };

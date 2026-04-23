@@ -7,11 +7,12 @@ import SendFeedbackCard from './SendFeedbackCard';
 import RequestCoverageCard from './RequestCoverageCard';
 import JoinHeraldCard from './JoinHeraldCard';
 import OfficeInformationCard from './OfficeInformationCard';
+import { colors } from '../../styles';
 
 export default function PressHubScreen({ navigation }) {
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Header */}
       <HomeHeader
@@ -19,19 +20,20 @@ export default function PressHubScreen({ navigation }) {
         onCategorySelect={() => {}}
         onMenuPress={() => {}}
         onSearchPress={() => {}}
-        onGridPress={() => navigation.navigate('Main')}
+        onGridPress={() => navigation.navigate('Admin')}
         onSearch={() => {}}
         navigation={navigation}
+        enableSearch={false}
       />
 
       {/* Title Bar */}
       <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200">
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
 
         <View className="flex-1 items-center">
-          <Text className="text-xl font-bold text-gray-900">Press Hub</Text>
+          <Text className="text-2xl font-bold" style={{ color: colors.text.primary }}>Press Hub</Text>
         </View>
 
         <View style={{ width: 24 }} />
@@ -43,21 +45,13 @@ export default function PressHubScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* Welcome Section */}
-        <View className="mb-6 bg-blue-50 rounded-2xl p-6 border border-blue-200">
-          <Text className="text-2xl font-bold text-gray-900 mb-2">
-            Welcome to Press Hub
-          </Text>
-          <Text className="text-base text-gray-700 leading-6">
-            Your central resource for La Verdad Student Publications. Send feedback, request coverage, join the team, and more.
-          </Text>
-        </View>
-
         {/* Cards */}
-        <SendFeedbackCard />
-        <RequestCoverageCard />
-        <JoinHeraldCard />
-        <OfficeInformationCard />
+        <View className="gap-4">
+          <SendFeedbackCard />
+          <RequestCoverageCard />
+          <JoinHeraldCard />
+          <OfficeInformationCard />
+        </View>
       </ScrollView>
 
       {/* Bottom Navigation */}

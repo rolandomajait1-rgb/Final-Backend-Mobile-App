@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -6,13 +6,16 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
 import client from '../../api/client';
 import HomeHeader from '../homepage/HomeHeader';
 import { ErrorMessage } from '../../components/common';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import { useToast } from '../../context/ToastContext';
 
 const RequestCoverageScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -24,17 +27,63 @@ const RequestCoverageScreen = ({ navigation }) => {
     requesterName: '',
     designation: '',
     coordinator: '',
+    email: '',
   });
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState('date');
+  const isMountedRef = useRef(true);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const updateDateTimeString = (currentDate) => {
+    const formattedDate = currentDate.toLocaleDateString();
+    const formattedTime = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    handleChange('dateTime', `${formattedDate} ${formattedTime}`);
+  };
+
+  const onDateChange = (event, selectedDate) => {
+    if (event.type === 'dismissed') {
+      setShowPicker(false);
+      setPickerMode('date');
+      return;
+    }
+    
+    const currentDate = selectedDate || date;
+    setShowPicker(Platform.OS === 'ios');
+    setDate(currentDate);
+
+    if (pickerMode === 'date') {
+      if (Platform.OS === 'android') {
+        setPickerMode('time');
+        setShowPicker(true);
+      } else {
+        updateDateTimeString(currentDate);
+      }
+    } else {
+      updateDateTimeString(currentDate);
+      setPickerMode('date');
+    }
+  };
+
+  const showDateTimePicker = () => {
+    setPickerMode('date');
+    setShowPicker(true);
+  };
+
   const handleSubmit = async () => {
-    const requiredFields = ['eventName', 'purpose', 'location', 'dateTime', 'requesterName', 'designation'];
+    const requiredFields = ['eventName', 'purpose', 'location', 'dateTime', 'requesterName', 'designation', 'email'];
     const missingFields = requiredFields.filter(field => !formData[field].trim());
 
     if (missingFields.length > 0) {
@@ -45,17 +94,28 @@ const RequestCoverageScreen = ({ navigation }) => {
     setIsLoading(true);
     setError(null);
     try {
-      await client.post('/contact/request-coverage', formData);
-      setIsSubmitted(true);
-      setTimeout(() => {
-        navigation.goBack();
-      }, 2000);
+      await client.post('/api/contact/request-coverage', {
+        ...formData,
+        contactEmail: formData.email, // Map email to contactEmail for backend
+      });
+      if (isMountedRef.current) {
+        showToast('Request submitted successfully!', 'success');
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            navigation.goBack();
+          }
+        }, 1500);
+      }
     } catch (err) {
       console.error('Error requesting coverage:', err);
       const msg = err.response?.data?.message || 'Failed to submit request. Please try again.';
-      setError(msg);
+      if (isMountedRef.current) {
+        setError(msg);
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -84,14 +144,6 @@ const RequestCoverageScreen = ({ navigation }) => {
       </View>
 
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        {isSubmitted ? (
-          <View className="flex-1 items-center justify-center py-16">
-            <Ionicons name="checkmark-circle" size={100} color="#0ea5e9" />
-            <Text className="text-[#0ea5e9] font-semibold text-center mt-4 text-lg">
-              Thank you for your request!
-            </Text>
-          </View>
-        ) : (
           <>
             {/* NOTE Section */}
             <View className="mb-4">
@@ -106,12 +158,13 @@ const RequestCoverageScreen = ({ navigation }) => {
               { label: 'Name of the Event', field: 'eventName', placeholder: 'Enter event name...', multiline: false },
               { label: 'Purpose / Significance', field: 'purpose', placeholder: 'Enter purpose/significance here...', multiline: true },
               { label: 'Location', field: 'location', placeholder: 'Enter event location...', multiline: false },
-              { label: 'Date and Time *', field: 'dateTime', placeholder: 'Enter date and time', multiline: false, icon: 'calendar' },
+              { label: 'Date and Time *', field: 'dateTime', placeholder: 'Select date and time', multiline: false, icon: 'calendar', isDate: true },
               { label: 'Event Highlights', field: 'highlights', placeholder: 'Enter the main highlights of the event...', multiline: false },
               { label: 'Full Name of Requestor', field: 'requesterName', placeholder: 'Enter your name here', multiline: false },
-              { label: 'Designation', field: 'designation', placeholder: 'Enter your name here', multiline: false },
+              { label: 'Designation', field: 'designation', placeholder: 'Enter your designation here', multiline: false },
+              { label: 'Email Address', field: 'email', placeholder: 'Enter your email here', multiline: false, keyboardType: 'email-address' },
               { label: 'Organizer / Office Coordinator', field: 'coordinator', placeholder: "Enter Organizer's / Office Coordinator's name here.", multiline: false },
-            ].map(({ label, field, placeholder, multiline, icon }) => (
+            ].map(({ label, field, placeholder, multiline, icon, isDate }) => (
               <View key={field} className="mb-5">
                 <Text style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>
                   {label}
@@ -125,29 +178,62 @@ const RequestCoverageScreen = ({ navigation }) => {
                       style={{ position: 'absolute', left: 14, zIndex: 1 }}
                     />
                   )}
-                  <TextInput
-                    style={{
-                      borderColor: '#D1D5DB',
-                      borderWidth: 1,
-                      borderRadius: 6,
-                      paddingHorizontal: icon ? 38 : 14,
-                      paddingVertical: multiline ? 10 : 10,
-                      fontSize: 13,
-                      color: '#000',
-                      backgroundColor: '#fff',
-                      minHeight: multiline ? 100 : 42,
-                      textAlignVertical: multiline ? 'top' : 'center',
-                    }}
-                    placeholder={placeholder}
-                    placeholderTextColor="#9CA3AF"
-                    value={formData[field]}
-                    onChangeText={(value) => handleChange(field, value)}
-                    editable={!isLoading}
-                    multiline={multiline}
-                  />
+                  {isDate ? (
+                    <TouchableOpacity
+                      onPress={showDateTimePicker}
+                      disabled={isLoading}
+                      style={{
+                        borderColor: '#D1D5DB',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        paddingHorizontal: icon ? 38 : 14,
+                        paddingVertical: 14,
+                        backgroundColor: '#fff',
+                        justifyContent: 'center',
+                        minHeight: 42,
+                      }}
+                    >
+                      <Text style={{ color: formData[field] ? '#000' : '#9CA3AF', fontSize: 13 }}>
+                        {formData[field] || placeholder}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TextInput
+                      style={{
+                        borderColor: '#D1D5DB',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        paddingHorizontal: icon ? 38 : 14,
+                        paddingVertical: multiline ? 10 : 10,
+                        fontSize: 13,
+                        color: '#000',
+                        backgroundColor: '#fff',
+                        minHeight: multiline ? 100 : 42,
+                        textAlignVertical: multiline ? 'top' : 'center',
+                      }}
+                      placeholder={placeholder}
+                      placeholderTextColor="#9CA3AF"
+                      value={formData[field]}
+                      onChangeText={(value) => handleChange(field, value)}
+                      editable={!isLoading}
+                      multiline={multiline}
+                      keyboardType={field === 'email' ? 'email-address' : 'default'}
+                      autoCapitalize={field === 'email' ? 'none' : 'sentences'}
+                    />
+                  )}
                 </View>
               </View>
             ))}
+
+            {showPicker && (
+              <DateTimePicker
+                value={date}
+                mode={pickerMode}
+                is24Hour={false}
+                display="default"
+                onChange={onDateChange}
+              />
+            )}
 
             {/* Error Message */}
             {error && (
@@ -184,9 +270,10 @@ const RequestCoverageScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </>
-        )}
       </ScrollView>
-      <BottomNavigation navigation={navigation} activeTab="PressHub" />
+      <View className="flex-shrink-0">
+        <BottomNavigation navigation={navigation} activeTab="PressHub" />
+      </View>
     </View>
   );
 };
