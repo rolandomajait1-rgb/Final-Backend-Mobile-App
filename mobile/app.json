@@ -6,13 +6,26 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "laverdadherald",
+    "statusBar": {
+      "barStyle": "dark-content",
+      "hidden": false,
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.laverdadherald.app"
+      "bundleIdentifier": "com.laverdadherald.app",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "package": "com.laverdadherald.app",
       "softwareKeyboardLayoutMode": "pan",
+      "statusBar": {
+        "barStyle": "dark-content",
+        "hidden": false,
+        "backgroundColor": "#ffffff"
+      },
       "intentFilters": [
         {
           "action": "VIEW",
@@ -25,13 +38,42 @@
               "scheme": "exp"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "laverdadherald"
+            },
+            {
+              "scheme": "exp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
-      ]
+      ],
+      "runtimeVersion": "1.0.0"
     },
     "plugins": [
       "expo-asset",
-      "expo-font"
-    ]
+      "expo-font",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fb469747-9638-474f-b584-36626bfce0b6"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fb469747-9638-474f-b584-36626bfce0b6"
+    }
   }
 }
