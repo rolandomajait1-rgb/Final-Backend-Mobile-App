@@ -40,11 +40,12 @@ export default function RegisterScreen({ navigation }) {
   const validateForm = () => {
     const e = {};
     const pwRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+    const emailRegex = /^[^\s@]+@(student\.)?laverdad\.edu\.ph$/;
 
     if (!formData.name.trim()) e.name = ['Full name is required'];
     if (!formData.email.trim()) e.email = ['Email is required'];
-    else if (!formData.email.trim().endsWith('@student.laverdad.edu.ph'))
-      e.email = ['Only @student.laverdad.edu.ph emails are allowed'];
+    else if (!emailRegex.test(formData.email.trim()))
+      e.email = ['Only @laverdad.edu.ph or @student.laverdad.edu.ph emails are allowed'];
     
     if (!formData.password) e.password = ['Password is required'];
     else if (formData.password.length < 8) e.password = ['Password must be at least 8 characters'];

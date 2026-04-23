@@ -23,7 +23,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users|ends_with:@student.laverdad.edu.ph',
+            'email' => ['required', 'email', 'unique:users', 'regex:/^[^\s@]+@(student\.)?laverdad\.edu\.ph$/'],
             'password' => 'required|string|min:8|confirmed|regex:/[a-z]/|regex:/[A-Z]/|regex:/[0-9]/',
         ];
     }
@@ -36,7 +36,7 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.ends_with' => 'Only @student.laverdad.edu.ph email addresses are allowed to register.',
+            'email.regex' => 'Only @laverdad.edu.ph or @student.laverdad.edu.ph email addresses are allowed to register.',
             'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
             'password.min' => 'Password must be at least 8 characters long.',
         ];

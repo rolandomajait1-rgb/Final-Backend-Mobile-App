@@ -27,11 +27,11 @@ export default function LoginScreen({ navigation }) {
 
   const validate = () => {
     const e = {};
-    // Bug #15 Fix: Add proper email format validation with regex
-    const emailRegex = /^[^\s@]+@student\.laverdad\.edu\.ph$/;
+    // Accept both @student.laverdad.edu.ph and @laverdad.edu.ph
+    const emailRegex = /^[^\s@]+@(student\.)?laverdad\.edu\.ph$/;
     if (!email) e.email = 'Email is required';
     else if (!emailRegex.test(email))
-      e.email = 'Please enter a valid @student.laverdad.edu.ph email';
+      e.email = 'Please enter a valid @laverdad.edu.ph or @student.laverdad.edu.ph email';
     if (!password) e.password = 'Password is required';
     else if (password.length < 8) e.password = 'Password must be at least 8 characters';
     return e;

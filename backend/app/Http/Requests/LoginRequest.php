@@ -21,10 +21,10 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
-        // For web login, require laverdad email
+        // For web login, require laverdad email (both @laverdad.edu.ph and @student.laverdad.edu.ph)
         if ($this->is('login')) {
             return [
-                'email' => 'required|email|ends_with:@student.laverdad.edu.ph',
+                'email' => ['required', 'email', 'regex:/^[^\s@]+@(student\.)?laverdad\.edu\.ph$/'],
                 'password' => 'required',
             ];
         }
@@ -44,7 +44,7 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.ends_with' => 'Use a laverdad email addresses to access this system.',
+            'email.regex' => 'Use a @laverdad.edu.ph or @student.laverdad.edu.ph email address to access this system.',
         ];
     }
 }
