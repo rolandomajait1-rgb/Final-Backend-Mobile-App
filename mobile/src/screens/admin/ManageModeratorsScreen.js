@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import { showAuditToast, showModeratorSuccessToast, showModeratorErrorToast } from '../../utils/toastNotification';
 import client from '../../api/client';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ManageModeratorsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,8 +21,22 @@ export default function ManageModeratorsScreen({ navigation }) {
   const [selectedModerator, setSelectedModerator] = useState(null);
 
   useEffect(() => {
-    fetchCategories();
-    fetchModerators();
+    const checkRole = async () => {
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        if (user.role !== 'admin') {
+          navigation.replace('Admin');
+          return;
+        }
+      } else {
+        navigation.replace('Login');
+        return;
+      }
+      fetchCategories();
+      fetchModerators();
+    };
+    checkRole();
   }, []);
 
   const fetchCategories = async () => {
@@ -54,42 +70,32 @@ export default function ManageModeratorsScreen({ navigation }) {
     
     try {
       setAddLoading(true);
-      const res = await client.post('/api/admin/moderators', { email: newModEmail.trim() });
-      Alert.alert('Success', res.data.message || 'Moderator added successfully');
+      await client.post('/api/admin/moderators', { email: newModEmail.trim() });
+      showModeratorSuccessToast('added');
       setNewModEmail('');
       setShowAddForm(false);
       fetchModerators();
     } catch (err) {
       console.error('Error adding moderator:', err);
+      showModeratorErrorToast('added');
       const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to add moderator';
-      Alert.alert('Error', errorMsg);
+      showAuditToast('error', errorMsg);
     } finally {
       setAddLoading(false);
     }
   };
 
-  const handleRemoveModerator = (id, name) => {
-    Alert.alert(
-      'Manage Moderator',
-      `What would you like to do with ${name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Remove', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await client.delete(`/api/admin/moderators/${id}`);
-              Alert.alert('Success', 'Moderator removed successfully');
-              fetchModerators();
-            } catch (err) {
-              console.error('Error removing moderator:', err);
-              Alert.alert('Error', 'Failed to remove moderator');
-            }
-          }
-        }
-      ]
-    );
+  const handleRemoveModerator = async (moderator) => {
+    setSelectedModerator(null);
+    
+    try {
+      await client.delete(`/api/admin/moderators/${moderator.id}`);
+      showModeratorSuccessToast('removed');
+      fetchModerators();
+    } catch (err) {
+      console.error('Error removing moderator:', err);
+      showModeratorErrorToast('removed');
+    }
   };
 
   const filteredModerators = moderators.filter((mod) =>
@@ -233,7 +239,7 @@ export default function ManageModeratorsScreen({ navigation }) {
                   backgroundColor: '#0ea5e9',
                   width: '50%',
                   alignSelf: 'center',
-                  borderRadius: 30,
+                  borderRadius: 50,
                   height: 56,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -254,54 +260,7 @@ export default function ManageModeratorsScreen({ navigation }) {
           </View>
         </Modal>
 
-        {/* Action Menu Modal (for Remove) */}
-        <Modal
-          visible={!!selectedModerator}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setSelectedModerator(null)}
-        >
-          <Pressable 
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }}
-            onPress={() => setSelectedModerator(null)}
-          >
-            <View 
-              style={{ 
-                backgroundColor: 'white', 
-                borderRadius: 12, 
-                padding: 8, 
-                width: 200,
-                elevation: 10,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 5 },
-                shadowOpacity: 0.3,
-                shadowRadius: 10,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  const mod = selectedModerator;
-                  setSelectedModerator(null);
-                  handleRemoveModerator(mod.id, mod.name);
-                }}
-                style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  padding: 12,
-                  borderRadius: 8,
-                  backgroundColor: '#fff'
-                }}
-              >
-                <View style={{ width: 32, alignItems: 'center' }}>
-                  <Ionicons name="person-remove-outline" size={20} color="#ff4d4d" />
-                </View>
-                <Text style={{ color: '#ff4d4d', fontSize: 16, fontWeight: '600', marginLeft: 8 }}>
-                  Remove Mod
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Modal>
+        {/* Action Menu Modal (for Remove) - Removed, using inline dropdown instead */}
 
         {/* Moderators List */}
         <View className="px-5">
@@ -327,12 +286,68 @@ export default function ManageModeratorsScreen({ navigation }) {
                     <Text className="text-gray-500 italic text-[14px]">{moderator.email}</Text>
                   </View>
 
-                  <TouchableOpacity 
-                    className="p-2 -mr-2"
-                    onPress={() => setSelectedModerator(moderator)}
-                  >
-                    <Ionicons name="ellipsis-vertical" size={24} color="#075985" />
-                  </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity 
+                      className="p-2"
+                      onPress={() => setSelectedModerator(moderator)}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={20} color="#64748b" />
+                    </TouchableOpacity>
+
+                    {/* Dropdown Menu */}
+                    {selectedModerator?.id === moderator.id && (
+                      <>
+                        {/* Backdrop to close menu */}
+                        <Pressable
+                          style={{
+                            position: 'absolute',
+                            top: -1000,
+                            left: -1000,
+                            right: -1000,
+                            bottom: -1000,
+                            zIndex: 999,
+                          }}
+                          onPress={() => setSelectedModerator(null)}
+                        />
+                        
+                        {/* Menu */}
+                        <View 
+                          style={{ 
+                            position: 'absolute',
+                            top: 35,
+                            right: 0,
+                            backgroundColor: 'white',
+                            borderRadius: 12,
+                            padding: 8,
+                            width: 180,
+                            elevation: 10,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 5 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 10,
+                            zIndex: 1000,
+                          }}
+                        >
+                          <TouchableOpacity
+                            onPress={() => {
+                              handleRemoveModerator(selectedModerator);
+                            }}
+                            style={{ 
+                              flexDirection: 'row', 
+                              alignItems: 'center', 
+                              padding: 12,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Ionicons name="person-remove-outline" size={20} color="#ff4d4d" />
+                            <Text style={{ color: '#ff4d4d', fontSize: 16, fontWeight: '600', marginLeft: 12 }}>
+                              Remove Mod
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>

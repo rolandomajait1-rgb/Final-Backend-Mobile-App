@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import EnhancedGrowthChart from '../../components/admin/EnhancedGrowthChart';
@@ -19,6 +21,10 @@ import client from '../../api/client';
 const BRAND_BLUE       = '#2c6587';
 const BRAND_BLUE_ACCENT = '#2f7cf6';
 const BRAND_YELLOW     = '#f1a500';
+const MODERATOR_YELLOW = '#fbbf24'; // Yellow for moderator gradient (left)
+const MODERATOR_AMBER  = '#f59e0b'; // Amber for moderator gradient (right)
+const ADMIN_BLUE_LIGHT = '#3b82f6'; // Light blue for admin gradient (left)
+const ADMIN_BLUE_DARK  = '#1e40af'; // Dark blue for admin gradient (right)
 const VALUE_DARK       = '#0f172a';
 const SUCCESS_GREEN    = '#16a34a';
 const DANGER_RED       = '#ef4444';
@@ -29,11 +35,11 @@ const CARD_BORDER      = '#e2eaf4';
 const MUTED            = '#64748b';
 
 const CARD_SHADOW = {
-  elevation: 3,
-  shadowColor: '#1e3a5f',
-  shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.07,
-  shadowRadius: 10,
+  elevation: 6,
+  shadowColor: '#075985',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.06,
+  shadowRadius: 20,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,15 +53,20 @@ const QuickStat = ({ label, value }) => (
     style={{
       flex: 1,
       backgroundColor: CARD_BG,
-      borderRadius: 14,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: CARD_BORDER,
       paddingHorizontal: 16,
       paddingVertical: 18,
       justifyContent: 'space-between',
+      elevation: 4,
+      shadowColor: '#075985',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.04,
+      shadowRadius: 10,
     }}
   >
-    <Text style={{ fontSize: 15, color: '#1e3a5f', fontWeight: '800', marginBottom: 14, lineHeight: 22 }}>
+    <Text style={{ fontSize: 14, color: '#475569', fontWeight: '700', marginBottom: 14, lineHeight: 22 }}>
       {label}
     </Text>
     <Text style={{ fontSize: 17, fontWeight: '800', color: value && value.includes('-') ? DANGER_RED : '#00b800' }}>
@@ -77,11 +88,11 @@ const MetricTile = ({ label, value }) => (
       paddingHorizontal: 8,
       alignItems: 'center',
       justifyContent: 'center',
-      elevation: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
+      elevation: 4,
+      shadowColor: '#075985',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.04,
+      shadowRadius: 10,
     }}
   >
     <Text style={{ fontSize: 13, color: '#475569', fontWeight: '600', textAlign: 'center', marginBottom: 10 }}>
@@ -99,8 +110,14 @@ const StatGroup = ({ title, color, children }) => (
     style={{
       marginHorizontal: 16,
       marginBottom: 20,
-      borderWidth: 2,
+      borderTopWidth: 4,
       borderColor: color,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderBottomWidth: 1,
+      borderLeftColor: CARD_BORDER,
+      borderRightColor: CARD_BORDER,
+      borderBottomColor: CARD_BORDER,
       borderRadius: 18,
       padding: 16,
       backgroundColor: WHITE,
@@ -210,6 +227,9 @@ export default function AdminScreen({ navigation }) {
   const [refreshing, setRefreshing]   = useState(false);
   const [error, setError]             = useState(null);
 
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
+  const [isUserModerator, setIsUserModerator] = useState(false);
+
   const fetchCategories = useCallback(async () => {
     try {
       const res = await client.get('/api/categories');
@@ -239,6 +259,24 @@ export default function AdminScreen({ navigation }) {
     try {
       if (mode === 'refresh') { setRefreshing(true); } else if (mode === 'initial') { setLoading(true); }
       setError(null);
+      
+      // Check roles
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setIsUserAdmin(user.role === 'admin');
+        setIsUserModerator(user.role === 'moderator');
+        
+        // Block unauthorized access
+        if (user.role !== 'admin' && user.role !== 'moderator') {
+          navigation.replace('Main');
+          return;
+        }
+      } else {
+        navigation.replace('Login');
+        return;
+      }
+
       await Promise.all([fetchCategories(), fetchStats()]);
     } catch (e) {
       console.error('Dashboard load error:', e);
@@ -246,7 +284,7 @@ export default function AdminScreen({ navigation }) {
     } finally {
       if (mode === 'refresh') { setRefreshing(false); } else if (mode === 'initial') { setLoading(false); }
     }
-  }, [fetchCategories, fetchStats]);
+  }, [fetchCategories, fetchStats, navigation]);
 
   useEffect(() => {
     loadDashboard('initial');
@@ -257,9 +295,15 @@ export default function AdminScreen({ navigation }) {
   const growthPct   = Number(stats?.growthPct ?? 0);
   const platformUsage = (stats?.totalViews ?? 0) + (stats?.totalLikes ?? 0) + (stats?.totalShares ?? 0);
 
+  // Determine dashboard title and gradient colors based on role
+  const dashboardTitle = isUserModerator ? 'Moderator Dashboard' : 'Admin Dashboard';
+  const gradientColors = isUserModerator 
+    ? [MODERATOR_YELLOW, MODERATOR_AMBER]  // Yellow to Amber for moderator
+    : [ADMIN_BLUE_LIGHT, ADMIN_BLUE_DARK]; // Light blue to dark blue for admin
+
   return (
     <View style={{ flex: 1, backgroundColor: BG_PAGE }}>
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Header */}
       <View style={{ backgroundColor: '#fff' }}>
@@ -273,25 +317,26 @@ export default function AdminScreen({ navigation }) {
         />
       </View>
 
-      {/* Dashboard title bar */}
-      <View
+      {/* Dashboard title bar with gradient */}
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
         style={{
-          backgroundColor: BRAND_BLUE_ACCENT,
           paddingHorizontal: 20,
           paddingVertical: 13,
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center', // Center the content
+          justifyContent: 'center',
           position: 'relative',
         }}
       >
         <View style={{ alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 0.2 }}>
-            Admin Dashboard
+            {dashboardTitle}
           </Text>
         </View>
-
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={{ flex: 1 }}
@@ -492,11 +537,13 @@ export default function AdminScreen({ navigation }) {
                 label="Audit Trail"
                 onPress={() => navigation.navigate('AuditTrail')}
               />
-              <ActionCard
-                icon="people-outline"
-                label={`Manage\nModerators`}
-                onPress={() => navigation.navigate('ManageModerators')}
-              />
+              {isUserAdmin && (
+                <ActionCard
+                  icon="people-outline"
+                  label={`Manage\nModerators`}
+                  onPress={() => navigation.navigate('ManageModerators')}
+                />
+              )}
             </View>
           </>
         )}

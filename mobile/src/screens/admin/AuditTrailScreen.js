@@ -134,7 +134,7 @@ export default function AuditTrailScreen({ navigation }) {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
       <View className="flex-shrink-0 bg-white">
         <HomeHeader 
           navigation={navigation} 

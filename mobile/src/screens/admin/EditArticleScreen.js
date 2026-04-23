@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -32,7 +33,7 @@ const MAX_TAGS = 10;
 const MAX_TITLE_LENGTH = 200;
 
 export default function EditArticleScreen({ navigation, route }) {
-  const { articleId } = route.params;
+  const { articleId } = route.params ?? {};
   const { forceRefreshArticles } = useContext(ArticleContext);
 
   // ─── Form State ────────────────────────────────────────────────
@@ -52,16 +53,31 @@ export default function EditArticleScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [articleLoading, setArticleLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [isOnline, setIsOnline] = useState(null);
 
   useEffect(() => {
+    loadUserRole();
     loadCategories();
     loadArticle();
     checkConnection();
   }, [loadCategories, loadArticle, checkConnection]);
 
-  // ─── Load Article Data ─────────────────────────────────────────
+  // ─── Load User Role ────────────────────────────────────────────
+  const loadUserRole = async () => {
+    try {
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setUserRole(user.role);
+      }
+    } catch (error) {
+      console.error('Failed to load user role:', error);
+    }
+  };
+
+  // ─── Load Article Data ─────────────────────────────────────────_
   const loadArticle = useCallback(async () => {
     setArticleLoading(true);
     try {
@@ -224,7 +240,7 @@ export default function EditArticleScreen({ navigation, route }) {
           const shouldContinue = await new Promise((resolve) => {
             Alert.alert(
               'Image Upload Failed',
-              'Failed to upload image. Continue without updating image?',
+              `Error: ${uploadError.message}. Continue without updating image?`,
               [
                 { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
                 { text: 'Continue', onPress: () => resolve(true) }
@@ -271,15 +287,25 @@ export default function EditArticleScreen({ navigation, route }) {
       console.log('Update response:', res.data);
 
       // Refresh context so HomeScreen shows updated data on focus
-      try { await forceRefreshArticles(); } catch { /* non-critical */ }
+      try { 
+        await forceRefreshArticles(); 
+        console.log('Articles refreshed after edit');
+      } catch (err) { 
+        console.error('Failed to refresh articles:', err);
+      }
 
       setShowModal(false);
 
-      showAuditToast(
-        'success',
-        status === 'published' ? 'Article published successfully' : 'Article saved as draft successfully'
-      );
+      // Navigate first, then show toast after navigation completes
       navigation.navigate('Home');
+      
+      // Show toast after a short delay to ensure navigation completes
+      setTimeout(() => {
+        showAuditToast(
+          'success',
+          status === 'published' ? 'Article published successfully' : 'Article saved as draft successfully'
+        );
+      }, 300);
 
     } catch (error) {
       const msg = error.message || '';
@@ -331,7 +357,6 @@ export default function EditArticleScreen({ navigation, route }) {
   const handleSave = () => updateArticle('draft');
   const handleDiscard = () => { 
     setShowModal(false); 
-    showAuditToast('success', 'Changes discarded successfully');
     navigation.goBack(); 
   };
 
@@ -347,7 +372,7 @@ export default function EditArticleScreen({ navigation, route }) {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Top Navigation Header */}
       <HomeHeader
@@ -527,11 +552,15 @@ export default function EditArticleScreen({ navigation, route }) {
       <SaveDraftModal
         isOpen={showModal}
         onClose={() => !loading && setShowModal(false)}
-        onPublish={handlePublish}
+        onPublish={userRole === 'admin' ? handlePublish : null}
         onSave={handleSave}
         onDiscard={handleDiscard}
         isSaving={loading}
         title="Save Edit"
+        description={userRole === 'moderator' 
+          ? "As a moderator, you can save changes as draft. Only admins can publish."
+          : "Save your changes and come back to finish your article later."
+        }
       />
 
     </View>

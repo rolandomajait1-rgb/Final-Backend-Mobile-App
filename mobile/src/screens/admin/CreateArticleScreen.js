@@ -16,6 +16,7 @@ import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { isAuthenticated } from '../../utils/authUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import SaveDraftModal from '../../components/common/SaveDraftModal';
@@ -33,7 +34,7 @@ const MAX_TAGS = 10;
 const MAX_TITLE_LENGTH = 200;
 
 export default function CreateArticleScreen({ navigation }) {
-  const { refreshArticles } = useContext(ArticleContext);
+  const { forceRefreshArticles } = useContext(ArticleContext);
 
   // ─── Form State ────────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -52,10 +53,24 @@ export default function CreateArticleScreen({ navigation }) {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     loadCategories();
+    checkUserRole();
   }, []);
+
+  const checkUserRole = async () => {
+    try {
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setUserRole(user.role);
+      }
+    } catch (err) {
+      console.error('Error loading user role:', err);
+    }
+  };
 
   // ─── Load Categories ───────────────────────────────────────────
   const loadCategories = async () => {
@@ -176,7 +191,7 @@ export default function CreateArticleScreen({ navigation }) {
           const shouldContinue = await new Promise((resolve) => {
             Alert.alert(
               'Image Upload Failed',
-              'Failed to upload image. Continue without image?',
+              `Error: ${uploadError.message}. Continue without image?`,
               [
                 { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
                 { text: 'Continue', onPress: () => resolve(true) }
@@ -226,7 +241,13 @@ export default function CreateArticleScreen({ navigation }) {
       setTitle(''); setCategory(null); setTags([]);
       setContent(''); setImage(null); setAuthor('');
 
-      try { await refreshArticles(); } catch { /* non-critical */ }
+      // Force refresh articles immediately
+      try { 
+        await forceRefreshArticles(); 
+        console.log('Articles refreshed after publish');
+      } catch (err) { 
+        console.error('Failed to refresh articles:', err);
+      }
 
       showAuditToast(
         'success',
@@ -301,7 +322,7 @@ export default function CreateArticleScreen({ navigation }) {
   // ─── Render ────────────────────────────────────────────────────
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Top Navigation Header */}
       <HomeHeader
@@ -482,11 +503,15 @@ export default function CreateArticleScreen({ navigation }) {
       <SaveDraftModal
         isOpen={showModal}
         onClose={() => !loading && setShowModal(false)}
-        onPublish={handlePublish}
+        onPublish={userRole === 'admin' ? handlePublish : null}
         onSave={handleSave}
         onDiscard={handleDiscard}
         isSaving={loading}
         title="Save Article"
+        description={userRole === 'moderator' 
+          ? "As a moderator, you can save as draft. Only admins can publish."
+          : "Save your changes and come back to finish your article later."
+        }
       />
 
       <ImageUploadProgress visible={uploading} progress={uploadProgress} />

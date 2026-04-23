@@ -13,6 +13,8 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import client from '../../api/client';
+import { handleAuthorPress } from '../../utils/authorNavigation';
+
 
 
 // ── 10x Executive Palette ─────────────────────────────────────────────────────
@@ -266,7 +268,7 @@ export default function StatisticsScreen({ navigation }) {
                 <MetricBlock label="Total Shares" value={fmt(stats.totalShares)} icon="share-social" color={GOLD} />
               </View>
               <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
-                <MetricBlock label="Total Likes" value={fmt(stats.totalLikes)} icon="heart" color="#F43F5E" />
+                <MetricBlock label="Total Likes" value={fmt(stats.totalLikes)} icon="thumbs-up" color="#3b82f6" />
                 <MetricBlock label="Est. Interactions" value={fmt(Math.round((stats.totalViews ?? 0) * 0.12))} icon="pulse" color="#8B5CF6" />
               </View>
             </FadeInUp>
@@ -323,7 +325,9 @@ export default function StatisticsScreen({ navigation }) {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: TEXT_MAIN, fontSize: 14, fontWeight: '600', marginBottom: 4 }} numberOfLines={1}>{a.title}</Text>
-                        <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>{a.author_name || 'Staff Writer'}</Text>
+                        <TouchableOpacity onPress={() => handleAuthorPress(a, navigation)}>
+                          <Text style={{ color: TEXT_MUTED, fontSize: 12, textDecorationLine: 'underline' }}>{a.author_name || 'Staff Writer'}</Text>
+                        </TouchableOpacity>
                       </View>
                       <View style={{ backgroundColor: a.status === 'published' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(212, 175, 55, 0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: a.status === 'published' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(212, 175, 55, 0.2)' }}>
                         <Text style={{ color: a.status === 'published' ? GREEN_OK : GOLD, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' }}>{a.status}</Text>

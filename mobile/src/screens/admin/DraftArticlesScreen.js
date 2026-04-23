@@ -5,12 +5,15 @@ import { StatusBar } from 'expo-status-bar';
 import HomeHeader from '../homepage/HomeHeader';
 import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
 import { BottomNavigation, ArticleActionMenu } from '../../components/common';
+import SaveDraftModal from '../../components/common/SaveDraftModal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { formatTimeAgo } from '../../utils/dateUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../../api/client';
 import { deleteArticle } from '../../api/services/articleService';
 import { showAuditToast } from '../../utils/toastNotification';
+import { handleAuthorPress } from '../../utils/authorNavigation';
 
 export default function DraftArticlesScreen({ navigation }) {
   const [draftArticles, setDraftArticles] = useState([]);
@@ -23,11 +26,24 @@ export default function DraftArticlesScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingDraft, setDeletingDraft] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishingDraft, setPublishingDraft] = useState(false);
+  const [menuX, setMenuX] = useState(0);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
+    checkUserRole();
     fetchCategories();
     fetchDrafts();
   }, []);
+
+  const checkUserRole = async () => {
+    const userJson = await AsyncStorage.getItem('user_data');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      setUserRole(user.role);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -61,12 +77,10 @@ export default function DraftArticlesScreen({ navigation }) {
 
 // formatTime removed in favor of formatTimeAgo from dateUtils
 
-  const handleMenuPress = (article, event) => {
-    event.stopPropagation();
+  const handleMenuPress = (article, pos) => {
     setMenuArticle(article);
-    if (event?.nativeEvent?.pageY) {
-      setMenuY(event.nativeEvent.pageY + 10);
-    }
+    setMenuY(pos.py);
+    setMenuX(pos.px);
     setShowMenu(true);
   };
 
@@ -77,7 +91,37 @@ export default function DraftArticlesScreen({ navigation }) {
 
   const handlePublish = () => {
     setShowMenu(false);
-    navigation.navigate('PublishArticle', { articleId: menuArticle.id, isDraft: true });
+    setShowPublishModal(true);
+  };
+
+  const confirmPublish = async () => {
+    if (!menuArticle?.id || publishingDraft) return;
+    try {
+      setPublishingDraft(true);
+      // Fetch full article to ensure we pass all required fields back to the server
+      const res = await client.get(`/api/articles/id/${menuArticle.id}`);
+      const fullArticle = res.data;
+      
+      const payload = {
+        title: fullArticle.title,
+        content: fullArticle.content,
+        category: fullArticle.categories?.[0]?.name,
+        author: fullArticle.author_name || fullArticle.author?.name || fullArticle.author?.user?.name,
+        status: 'published',
+        tags: fullArticle.tags?.map(t => t.name).join(','),
+        _method: 'PUT'
+      };
+      
+      await client.post(`/api/articles/${menuArticle.id}`, payload);
+      setShowPublishModal(false);
+      showAuditToast('success', 'Article published successfully!');
+      fetchDrafts();
+    } catch (error) {
+      console.error('Error publishing draft:', error);
+      showAuditToast('error', 'Failed to publish draft. Please try again.');
+    } finally {
+      setPublishingDraft(false);
+    }
   };
 
   // Bug #8 Fix: Use toast + DeleteConfirmModal instead of Alert.alert
@@ -92,12 +136,32 @@ export default function DraftArticlesScreen({ navigation }) {
     try {
       setDeletingDraft(true);
       await deleteArticle(menuArticle.id);
+      
+      // Remove from local state immediately
+      setDraftArticles(prev => prev.filter(d => d.id !== menuArticle.id));
+      
       setShowDeleteModal(false);
       showAuditToast('success', 'Draft deleted successfully');
-      await fetchDrafts();
+      
+      // Refresh latest articles context
+      try {
+        const { forceRefreshArticles } = require('../../context/ArticleContext');
+        // Note: DraftArticlesScreen doesn't use ArticleContext, so we skip this
+      } catch (err) {
+        // Non-critical
+      }
     } catch (error) {
       console.error('Error deleting draft:', error);
-      showAuditToast('error', 'Failed to delete draft. Please try again.');
+      
+      // Check if it's a 404 error (draft already deleted)
+      if (error.response?.status === 404) {
+        // Remove from local state since it doesn't exist anymore
+        setDraftArticles(prev => prev.filter(d => d.id !== menuArticle.id));
+        setShowDeleteModal(false);
+        showAuditToast('info', 'Draft was already deleted');
+      } else {
+        showAuditToast('error', 'Failed to delete draft. Please try again.');
+      }
     } finally {
       setDeletingDraft(false);
     }
@@ -105,7 +169,7 @@ export default function DraftArticlesScreen({ navigation }) {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
       {/* Header */}
       <View className="flex-shrink-0">
         <HomeHeader
@@ -176,6 +240,7 @@ export default function DraftArticlesScreen({ navigation }) {
                 hashtags={article.tags}
                 onPress={() => navigation.navigate('EditArticle', { articleId: article.id })}
                 onMenuPress={(e) => handleMenuPress(article, e)}
+                onAuthorPress={() => handleAuthorPress(article, navigation)}
                 isDraft={true}
               />
             ))}
@@ -187,26 +252,29 @@ export default function DraftArticlesScreen({ navigation }) {
       <ArticleActionMenu
         visible={showMenu}
         y={menuY}
+        x={menuX}
         onClose={() => setShowMenu(false)}
         actions={[
-          {
+          // Only Admin can Publish
+          ...(userRole === 'admin' ? [{
             label: "Publish",
             icon: "cloud-upload-outline",
             color: "#10b981",
             onPress: handlePublish,
-          },
+          }] : []),
           {
             label: "Edit",
             icon: "create-outline",
             color: "#0284c7",
             onPress: handleEdit,
           },
-          {
+          // Only Admin can Delete
+          ...(userRole === 'admin' ? [{
             label: "Delete",
             icon: "trash-outline",
             color: "#ef4444",
             onPress: handleDelete,
-          },
+          }] : []),
         ]}
       />
 
@@ -218,6 +286,23 @@ export default function DraftArticlesScreen({ navigation }) {
         onCancel={() => {
           if (!deletingDraft) setShowDeleteModal(false);
         }}
+      />
+
+      {/* Publish Confirm Modal styled like SaveDraftModal */}
+      <SaveDraftModal
+        isOpen={showPublishModal}
+        onClose={() => {
+          if (!publishingDraft) setShowPublishModal(false);
+        }}
+        title="Publish Article"
+        description="Are you sure you want to publish this draft to the public?"
+        publishText="Publish"
+        discardText="Cancel"
+        onPublish={confirmPublish}
+        onDiscard={() => {
+          if (!publishingDraft) setShowPublishModal(false);
+        }}
+        isSaving={publishingDraft}
       />
 
       {/* Bottom Navigation */}

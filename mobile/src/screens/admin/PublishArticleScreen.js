@@ -32,7 +32,7 @@ export default function PublishArticleScreen({ route, navigation }) {
     featuredImageUrl,
   } = route.params ?? {};
 
-  const { refreshArticles } = useContext(ArticleContext);
+  const { forceRefreshArticles } = useContext(ArticleContext);
   const [loading, setLoading] = useState(false);
 
   const submitArticle = async (status) => {
@@ -60,7 +60,7 @@ export default function PublishArticleScreen({ route, navigation }) {
 
       await client.post('/api/articles', payload);
 
-      try { await refreshArticles(); } catch { /* non-critical */ }
+      try { await forceRefreshArticles(); } catch { /* non-critical */ }
 
       Alert.alert(
         'Success',
