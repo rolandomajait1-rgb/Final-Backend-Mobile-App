@@ -5,37 +5,41 @@ export default function AuditEntryItem({ log }) {
   const getStatusInfo = (action) => {
     const lowerAction = action?.toLowerCase() || "";
 
-    // Green - Published / Created / Added / New
+    // Green - Published / Created / Added / New (Only if NOT a draft)
     if (
-      lowerAction.includes("publish") || 
-      lowerAction.includes("create") || 
-      lowerAction.includes("add") || 
-      lowerAction.includes("new")
+      (lowerAction.includes("publish") || 
+       lowerAction.includes("create") || 
+       lowerAction.includes("add") || 
+       lowerAction.includes("new")) &&
+      !lowerAction.includes("draft")
     ) {
-      return { label: "Published", color: "#4ade80" };
+      return { label: "Published", color: "#10b981" }; // Emerald-500
     }
+
+    // Amber - Draft / Saved / Store (Prioritize this)
+    if (
+      lowerAction.includes("draft") || 
+      lowerAction.includes("save") || 
+      lowerAction.includes("store")
+    ) {
+      return { label: "Draft", color: "#fbbf24" }; // Amber-400
+    }
+
     // Blue - Edited / Updated / Modified
     if (
       lowerAction.includes("edit") || 
       lowerAction.includes("update") || 
       lowerAction.includes("modify")
     ) {
-      return { label: "Edited", color: "#0ea5e9" };
+      return { label: "Edited", color: "#0ea5e9" }; // Sky-500
     }
+
     // Red - Deleted / Removed
     if (
       lowerAction.includes("delete") || 
       lowerAction.includes("remove")
     ) {
-      return { label: "Deleted", color: "#ef4444" };
-    }
-    // Gold - Draft / Saved / Store
-    if (
-      lowerAction.includes("draft") || 
-      lowerAction.includes("save") || 
-      lowerAction.includes("store")
-    ) {
-      return { label: "Draft", color: "#f1c40f" };
+      return { label: "Deleted", color: "#ef4444" }; // Red-500
     }
     
     // Default to the action name formatted nicely if no match

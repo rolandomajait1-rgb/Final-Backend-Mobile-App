@@ -27,7 +27,7 @@ export default function BottomNavigation({ navigation, activeTab = 'Home' }) {
         <TouchableOpacity
           key={tab.name}
           onPress={() => navigation.navigate(tab.name)}
-          className="flex-1 items-center"
+          className="flex-1 items-center mb-2"
         >
           <Ionicons
             name={tab.icon}

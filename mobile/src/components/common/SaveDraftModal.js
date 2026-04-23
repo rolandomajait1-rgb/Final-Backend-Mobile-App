@@ -17,6 +17,10 @@ export default function SaveDraftModal({
   onDiscard,
   isSaving,
   title = "Save Edit",
+  description = "Save your changes and come back to finish your article later.",
+  publishText = "Publish",
+  saveText = "Save",
+  discardText = "Discard",
 }) {
   return (
     <Modal
@@ -33,39 +37,43 @@ export default function SaveDraftModal({
 
           <View style={styles.content}>
             <Text style={styles.title}>{title}</Text>
-            <Text style={styles.description}>
-              Save your changes and come back to finish your article later.
-            </Text>
+            <Text style={styles.description}>{description}</Text>
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.publishButton, isSaving && styles.disabledButton]}
-              onPress={onPublish}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.publishButtonText}>Publish</Text>
-              )}
-            </TouchableOpacity>
+            {onPublish && (
+              <TouchableOpacity
+                style={[styles.publishButton, isSaving && styles.disabledButton]}
+                onPress={onPublish}
+                disabled={isSaving}
+              >
+                {isSaving && !onSave && !onDiscard ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.publishButtonText}>{publishText}</Text>
+                )}
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.disabledButton]}
-              onPress={onSave}
-              disabled={isSaving}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
+            {onSave && (
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.disabledButton]}
+                onPress={onSave}
+                disabled={isSaving}
+              >
+                <Text style={styles.saveButtonText}>{saveText}</Text>
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity
-              style={[styles.discardButton, isSaving && styles.disabledButton]}
-              onPress={onDiscard}
-              disabled={isSaving}
-            >
-              <Text style={styles.discardButtonText}>Discard</Text>
-            </TouchableOpacity>
+            {onDiscard && (
+              <TouchableOpacity
+                style={[styles.discardButton, isSaving && styles.disabledButton]}
+                onPress={onDiscard}
+                disabled={isSaving}
+              >
+                <Text style={styles.discardButtonText}>{discardText}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
