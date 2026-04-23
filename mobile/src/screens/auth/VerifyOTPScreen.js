@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import { useToast } from '../../context/ToastContext';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -19,6 +20,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
   const [error, setError] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -35,11 +37,15 @@ export default function VerifyOTPScreen({ navigation, route }) {
     setError('');
     try {
       const response = await client.post('/api/verify-otp', { email, otp });
+      // Show success toast
+      showToast('OTP verified successfully!', 'success');
       // If OTP is valid, navigate to ResetPasswordScreen with token
-      navigation.replace('ResetPassword', {
-        token: response.data.token,
-        email,
-      });
+      setTimeout(() => {
+        navigation.replace('ResetPassword', {
+          token: response.data.token,
+          email,
+        });
+      }, 300);
     } catch (err) {
       let msg = 'Invalid OTP. Please try again.';
       if (err.response?.data?.message) {
@@ -50,6 +56,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
         msg = 'Network error. Please check your connection.';
       }
       setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -62,12 +69,14 @@ export default function VerifyOTPScreen({ navigation, route }) {
       await client.post('/api/forgot-password', { email });
       setOtp('');
       setError('');
+      showToast('OTP resent successfully! Check your email.', 'success');
     } catch (err) {
       let msg = 'Failed to resend OTP. Please try again.';
       if (err.response?.data?.message) {
         msg = err.response.data.message;
       }
       setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -75,30 +84,56 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
-      <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
-        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
+      {/* Background layer - same as LoginScreen */}
+      <View className="flex-1">
+        <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
+          {/* Dark blue overlay */}
+          <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-            <ScrollView
-              ref={scrollRef}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-              keyboardShouldPersistTaps="handled"
-              className="px-6 py-6"
-              keyboardDismissMode="interactive"
-            >
-              {/* Logo — hidden when keyboard is open */}
-              {!keyboardVisible && (
-                <View className="items-center mb-6">
-                  <Image source={logo} style={{ width: 260, height: 150, marginBottom: 14 }} resizeMode="contain" />
-                  <Image source={textlogo} style={{ width: 360, height: 54 }} resizeMode="contain" />
-                </View>
-              )}
+          {/* Logo block - part of background */}
+          <View className="items-center mt-40">
+            <Image
+              source={logo}
+              style={{ width: 260, height: 150, marginBottom: 14, opacity: 0.3 }}
+              resizeMode="contain"
+            />
+            <Image
+              source={textlogo}
+              style={{ width: 360, height: 54 }}
+              resizeMode="contain"
+            />
+            <Text className="text-gray-300 text-lg text-center px-2 mt-2">
+              The Official Higher Education Student Publication of{'\n'}
+              La Verdad Christian College, Inc.
+            </Text>
+          </View>
+        </ImageBackground>
 
-              {/* Card */}
-              <View className="rounded-3xl bg-white p-8">
+        {/* White spacer at the bottom */}
+        <View className="h-28 bg-sky-800" />
+      </View>
+
+      {/* Absolute overlay - card floats on top */}
+      <SafeAreaView className="absolute inset-0">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          className="flex-1"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            className="px-6"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+          >
+
+            {/* Card */}
+            <View className="rounded-3xl bg-white mt-60 p-10">
 
                 {/* X close */}
                 <TouchableOpacity
@@ -109,7 +144,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
                   <Ionicons name="close" size={24} color="#6b7280" />
                 </TouchableOpacity>
 
-                <Text className="text-center font-bold text-3xl text-black mb-2">Verify OTP</Text>
+                <Text className="text-center font-bold text-4xl text-black mb-2">Verify OTP</Text>
                 <Text className="text-center text-sm text-gray-500 mb-6">
                   Enter the 6-digit code sent to {email}
                 </Text>
@@ -122,10 +157,10 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
                 {/* OTP Input */}
                 <View className="mb-6">
-                  <Text className="mb-1 text-sm font-medium text-gray-700">OTP Code</Text>
+                  <Text className="mb-1 text-lg font-medium text-black">OTP Code</Text>
                   <TextInput
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 bg-white text-center text-2xl font-bold tracking-widest"
-                    style={{ color: '#1f2937', letterSpacing: 8 }}
+                    className="w-full rounded-md border px-4 py-3 bg-white/80 text-center text-2xl font-bold tracking-widest"
+                    style={{ color: '#1f2937', letterSpacing: 8, borderColor: error ? '#f87171' : '#d1d5db' }}
                     value={otp}
                     onChangeText={(v) => {
                       if (/^\d{0,6}$/.test(v)) {
@@ -146,7 +181,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
                   onPress={handleVerifyOTP}
                   disabled={loading || otp.length !== 6}
                   className="rounded-full py-4 items-center mb-4"
-                  style={{ backgroundColor: otp.length === 6 ? '#f8b200' : '#d1d5db' }}
+                  style={{ backgroundColor: otp.length === 6 ? '#0686f6ff' : '#d1d5db' }}
                 >
                   {loading
                     ? <ActivityIndicator color="white" size="small" />
@@ -156,7 +191,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
                 {/* Resend OTP */}
                 <View className="mt-4 flex-row justify-center">
-                  <Text className="text-sm text-gray-600">Didn't receive the code? </Text>
+                  <Text className="text-sm text-gray-600">Didn&apos;t receive the code? </Text>
                   <TouchableOpacity onPress={handleResendOTP} disabled={loading}>
                     <Text className="text-sm text-blue-600 font-medium">Resend</Text>
                   </TouchableOpacity>
@@ -170,10 +205,10 @@ export default function VerifyOTPScreen({ navigation, route }) {
                 </View>
 
               </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </ImageBackground>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }

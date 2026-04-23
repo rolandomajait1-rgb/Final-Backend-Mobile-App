@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,14 +27,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   // Sync params when they arrive via deep link
   useEffect(() => {
@@ -98,7 +91,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Background layer — same as LoginScreen */}
       <View className="flex-1">
@@ -152,7 +145,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
 
-              <Text className="text-center font-bold text-3xl text-black mb-6">Reset Password</Text>
+              <Text className="text-center font-bold text-4xl text-black mb-6">Reset Password</Text>
 
               {successMessage !== '' && (
                 <View className="mb-4 rounded-md border border-green-400 bg-green-300/40 p-3">
@@ -223,7 +216,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
                 onPress={handleSubmit}
                 disabled={isLoading}
                 className="rounded-full py-4 items-center"
-                style={{ backgroundColor: '#f8b200', width: 150, alignSelf: 'center' }}
+                style={{ backgroundColor: '#0686f6ff', width: 150, alignSelf: 'center' }}
               >
                 {isLoading
                   ? <ActivityIndicator color="white" size="small" />

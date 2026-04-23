@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,14 +16,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   const handleSubmit = async () => {
     if (!email) {
@@ -53,7 +46,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Background layer — same as LoginScreen */}
       <View className="flex-1">
@@ -100,14 +93,14 @@ export default function ForgotPasswordScreen({ navigation }) {
 
               {/* X close */}
               <TouchableOpacity
-                onPress={() => navigation.goBack()}
+                onPress={() => navigation.navigate('Welcome')}
                 className="absolute top-4 right-4 z-10"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
 
-              <Text className="text-center font-bold text-3xl text-black mb-2">Forgot Password?</Text>
+              <Text className="text-center font-bold text-4xl text-black mb-2">Forgot Password?</Text>
               <Text className="text-center text-sm text-gray-500 mb-6">
                 Enter your email and we&apos;ll send you a reset link.
               </Text>
@@ -157,7 +150,7 @@ export default function ForgotPasswordScreen({ navigation }) {
               <View className="mt-6 flex-row justify-center">
                 <Text className="text-lg text-black mb-1">Remember your password? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                  <Text className="text-lg text-blue-500">Sign in</Text>
+                  <Text className="text-lg text-blue-500">Log in</Text>
                 </TouchableOpacity>
               </View>
 
