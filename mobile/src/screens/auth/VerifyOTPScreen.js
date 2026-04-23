@@ -18,13 +18,12 @@ export default function VerifyOTPScreen({ navigation, route }) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
   const { showToast } = useToast();
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const show = Keyboard.addListener('keyboardDidShow', () => {});
+    const hide = Keyboard.addListener('keyboardDidHide', () => {});
     return () => { show.remove(); hide.remove(); };
   }, []);
 

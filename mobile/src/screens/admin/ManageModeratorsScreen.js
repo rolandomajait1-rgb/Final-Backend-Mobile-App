@@ -37,7 +37,7 @@ export default function ManageModeratorsScreen({ navigation }) {
       fetchModerators();
     };
     checkRole();
-  }, []);
+  }, [navigation]);
 
   const fetchCategories = async () => {
     try {

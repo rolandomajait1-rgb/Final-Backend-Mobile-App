@@ -1,9 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Linking from 'expo-linking';
 import { ActivityIndicator, View, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// FIX: Add timeout utility for AsyncStorage operations
+const asyncStorageWithTimeout = async (key, timeoutMs = 3000) => {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`AsyncStorage timeout for key: ${key}`));
+    }, timeoutMs);
+
+    AsyncStorage.getItem(key)
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+};
 import TabNavigator from './TabNavigator';
 import ArticleDetailScreen from '../screens/articles/ArticleDetailScreen';
 import SearchScreen from '../screens/articles/SearchScreen';
@@ -90,52 +109,119 @@ const linking = {
   },
 };
 
+// 1. Auth Stack
+const AuthStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Welcome" component={WelcomeScreen} />
+    <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen name="Register" component={RegisterScreen} />
+    <Stack.Screen name="VerifyRegistrationOTP" component={VerifyRegistrationOTPScreen} />
+    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+    <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
+    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+  </Stack.Navigator>
+);
+
+// 2. Admin & PressHub Stack
+const ManagementStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Admin" component={AdminScreen} />
+    <Stack.Screen name="Statistics" component={StatisticsScreen} />
+    <Stack.Screen name="DraftArticles" component={DraftArticlesScreen} />
+    <Stack.Screen name="ManageModerators" component={ManageModeratorsScreen} />
+    <Stack.Screen name="AuditTrail" component={AuditTrailScreen} />
+    <Stack.Screen name="CreateArticle" component={CreateArticleScreen} />
+    <Stack.Screen name="EditArticle" component={EditArticleScreen} />
+    <Stack.Screen name="PublishArticle" component={PublishArticleScreen} />
+    <Stack.Screen name="PublishEdit" component={PublishEditScreen} />
+    <Stack.Screen name="SendFeedback" component={SendFeedbackScreen} />
+    <Stack.Screen name="RequestCoverage" component={RequestCoverageScreen} />
+    <Stack.Screen name="JoinHerald" component={JoinHeraldScreen} />
+  </Stack.Navigator>
+);
+
+// 3. Article Detail Stack
+const ArticleDetailStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+    <Stack.Screen name="TagArticles" component={TagArticlesScreen} />
+    <Stack.Screen name="AuthorProfile" component={AuthorProfileScreen} />
+    <Stack.Screen name="NewsScreen" component={NewsScreenRN} />
+    <Stack.Screen name="LiteraryScreen" component={LiteraryScreen} />
+    <Stack.Screen name="OpinionScreen" component={OpinionScreen} />
+    <Stack.Screen name="SportsScreen" component={SportsScreen} />
+    <Stack.Screen name="FeaturesScreen" component={FeaturesScreen} />
+    <Stack.Screen name="SpecialsScreen" component={SpecialsScreen} />
+    <Stack.Screen name="ArtScreen" component={ArtScreen} />
+  </Stack.Navigator>
+);
+
 export default function AppNavigator() {
-  // Issue #1 Fix: Auto-login — check for existing auth session on app launch.
-  // If a valid token exists, skip Welcome and go straight to Main.
   const [initialRoute, setInitialRoute] = useState(null);
+  const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
     const checkAuth = async () => {
+      // FIX: Use timeout wrapper and handle errors gracefully
+      // This prevents the app from hanging indefinitely on cold start
       try {
-        const token = await AsyncStorage.getItem('auth_token');
+        // Check token with timeout - default to Auth if timeout
+        const token = await asyncStorageWithTimeout('auth_token', 2000);
         if (!token) {
-          setInitialRoute('Welcome');
+          setInitialRoute('Auth');
           return;
         }
-        // If user didn't check "Remember Me", clear session on app restart
-        const rememberMe = await AsyncStorage.getItem('remember_me');
+
+        // Check rememberMe with timeout
+        const rememberMe = await asyncStorageWithTimeout('remember_me', 1000);
         if (rememberMe === 'false') {
-          await AsyncStorage.multiRemove([
+          // Use timeout for multiRemove as well
+          const removePromise = AsyncStorage.multiRemove([
             'auth_token', 'user_email', 'user_name',
             'user_role', 'user_data', 'remember_me',
           ]);
-          setInitialRoute('Welcome');
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('multiRemove timeout')), 2000)
+          );
+          await Promise.race([removePromise, timeoutPromise]).catch(() => {});
+          setInitialRoute('Auth');
         } else {
-          setInitialRoute('Main');
+          setInitialRoute('MainApp');
         }
-      } catch {
-        setInitialRoute('Welcome');
+      } catch (err) {
+        console.warn('[AppNavigator] Auth check failed (timeout or error):', err.message);
+        // FIX: Default to Auth on any error - user can always log in
+        setInitialRoute('Auth');
       }
     };
-    checkAuth();
-  }, []);
 
-  const navigationRef = useNavigationContainerRef();
+    // FIX: Add a fallback timeout to ensure we always set initialRoute
+    const fallbackTimeout = setTimeout(() => {
+      console.warn('[AppNavigator] Auth check fallback timeout - defaulting to Auth');
+      setInitialRoute((prev) => {
+        if (prev === null) {
+          return 'Auth';
+        }
+        return prev;
+      });
+    }, 5000);
+
+    checkAuth().finally(() => clearTimeout(fallbackTimeout));
+  }, []);
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('LOGOUT', () => {
       if (navigationRef.isReady()) {
         navigationRef.reset({
           index: 0,
-          routes: [{ name: 'Login' }],
+          routes: [{ name: 'Auth', state: { routes: [{ name: 'Login' }] } }],
         });
       }
     });
     return () => subscription.remove();
   }, [navigationRef]);
 
-  // Show a branded loading spinner while checking auth state
   if (!initialRoute) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#2C5F7F' }}>
@@ -148,15 +234,10 @@ export default function AppNavigator() {
     <ArticleProvider>
       <NavigationContainer ref={navigationRef} linking={linking} fallback={<WelcomeScreen />}>
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="VerifyRegistrationOTP" component={VerifyRegistrationOTPScreen} />
-          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
-          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-          <Stack.Screen name="Main" component={TabNavigator} />
+          <Stack.Screen name="Auth" component={AuthStack} />
+          <Stack.Screen name="MainApp" component={TabNavigator} />
+          <Stack.Screen name="Management" component={ManagementStack} />
+          <Stack.Screen name="ArticleStack" component={ArticleDetailStack} />
           <Stack.Screen 
             name="Search" 
             component={SearchScreen}
@@ -164,28 +245,6 @@ export default function AppNavigator() {
               animationEnabled: false,
             }}
           />
-          <Stack.Screen name="Admin" component={AdminScreen} />
-          <Stack.Screen name="Statistics" component={StatisticsScreen} />
-          <Stack.Screen name="DraftArticles" component={DraftArticlesScreen} />
-          <Stack.Screen name="AuditTrail" component={AuditTrailScreen} />
-          <Stack.Screen name="ManageModerators" component={ManageModeratorsScreen} />
-          <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
-          <Stack.Screen name="CreateArticle" component={CreateArticleScreen} />
-          <Stack.Screen name="EditArticle" component={EditArticleScreen} />
-          <Stack.Screen name="PublishArticle" component={PublishArticleScreen} />
-          <Stack.Screen name="PublishEdit" component={PublishEditScreen} />
-          <Stack.Screen name="SendFeedback" component={SendFeedbackScreen} />
-          <Stack.Screen name="RequestCoverage" component={RequestCoverageScreen} />
-          <Stack.Screen name="JoinHerald" component={JoinHeraldScreen} />
-          <Stack.Screen name="NewsScreen" component={NewsScreenRN} />
-          <Stack.Screen name="LiteraryScreen" component={LiteraryScreen} />
-          <Stack.Screen name="OpinionScreen" component={OpinionScreen} />
-          <Stack.Screen name="SportsScreen" component={SportsScreen} />
-          <Stack.Screen name="FeaturesScreen" component={FeaturesScreen} />
-          <Stack.Screen name="SpecialsScreen" component={SpecialsScreen} />
-          <Stack.Screen name="ArtScreen" component={ArtScreen} />
-          <Stack.Screen name="TagArticles" component={TagArticlesScreen} />
-          <Stack.Screen name="AuthorProfile" component={AuthorProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </ArticleProvider>

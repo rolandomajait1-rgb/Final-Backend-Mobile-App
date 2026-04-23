@@ -330,7 +330,7 @@ export default function CategoryScreen({
                   hashtags={item.tags?.map((t) => t.name) ?? []}
                   onPress={() => handleArticlePress(item)}
                   onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
-                  onTagPress={(tagName) => navigation.navigate('TagArticles', { tagName })}
+                  onTagPress={handleTagPress}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
                 />
               </View>
@@ -392,7 +392,7 @@ export default function CategoryScreen({
                   hashtags={item.tags?.map((t) => t.name) ?? []}
                   onPress={() => handleArticlePress(item)}
                   onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
-                  onTagPress={(tagName) => navigation.navigate('TagArticles', { tagName })}
+                  onTagPress={handleTagPress}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
                 />
               </View>

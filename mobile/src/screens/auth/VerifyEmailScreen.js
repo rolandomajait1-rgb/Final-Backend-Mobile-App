@@ -22,11 +22,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
   const { showToast } = useToast();
   const scrollRef = useRef(null);
 
-  useEffect(() => {
-    verifyEmail();
-  }, []);
-
-  const verifyEmail = async () => {
+  const verifyEmail = useCallback(async () => {
     if (!token) {
       setError('Invalid verification link');
       setLoading(false);
@@ -56,7 +52,11 @@ export default function VerifyEmailScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, navigation, showToast]);
+
+  useEffect(() => {
+    verifyEmail();
+  }, [verifyEmail]);
 
   return (
     <View className="flex-1">
@@ -105,7 +105,6 @@ export default function VerifyEmailScreen({ navigation, route }) {
             className="px-6"
             keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
-            enableOnAndroid={true}
           >
 
             {/* Card */}

@@ -9,14 +9,17 @@ const CACHE_KEY = 'cached_latest_articles';
 const MIN_REFETCH_INTERVAL_MS = 500; // Reduced from 3000ms for faster updates
 const RETRY_DELAY_MS = 3000;
 
-// Bug #2 & #11 Fix: Add AbortController for backend wake-up with proper error handling
+// FIX: Reduce backend wake-up timeout and make it non-blocking
+// 3 seconds is enough for most cases, and we don't want to block app startup
 const wakeUpBackend = () => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-  
-  fetch(`${BASE_URL}/api/health`, { 
+  const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced from 5s to 3s
+
+  fetch(`${BASE_URL}/api/health`, {
     method: 'GET',
-    signal: controller.signal 
+    signal: controller.signal,
+    // FIX: Add cache-bust to avoid cached responses
+    cache: 'no-store',
   })
     .then(() => {
       clearTimeout(timeoutId);
@@ -26,9 +29,8 @@ const wakeUpBackend = () => {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
         console.log('[ArticleContext] Backend wake-up timed out (server may be cold starting)');
-      } else {
-        console.log('[ArticleContext] Backend wake-up ping sent (may still be starting)');
       }
+      // Silent fail - we don't want to block app startup
     });
 };
 
@@ -62,8 +64,8 @@ export function ArticleProvider({ children }) {
     } catch (_) {}
   }, []);
 
-  // Bug #4 Fix: Improved fetch with abort controller to prevent race conditions
-  const fetchLatestArticles = useCallback(async (retries = 2) => {
+  // Bug #4 & #11 Fix: Improved fetch with abort controller and smart retry logic
+  const fetchLatestArticles = useCallback(async (retries = 1, bypassCooldown = false) => {
     if (fetchingRef.current) {
       // Cancel previous request if still in flight
       if (abortControllerRef.current) {
@@ -72,15 +74,19 @@ export function ArticleProvider({ children }) {
     }
 
     const now = Date.now();
-    if (now - lastFetchRef.current < MIN_REFETCH_INTERVAL_MS && retries === 2) {
+    if (!bypassCooldown && now - lastFetchRef.current < MIN_REFETCH_INTERVAL_MS && retries === 1) {
       return; // cooldown only for initial calls, not retries
     }
 
     fetchingRef.current = true;
     abortControllerRef.current = new AbortController();
-    
+
     try {
-      const res = await getLatestArticles({ signal: abortControllerRef.current.signal });
+      // FIX: Add timeout to the actual API call (30 seconds max)
+      const res = await Promise.race([
+        getLatestArticles({ signal: abortControllerRef.current.signal }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 30000)),
+      ]);
       const data = res.data ?? [];
       setLatestArticles(data);
       setError(null);
@@ -92,20 +98,39 @@ export function ArticleProvider({ children }) {
         return;
       }
 
-      const isNetworkError =
-        err.message === 'Network Error' ||
-        err.code === 'ERR_NETWORK' ||
-        err.message?.includes('timeout');
+      // FIX: Only retry once, and only for network errors
+      const shouldRetry = () => {
+        if (retries <= 0) return false;
 
-      if (isNetworkError && retries > 0) {
-        console.log(`[ArticleContext] Network error — retrying in ${RETRY_DELAY_MS / 1000}s… (${retries} left)`);
+        // Network errors - retry once
+        if (
+          err.message === 'Network Error' ||
+          err.code === 'ERR_NETWORK' ||
+          err.code === 'ECONNABORTED' ||
+          err.message?.includes('timeout')
+        ) {
+          return true;
+        }
+
+        // HTTP errors - only retry 5xx (server errors)
+        if (err.response?.status) {
+          const status = err.response.status;
+          return status >= 500 && status < 600;
+        }
+
+        return false;
+      };
+
+      if (shouldRetry()) {
+        console.log(`[ArticleContext] Retrying... (${retries} left)`);
         fetchingRef.current = false;
-        setTimeout(() => fetchLatestArticles(retries - 1), RETRY_DELAY_MS);
+        setTimeout(() => fetchLatestArticles(retries - 1, true), RETRY_DELAY_MS);
         return;
       }
 
       // Keep showing cached data — don't clear it on error
-      console.error('[ArticleContext] Fetch failed:', err.message);
+      console.warn('[ArticleContext] Fetch failed:', err.message);
+      // Only show error if we have no cached data
       if (latestArticles.length === 0) {
         setError('Unable to load articles. Please check your connection.');
       }

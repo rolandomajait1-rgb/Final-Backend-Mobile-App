@@ -2,6 +2,7 @@
   "expo": {
     "name": "La Verdad Herald",
     "slug": "laverdadherald",
+    "icon": "./assets/icon.png",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
     "userInterfaceStyle": "automatic",
@@ -19,7 +20,15 @@
       "url": "https://u.expo.dev/fb469747-9638-474f-b584-36626bfce0b6"
     },
     "android": {
-      "package": "com.landzki.laverdadherald"
+      "package": "com.landzki.laverdadherald",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2C5F7F"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.landzki.laverdadherald",
+      "supportsTablet": true
     }
   }
 }

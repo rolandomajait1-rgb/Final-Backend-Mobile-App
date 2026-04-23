@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 
 import { BASE_URL } from '../constants/config';
+import { logError } from '../utils/logger';
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -87,6 +88,8 @@ client.interceptors.response.use(
         // Refresh failed, logout user
         await AsyncStorage.multiRemove(['auth_token', 'refresh_token']);
         DeviceEventEmitter.emit('LOGOUT');
+        // Security #1 Fix: Use sanitized logging
+        logError('Token refresh failed:', refreshError);
         return Promise.reject(refreshError);
       }
 

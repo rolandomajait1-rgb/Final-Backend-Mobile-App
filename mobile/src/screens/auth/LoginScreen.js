@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logError } from '../../utils/logger';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -102,7 +103,8 @@ export default function LoginScreen({ navigation }) {
       setShowResend(false);
       setErrors({});
     } catch (error) {
-      console.error('Resend verification error:', error);
+      // Security #1 Fix: Use sanitized logging
+      logError('Resend verification error:', error);
       const errorMsg = error.response?.data?.message || 'Failed to resend verification email. Please try again.';
       setErrors({ general: errorMsg });
     } finally {

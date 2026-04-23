@@ -16,7 +16,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import client from '../../api/client';
-import { BASE_URL } from '../../constants/config';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import { ErrorMessage } from '../../components/common';
@@ -45,6 +44,7 @@ const JoinHeraldScreen = ({ navigation }) => {
   }, []);
 
   const handleDownloadConsentForm = async () => {
+    setIsDownloading(true);
     try {
       // Google Drive link to the parental consent form
       // Replace this with your actual Google Drive link
@@ -78,6 +78,8 @@ const JoinHeraldScreen = ({ navigation }) => {
         'Unable to open consent form. Please try again or contact support.',
         [{ text: 'OK' }]
       );
+    } finally {
+      setIsDownloading(false);
     }
   };
 

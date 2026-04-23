@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { useToast } from '../../context/ToastContext';
+import { logError } from '../../utils/logger';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -100,7 +101,8 @@ export default function RegisterScreen({ navigation }) {
       } else if (error.response?.data?.message) {
         setErrors({ general: error.response.data.message });
       } else {
-        console.log('Registration error:', error);
+        // Security #1 Fix: Use sanitized logging
+        logError('Registration error:', error);
         setErrors({ general: error.message || 'Registration failed. Please try again.' });
       }
     } finally {

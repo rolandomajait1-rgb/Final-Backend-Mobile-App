@@ -86,7 +86,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
       <StatusBar hidden={false} />
 
       <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
-        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(8, 30, 39, 0.63)' }} />
+        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 105, 146, 1)' }} />
 
         <SafeAreaView className="flex-1">
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
@@ -182,7 +182,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
                     <Text className="text-sm text-blue-600">Back to Register</Text>
                   </TouchableOpacity>
                 </View>
-
+                <View className="h-28 bg-sky-800" />
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
