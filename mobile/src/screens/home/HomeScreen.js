@@ -10,6 +10,7 @@ import { getArticles } from '../../api/services/articleService';
 import { getCategories } from '../../api/services/categoryService';
 import { colors } from '../../styles';
 import { Ionicons } from '@expo/vector-icons';
+import { handleAuthorPress } from '../../utils/authorNavigation';
 
 export default function HomeScreen({ navigation }) {
   const { latestArticles, historicalArticles, refreshArticles } = useArticles();
@@ -115,7 +116,7 @@ export default function HomeScreen({ navigation }) {
                 <TouchableOpacity
                   key={article.id}
                   onPress={() => navigation.navigate('ArticleDetail', { id: article.id, slug: article.slug })}
-                  className="rounded-2xl overflow-hidden bg-blue-200 h-56 relative"
+                  className="rounded-xl overflow-hidden bg-blue-200 h-56 relative"
                 >
                   <View className="absolute top-3 right-3 z-10">
                     <Ionicons name="ellipsis-vertical" size={20} color="#9CA3AF" />
@@ -152,7 +153,9 @@ export default function HomeScreen({ navigation }) {
                       <Text className="text-xs font-semibold text-green-600 mb-1 uppercase">{article.category.name}</Text>
                     )}
                     <View className="flex-row items-center gap-2">
-                      <Text className="text-xs text-gray-600">{article.author?.name || 'Unknown Author'}</Text>
+                      <TouchableOpacity onPress={() => handleAuthorPress(article, navigation)}>
+                        <Text className="text-xs text-gray-600 underline">{article.author?.name || 'Unknown Author'}</Text>
+                      </TouchableOpacity>
                       <Text className="text-xs text-gray-500">1hr ago</Text>
                     </View>
                   </View>

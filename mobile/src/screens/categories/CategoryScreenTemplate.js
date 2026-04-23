@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,15 @@ import {
   RefreshControl,
   Image,
 } from "react-native";
-import { isAdminOrModerator } from "../../utils/authUtils";
-import { deleteArticle } from "../../api/services/articleService";
+import { deleteArticle, searchArticles } from "../../api/services/articleService";
 import { showAuditToast } from "../../utils/toastNotification";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
-import { ArticleActionMenu } from "../../components/common";
+import { ArticleActionMenu, CategoryScreenSkeleton, EmptyState } from "../../components/common";
 import { ALLOWED_CATEGORIES } from "../../constants/categories";
 import { formatArticleDate } from "../../utils/dateUtils";
+import { debounce } from "../../utils/debounce";
+import { handleAuthorPress } from "../../utils/authorNavigation";
+import { ArticleContext } from "../../context/ArticleContext";
 
 import { Ionicons } from "@expo/vector-icons";
 import client from "../../api/client";
@@ -24,6 +26,7 @@ import HomeHeader from "../homepage/HomeHeader";
 import BottomNavigation from "../../components/common/BottomNavigation";
 import { getCategoryColor } from "../../utils/categoryColors";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const logo = require("../../../assets/logo.png");
 
@@ -40,6 +43,7 @@ export default function CategoryScreen({
   categoryName,
   categorySlug,
 }) {
+  const { forceRefreshArticles } = useContext(ArticleContext);
   const CATEGORY_SCREEN_MAP = {
     News: "NewsScreen",
     Literary: "LiteraryScreen",
@@ -63,12 +67,17 @@ export default function CategoryScreen({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const isAdminUser = userRole === 'admin' || userRole === 'moderator';
   const [menuArticle, setMenuArticle] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [menuY, setMenuY] = useState(0);
+  const [menuX, setMenuX] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingArticle, setDeletingArticle] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -108,23 +117,46 @@ export default function CategoryScreen({
     }
   }, [categoryName, categorySlug]);
 
+  const handleSearch = useCallback(async (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await searchArticles(query.trim());
+      setSearchResults(res.data?.data ?? []);
+    } catch (err) {
+      console.error("Search error:", err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+
   useEffect(() => {
+    const checkAdminStatus = async () => {
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setUserRole(user.role);
+      }
+    };
+
     checkAdminStatus();
     fetchCategories();
     fetchArticles(1, true);
   }, [categoryName, fetchCategories, fetchArticles]);
 
-  const checkAdminStatus = async () => {
-    const status = await isAdminOrModerator();
-    setIsAdminUser(status);
-  };
-
-  const handleMenuPress = (article, event) => {
+  const handleMenuPress = (article, pos) => {
     if (isAdminUser) {
       setMenuArticle(article);
-      if (event?.nativeEvent?.pageY) {
-        setMenuY(event.nativeEvent.pageY + 15);
-      }
+      setMenuY(pos.py);
+      setMenuX(pos.px);
       setShowMenu(true);
     }
   };
@@ -146,12 +178,34 @@ export default function CategoryScreen({
     try {
       setDeletingArticle(true);
       await deleteArticle(menuArticle.id);
+      
+      // Remove from local state immediately
+      setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      
       setShowDeleteModal(false);
       showAuditToast("success", "Article deleted successfully");
-      fetchArticles(1, true);
+      
+      // Refresh latest articles context
+      try {
+        await forceRefreshArticles();
+        console.log('Articles refreshed after delete');
+      } catch (err) {
+        console.error('Failed to refresh articles:', err);
+      }
     } catch (err) {
       console.error("Error deleting article:", err);
-      showAuditToast("error", "Failed to delete article");
+      
+      // Check if it's a 404 error (article already deleted)
+      if (err.response?.status === 404) {
+        // Remove from local state since it doesn't exist anymore
+        setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+        setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+        setShowDeleteModal(false);
+        showAuditToast("info", "Article was already deleted");
+      } else {
+        showAuditToast("error", "Failed to delete article");
+      }
     } finally {
       setDeletingArticle(false);
     }
@@ -174,17 +228,9 @@ export default function CategoryScreen({
     navigation.navigate("TagArticles", { tagName: tag });
   };
 
-  const handleAuthorPress = (article) => {
-    if (article.author?.id) {
-      navigation.navigate("AuthorProfile", {
-        authorId: article.author.id,
-        authorName: getAuthorName(article),
-      });
-    }
-  };
 
-  // ─── Empty State ──────────────────────────────────────────────────────────
-  const EmptyState = () => (
+  // ─── Local Empty State ──────────────────────────────────────────────────
+  const renderEmptyState = useCallback(() => (
     <View className="flex-1 justify-center items-center px-6 py-20">
       <Image
         source={logo}
@@ -204,10 +250,10 @@ export default function CategoryScreen({
         Stay tuned, new stories will be up soon.
       </Text>
     </View>
-  );
+  ), []);
 
   // ─── Footer (Load More / Spinner) ────────────────────────────────────────
-  const Footer = () => {
+  const renderFooter = useCallback(() => {
     if (loadingMore) {
       return (
         <View className="py-6 items-center">
@@ -225,7 +271,7 @@ export default function CategoryScreen({
       );
     }
     return <View className="h-6" />;
-  };
+  }, [loadingMore, hasMore, articles.length]);
 
   return (
     <View className="flex-1 bg-white">
@@ -235,9 +281,7 @@ export default function CategoryScreen({
           categories={categories}
           onCategorySelect={handleCategorySelect}
           onMenuPress={() => {}}
-          onSearchPress={() => {}}
-          onGridPress={() => navigation.navigate("Admin")}
-          onSearch={() => {}}
+          onSearch={debouncedSearch}
           navigation={navigation}
         />
        
@@ -263,13 +307,54 @@ export default function CategoryScreen({
       </LinearGradient>
 
       {/* Content */}
-      {loading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>
-            Loading articles...
-          </Text>
+      {searchQuery.trim() !== "" ? (
+        <View className="flex-1">
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => String(item.id)}
+            ListHeaderComponent={
+              <View className="px-4 py-4 border-b border-gray-200 bg-white">
+                <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+                  Search Results for &quot;{searchQuery}&quot;
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <View className="px-4">
+                <ArticleLargeCard
+                  title={item.title}
+                  category={item.categories?.[0]?.name || categoryName}
+                  author={getAuthorName(item)}
+                  date={formatArticleDate(item.published_at || item.created_at)}
+                  image={item.featured_image_url || item.featured_image}
+                  hashtags={item.tags?.map((t) => t.name) ?? []}
+                  onPress={() => handleArticlePress(item)}
+                  onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
+                  onTagPress={(tagName) => navigation.navigate('TagArticles', { tagName })}
+                  onAuthorPress={() => handleAuthorPress(item, navigation)}
+                />
+              </View>
+            )}
+            ListEmptyComponent={
+              <View className="flex-1 justify-center items-center py-12">
+                {searching ? (
+                  <ActivityIndicator size="large" color={colors.primary} />
+                ) : (
+                  <EmptyState 
+                    icon="search-outline" 
+                    title="No results found" 
+                    message={`We couldn't find anything for "${searchQuery}"`} 
+                  />
+                )}
+              </View>
+            }
+            contentContainerStyle={{ paddingBottom: 100 }}
+          />
         </View>
+      ) : (
+        <>
+        {loading ? (
+          <CategoryScreenSkeleton />
       ) : error ? (
         <View className="flex-1 justify-center items-center px-4">
           <Ionicons
@@ -307,13 +392,13 @@ export default function CategoryScreen({
                   hashtags={item.tags?.map((t) => t.name) ?? []}
                   onPress={() => handleArticlePress(item)}
                   onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
-                  onTagPress={handleTagPress}
-                  onAuthorPress={() => handleAuthorPress(item)}
+                  onTagPress={(tagName) => navigation.navigate('TagArticles', { tagName })}
+                  onAuthorPress={() => handleAuthorPress(item, navigation)}
                 />
               </View>
             )}
-            ListEmptyComponent={<EmptyState />}
-            ListFooterComponent={<Footer />}
+          ListEmptyComponent={renderEmptyState}
+          ListFooterComponent={renderFooter}
             contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
             onEndReached={loadMore}
@@ -331,6 +416,8 @@ export default function CategoryScreen({
           />
         </View>
       )}
+      </>
+      )}
 
       <BottomNavigation navigation={navigation} activeTab="Home" />
 
@@ -338,6 +425,7 @@ export default function CategoryScreen({
       <ArticleActionMenu
         visible={showMenu}
         y={menuY}
+        x={menuX}
         onClose={() => setShowMenu(false)}
         actions={[
           {
@@ -346,12 +434,13 @@ export default function CategoryScreen({
             color: "#0284c7",
             onPress: handleEdit,
           },
-          {
+          // Only Admin can Delete
+          ...(userRole === 'admin' ? [{
             label: "Delete",
             icon: "trash-outline",
             color: "#ef4444",
             onPress: handleDelete,
-          },
+          }] : []),
         ]}
       />
 

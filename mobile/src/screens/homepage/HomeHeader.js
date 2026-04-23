@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../styles';
 import SidebarMenu from '../../components/homeheaderpart/SidebarMenu';
 import { isAdminOrModerator } from '../../utils/authUtils';
+import client from '../../api/client';
 
 const HomeHeader = ({
   onMenuPress = () => {},
@@ -26,11 +27,24 @@ const HomeHeader = ({
   const [searchQuery, setSearchQuery] = useState(externalSearchQuery);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAdminIcon, setShowAdminIcon] = useState(false);
+  const [internalCategories, setInternalCategories] = useState([]);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     checkAdminStatus();
-  }, []);
+    if (!categories || categories.length === 0) {
+      fetchCategories();
+    }
+  }, [categories]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await client.get('/api/categories');
+      setInternalCategories(res.data || []);
+    } catch (error) {
+      console.error('Error fetching categories in header:', error);
+    }
+  };
 
   // Update search active state when isSearchScreen prop changes
   useEffect(() => {
@@ -83,12 +97,14 @@ const HomeHeader = ({
     onGridPress();
   };
 
+  const displayCategories = categories?.length > 0 ? categories : internalCategories;
+
   return (
     <>
       <SidebarMenu
         visible={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        categories={categories}
+        categories={displayCategories}
         onCategorySelect={handleCategorySelect}
         navigation={navigation}
       />

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -8,7 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { HomeScreenSkeleton, ArticleActionMenu, Loader } from "../../components/common";
+import { HomeScreenSkeleton, ArticleActionMenu, Loader, EmptyState } from "../../components/common";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import ArticleMediumCard from "../../components/articles/ArticleMediumCard";
 import HomeHeader from "./HomeHeader";
@@ -21,11 +22,11 @@ import {
   deleteArticle,
 } from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
-import { isAdminOrModerator } from "../../utils/authUtils";
 import { colors } from "../../styles";
 import { debounce } from "../../utils/debounce";
 import { showAuditToast } from "../../utils/toastNotification";
 import { formatArticleDate } from "../../utils/dateUtils";
+import { handleAuthorPress } from "../../utils/authorNavigation";
 
 // ─── ARTICLES LIST ────────────────────────────────────────────────────────────
 const ArticlesListContent = ({
@@ -74,9 +75,11 @@ const ArticlesListContent = ({
           />
         ))
       ) : (
-        <Text className="text-center text-gray-500 my-4">
-          No recent articles
-        </Text>
+        <EmptyState 
+          icon="newspaper-outline" 
+          title="No featured articles" 
+          message="Check back later for top stories." 
+        />
       )}
     </View>
 
@@ -105,9 +108,11 @@ const ArticlesListContent = ({
           ))}
         </View>
       ) : (
-        <Text className="text-center text-gray-500 my-4">
-          No recent articles
-        </Text>
+        <EmptyState 
+          icon="document-text-outline" 
+          title="No recent articles" 
+          message="More news and updates coming soon." 
+        />
       )}
     </View>
 
@@ -138,10 +143,12 @@ export default function HomeScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const isAdminUser = userRole === 'admin' || userRole === 'moderator';
   const [menuArticle, setMenuArticle] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [menuY, setMenuY] = useState(0);
+  const [menuX, setMenuX] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingArticle, setDeletingArticle] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,12 +158,15 @@ export default function HomeScreen({ navigation }) {
   const [filteredArticles, setFilteredArticles] = useState([]);
 
   useEffect(() => {
-    checkAdminStatus();
+    checkUserRole();
   }, []);
 
-  const checkAdminStatus = async () => {
-    const adminStatus = await isAdminOrModerator();
-    setIsAdminUser(adminStatus);
+  const checkUserRole = async () => {
+    const userJson = await AsyncStorage.getItem('user_data');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      setUserRole(user.role);
+    }
   };
 
   const fetchCategories = async () => {
@@ -168,7 +178,7 @@ export default function HomeScreen({ navigation }) {
 
   const handleSearch = useCallback(async (query) => {
     setSearchQuery(query);
-    if (query.trim().length < 3) {
+    if (query.trim().length < 1) {
       setSearchResults([]);
       setSearching(false);
       return;
@@ -245,12 +255,11 @@ export default function HomeScreen({ navigation }) {
     setLoadingMore(false);
   };
 
-  const handleMenuPress = (article, event) => {
+  const handleMenuPress = (article, pos) => {
     if (isAdminUser) {
       setMenuArticle(article);
-      if (event?.nativeEvent?.pageY) {
-        setMenuY(event.nativeEvent.pageY + 15);
-      }     
+      setMenuY(pos.py);
+      setMenuX(pos.px);
       setShowMenu(true);
     }
   };
@@ -276,13 +285,34 @@ export default function HomeScreen({ navigation }) {
     try {
       setDeletingArticle(true);
       await deleteArticle(menuArticle.id);
+      
+      // Remove from local state immediately
+      setFilteredArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      
       setShowDeleteModal(false);
-      // Bug #5 Fix: Use toast instead of Alert
       showAuditToast("success", "Article deleted successfully");
-      await refreshArticles();
+      
+      // Refresh latest articles context
+      try {
+        await refreshArticles();
+        console.log('Articles refreshed after delete');
+      } catch (err) {
+        console.error('Failed to refresh articles:', err);
+      }
     } catch (error) {
       console.error("Error deleting article:", error);
-      showAuditToast("error", "Failed to delete article. Please try again.");
+      
+      // Check if it's a 404 error (article already deleted)
+      if (error.response?.status === 404) {
+        // Remove from local state since it doesn't exist anymore
+        setFilteredArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+        setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+        setShowDeleteModal(false);
+        showAuditToast("info", "Article was already deleted");
+      } else {
+        showAuditToast("error", "Failed to delete article. Please try again.");
+      }
     } finally {
       setDeletingArticle(false);
     }
@@ -325,7 +355,7 @@ export default function HomeScreen({ navigation }) {
 
       {/* Flexible Content Area */}
       <View className="flex-1">
-        {searchQuery.trim().length >= 3 ? (
+        {searchQuery.trim().length >= 1 ? (
           // Search Results View
           <ScrollView className="flex-1 px-4">
             <Text className="text-2xl font-bold text-gray-900 my-4">
@@ -358,15 +388,7 @@ export default function HomeScreen({ navigation }) {
                   onTagPress={(tag) =>
                     navigation.navigate("TagArticles", { tagName: tag })
                   }
-                  onAuthorPress={() => {
-                    if (article.author?.id) {
-                      navigation.navigate("AuthorProfile", {
-                        authorId: article.author.id,
-                        authorName:
-                          article.author.name || article.author.user?.name,
-                      });
-                    }
-                  }}
+                  onAuthorPress={() => handleAuthorPress(article, navigation)}
                 />
               ))
             ) : (
@@ -391,18 +413,11 @@ export default function HomeScreen({ navigation }) {
               })
             }
             handleMenuPress={(article, e) => handleMenuPress(article, e)}
-            isAdminUser={isAdminUser}
+            isAdminUser={userRole === 'admin' || userRole === 'moderator'}
             onTagPress={(tagName) =>
               navigation.navigate("TagArticles", { tagName })
             }
-            onAuthorPress={(article) => {
-              if (article.author?.id) {
-                navigation.navigate("AuthorProfile", {
-                  authorId: article.author.id,
-                  authorName: article.author.name || article.author.user?.name,
-                });
-              }
-            }}
+            onAuthorPress={(article) => handleAuthorPress(article, navigation)}
           />
         )}
       </View>
@@ -411,6 +426,7 @@ export default function HomeScreen({ navigation }) {
       <ArticleActionMenu
         visible={showMenu}
         y={menuY}
+        x={menuX}
         onClose={() => setShowMenu(false)}
         actions={[
           {
@@ -419,12 +435,13 @@ export default function HomeScreen({ navigation }) {
             color: "#0284c7",
             onPress: handleEdit,
           },
-          {
+          // Only Admin can Delete
+          ...(userRole === 'admin' ? [{
             label: "Delete",
             icon: "trash-outline",
             color: "#ef4444",
             onPress: handleDelete,
-          },
+          }] : []),
         ]}
       />
 
@@ -442,8 +459,8 @@ export default function HomeScreen({ navigation }) {
         }}
       />
 
-      {/* Floating Action Button (Create Article) - Only for Admins */}
-      {isAdminUser && (
+      {/* Floating Action Button (Create Article) - Only for Admins/Mods */}
+      {(userRole === 'admin' || userRole === 'moderator') && (
         <TouchableOpacity
           onPress={() => navigation.navigate('CreateArticle')}
           style={{
