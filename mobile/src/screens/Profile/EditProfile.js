@@ -14,7 +14,7 @@ import client from '../../api/client';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import SaveProfileModal from '../../components/common/SaveProfileModal';
-import { showAuditToast } from '../../utils/toastNotification';
+import { showAuditToast, showProfileSuccessToast, showProfileErrorToast } from '../../utils/toastNotification';
 
 const validatePassword = (password) => {
   if (password.length < 8) {
@@ -103,7 +103,7 @@ export default function EditProfile({ navigation, route }) {
 
       if (updated) {
         setShowSaveModal(false);
-        showAuditToast('success', 'Profile updated successfully');
+        showProfileSuccessToast('updated');
         navigation.goBack();
       } else {
         setShowSaveModal(false);
@@ -111,7 +111,11 @@ export default function EditProfile({ navigation, route }) {
       }
     } catch (err) {
       setShowSaveModal(false);
-      showAuditToast('error', err.response?.data?.message || 'Failed to update profile');
+      showProfileErrorToast('updated');
+      // Still show the specific error message if available for debugging/user info
+      if (err.response?.data?.message) {
+        showAuditToast('error', err.response.data.message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -119,7 +123,7 @@ export default function EditProfile({ navigation, route }) {
 
   const handleDiscard = () => {
     setShowSaveModal(false);
-    showAuditToast('success', 'Changes discarded');
+    showProfileSuccessToast('discarded');
     navigation.goBack();
   };
 

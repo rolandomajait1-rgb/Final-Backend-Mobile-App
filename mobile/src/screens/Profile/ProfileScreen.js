@@ -12,16 +12,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from 'expo-status-bar';
-import { Loader, Button, ProfileSkeleton, ArticleCardSkeleton } from "../../components/common";
-import BottomNavigation from "../../components/common/BottomNavigation";
 import ArticleMediumCard from "../../components/articles/ArticleMediumCard";
+import { Loader, Button, ProfileSkeleton, ArticleCardSkeleton, ArticleActionMenu } from "../../components/common";
+import BottomNavigation from "../../components/common/BottomNavigation";
+import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import { getCurrentUser, logout } from "../../api/services/authService";
 import client from "../../api/client";
 import { colors } from "../../styles";
 import SideBar from "./SideBar";
 import { showAuditEventToast } from "../../utils/toastNotification";
-
-
+import { handleAuthorPress } from "../../utils/authorNavigation";
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -29,6 +29,13 @@ export default function ProfileScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("liked");
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [menuArticle, setMenuArticle] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuX, setMenuX] = useState(0);
+  const [menuY, setMenuY] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Per-tab article state
   const [likedArticles, setLikedArticles] = useState([]);
@@ -62,6 +69,7 @@ export default function ProfileScreen({ navigation }) {
       const res = await getCurrentUser();
       if (mountedRef.current) {
         setUser(res.data);
+        setIsAdminUser(res.data.role === 'admin' || res.data.role === 'moderator');
         await AsyncStorage.setItem("user_data", JSON.stringify(res.data));
         setLoading(false);
       }
@@ -101,13 +109,16 @@ export default function ProfileScreen({ navigation }) {
       const lastPage = res.data?.last_page ?? 1;
 
       if (mountedRef.current) {
+        // Handle both flat article arrays and nested pivot structures (e.g., item.article)
+        const parsedItems = newItems.map(item => item.article ? item.article : item);
+
         if (tab === "liked") {
           setLikedArticles((prev) =>
-            replace ? newItems : [...prev, ...newItems],
+            replace ? parsedItems : [...prev, ...parsedItems],
           );
         } else {
           setSharedArticles((prev) =>
-            replace ? newItems : [...prev, ...newItems],
+            replace ? parsedItems : [...prev, ...parsedItems],
           );
         }
         setTabHasMore(page < lastPage);
@@ -194,6 +205,75 @@ export default function ProfileScreen({ navigation }) {
         },
       },
     ]);
+  };
+
+  const handleMenuPress = (article, pos) => {
+    setMenuArticle(article);
+    setMenuX(pos.px);
+    setMenuY(pos.py);
+    setShowMenu(true);
+  };
+
+  const handleDeleteArticle = () => {
+    setShowMenu(false);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!menuArticle || isDeleting) return;
+    try {
+      setIsDeleting(true);
+      const { deleteArticle } = await import("../../api/services/articleService");
+      await deleteArticle(menuArticle.id);
+      
+      // Update local state
+      if (activeTab === 'liked') {
+        setLikedArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+      } else {
+        setSharedArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+      }
+      
+      setShowDeleteModal(false);
+      showAuditEventToast({
+        action: 'article_delete',
+        status: 'success',
+        message: 'Article deleted successfully'
+      });
+    } catch (err) {
+      console.error("Error deleting article:", err);
+      showAuditEventToast({
+        action: 'article_delete',
+        status: 'error',
+        message: 'Failed to delete article'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditArticle = () => {
+    setShowMenu(false);
+    navigation.navigate("EditArticle", { articleId: menuArticle.id });
+  };
+
+  const handlePublishArticle = async () => {
+    setShowMenu(false);
+    try {
+      const payload = {
+        title: menuArticle.title,
+        content: menuArticle.content,
+        status: 'published',
+        _method: 'PUT'
+      };
+      await client.post(`/api/articles/${menuArticle.id}`, payload);
+      showAuditEventToast({
+        action: 'article_publish',
+        status: 'success',
+        message: 'Article published!'
+      });
+    } catch (err) {
+      console.error("Error publishing:", err);
+    }
   };
 
   if (loading) return <ProfileSkeleton />;
@@ -314,7 +394,7 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons
                 name={
                   activeTab === "liked"
-                    ? "heart-outline"
+                    ? "thumbs-up-outline"
                     : "share-social-outline"
                 }
                 size={48}
@@ -343,6 +423,8 @@ export default function ProfileScreen({ navigation }) {
                       : 'Recently'}
                     image={article.featured_image_url || article.featured_image}
                     onPress={() => navigation.navigate("ArticleDetail", { slug: article.slug, article })}
+                    onMenuPress={isAdminUser ? (pos) => handleMenuPress(article, pos) : undefined}
+                    onAuthorPress={() => handleAuthorPress(article, navigation)}
                   />
                 </View>
               ))}
@@ -377,6 +459,44 @@ export default function ProfileScreen({ navigation }) {
         navigation={navigation}
         user={user}
       />
+
+      <ArticleActionMenu
+        visible={showMenu}
+        x={menuX}
+        y={menuY}
+        onClose={() => setShowMenu(false)}
+        actions={[
+          {
+            label: "Edit",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: handleEditArticle,
+          },
+          // Only Admin can Publish or Delete
+          ...(user?.role === 'admin' ? [
+            ...(menuArticle?.status === 'draft' ? [{
+              label: "Publish",
+              icon: "cloud-upload-outline",
+              color: "#10b981",
+              onPress: handlePublishArticle,
+            }] : []),
+            {
+              label: "Delete",
+              icon: "trash-outline",
+              color: "#ef4444",
+              onPress: handleDeleteArticle,
+            }
+          ] : []),
+        ]}
+      />
+
+      <DeleteConfirmModal
+        visible={showDeleteModal}
+        loading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+
       <BottomNavigation navigation={navigation} activeTab="Profile" />
     </View>
   );

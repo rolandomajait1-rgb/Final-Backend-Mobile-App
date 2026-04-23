@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -12,13 +13,19 @@ import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { colors } from '../../styles';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
+import { ArticleActionMenu } from '../../components/common';
+import DeleteConfirmModal from '../../components/common/DeleteConfirmModal';
+import { showAuditToast } from '../../utils/toastNotification';
+import { handleAuthorPress } from '../../utils/authorNavigation';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { formatArticleDate } from '../../utils/dateUtils';
+import { searchArticles } from '../../api/services/articleService';
+import { debounce } from '../../utils/debounce';
 
 export default function TagArticlesScreen({ route, navigation }) {
-  const { tagName, authorId, authorName } = route.params;
+  const { tagName, authorId, authorName } = route.params ?? {};
   
   console.log('TagArticlesScreen mounted with params:', { tagName, authorId, authorName });
   
@@ -27,6 +34,17 @@ export default function TagArticlesScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const isAdminUser = userRole === 'admin' || userRole === 'moderator';
+  const [menuArticle, setMenuArticle] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuX, setMenuX] = useState(0);
+  const [menuY, setMenuY] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -95,7 +113,37 @@ export default function TagArticlesScreen({ route, navigation }) {
     }
   }, [tagName, authorId]);
 
+  const handleSearch = useCallback(async (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await searchArticles(query.trim());
+      setSearchResults(res.data?.data ?? []);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+
   useEffect(() => {
+    const checkAdminStatus = async () => {
+      const userJson = await AsyncStorage.getItem('user_data');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        setUserRole(user.role);
+      }
+    };
+    
+    checkAdminStatus();
     fetchCategories();
     fetchTagArticles();
   }, [fetchCategories, fetchTagArticles]);
@@ -108,6 +156,42 @@ export default function TagArticlesScreen({ route, navigation }) {
 
   const handleArticlePress = (article) => {
     navigation.navigate('ArticleDetail', { slug: article.slug });
+  };
+
+  const handleMenuPress = (article, pos) => {
+    setMenuArticle(article);
+    setMenuX(pos.px);
+    setMenuY(pos.py);
+    setShowMenu(true);
+  };
+
+  const handleDeleteArticle = () => {
+    setShowMenu(false);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!menuArticle || isDeleting) return;
+    try {
+      setIsDeleting(true);
+      const { deleteArticle } = await import("../../api/services/articleService");
+      await deleteArticle(menuArticle.id);
+      
+      setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      setShowDeleteModal(false);
+      showAuditToast('success', 'Article deleted successfully');
+    } catch (err) {
+      console.error("Error deleting article:", err);
+      showAuditToast('error', 'Failed to delete article');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditArticle = () => {
+    setShowMenu(false);
+    navigation.navigate("EditArticle", { articleId: menuArticle.id });
   };
 
   const renderLoadingState = () => (
@@ -138,6 +222,7 @@ export default function TagArticlesScreen({ route, navigation }) {
         <HomeHeader
           categories={categories}
           onCategorySelect={() => {}}
+          onSearch={debouncedSearch}
           navigation={navigation}
         />
       </View>
@@ -159,33 +244,17 @@ export default function TagArticlesScreen({ route, navigation }) {
       </View>
 
       {/* Content Area */}
-      <View className="flex-1 bg-white pt-4">
-        {loading ? (
-          renderLoadingState()
-        ) : error ? (
-          <View className="flex-1 justify-center items-center px-4">
-            <Ionicons name="alert-circle" size={48} color={colors.error} />
-            <Text className="mt-4 text-center" style={{ color: colors.error }}>
-              {error}
-            </Text>
-            <TouchableOpacity
-              className="mt-6 px-6 py-3 rounded-lg"
-              style={{ backgroundColor: colors.primary }}
-              onPress={fetchTagArticles}
-            >
-              <Text className="text-white font-semibold">Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : articles.length === 0 ? (
-          renderEmptyState()
-        ) : (
+      <View className="flex-1 bg-white">
+        {searchQuery.trim() !== '' ? (
           <FlatList
-            data={articles}
+            data={searchResults}
             keyExtractor={(item) => String(item.id)}
             ListHeaderComponent={
-              <Text className="text-[22px] text-gray-700 mb-6 px-5 font-normal">
-                Latest Articles
-              </Text>
+              <View className="px-5 pt-6 pb-4 border-b border-gray-100">
+                <Text className="text-[22px] font-bold text-gray-800">
+                  Search Results for &quot;{searchQuery}&quot;
+                </Text>
+              </View>
             }
             renderItem={({ item }) => (
               <View className="px-5">
@@ -197,36 +266,122 @@ export default function TagArticlesScreen({ route, navigation }) {
                   image={item.featured_image_url || item.featured_image}
                   hashtags={item.tags?.map((t) => t.name) || []}
                   onPress={() => handleArticlePress(item)}
-                  onTagPress={(tag) => {
-                    // Navigate to another tag if clicked
-                    navigation.push('TagArticles', { tagName: tag });
-                  }}
-                  onAuthorPress={() => {
-                    if (item.author?.id) {
-                      navigation.navigate('AuthorProfile', {
-                        authorId: item.author.id,
-                        authorName: item.author.name || item.author.user?.name
-                      });
-                    }
-                  }}
+                  onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
+                  onTagPress={(tag) => navigation.navigate('TagArticles', { tagName: tag })}
+                  onAuthorPress={() => handleAuthorPress(item, navigation)}
                 />
               </View>
             )}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
-            windowSize={10}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-              />
+            ListEmptyComponent={
+              <View className="flex-1 justify-center items-center px-4 py-12">
+                {searching ? (
+                  <ActivityIndicator size="large" color={colors.primary} />
+                ) : (
+                  <Text className="text-center text-gray-500 text-lg">
+                    No articles found for &quot;{searchQuery}&quot;
+                  </Text>
+                )}
+              </View>
             }
+            contentContainerStyle={{ paddingBottom: 100 }}
           />
+        ) : (
+          <View className="flex-1 bg-white pt-4">
+            {loading ? (
+              renderLoadingState()
+            ) : error ? (
+              <View className="flex-1 justify-center items-center px-4">
+                <Ionicons name="alert-circle" size={48} color={colors.error} />
+                <Text className="mt-4 text-center" style={{ color: colors.error }}>
+                  {error}
+                </Text>
+                <TouchableOpacity
+                  className="mt-6 px-6 py-3 rounded-lg"
+                  style={{ backgroundColor: colors.primary }}
+                  onPress={fetchTagArticles}
+                >
+                  <Text className="text-white font-semibold">Try Again</Text>
+                </TouchableOpacity>
+              </View>
+            ) : articles.length === 0 ? (
+              renderEmptyState()
+            ) : (
+              <FlatList
+                data={articles}
+                keyExtractor={(item) => String(item.id)}
+                ListHeaderComponent={
+                  <Text className="text-[22px] text-gray-700 mb-6 px-5 font-normal">
+                    Latest Articles
+                  </Text>
+                }
+                renderItem={({ item }) => (
+                  <View className="px-5">
+                    <ArticleLargeCard
+                      title={item.title}
+                      category={item.categories?.[0]?.name || 'Uncategorized'}
+                      author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
+                      date={formatArticleDate(item.created_at || item.published_at)}
+                      image={item.featured_image_url || item.featured_image}
+                      hashtags={item.tags?.map((t) => t.name) || []}
+                      onPress={() => handleArticlePress(item)}
+                      onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
+                      onTagPress={(tName) => {
+                        if (tName !== tagName) {
+                          navigation.push('TagArticles', { tagName: tName });
+                        }
+                      }}
+                      onAuthorPress={() => handleAuthorPress(item, navigation)}
+                    />
+                  </View>
+                )}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                showsVerticalScrollIndicator={false}
+                initialNumToRender={5}
+                maxToRenderPerBatch={5}
+                windowSize={10}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={colors.primary}
+                  />
+                }
+              />
+            )}
+          </View>
         )}
       </View>
+
+      {/* Article Action Menu */}
+      <ArticleActionMenu
+        visible={showMenu}
+        x={menuX}
+        y={menuY}
+        onClose={() => setShowMenu(false)}
+        actions={[
+          {
+            label: "Edit",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: handleEditArticle,
+          },
+          // Only Admin can Delete
+          ...(userRole === 'admin' ? [{
+            label: "Delete",
+            icon: "trash-outline",
+            color: "#ef4444",
+            onPress: handleDeleteArticle,
+          }] : []),
+        ]}
+      />
+
+      {/* Delete Confirm Modal */}
+      <DeleteConfirmModal
+        visible={showDeleteModal}
+        loading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
