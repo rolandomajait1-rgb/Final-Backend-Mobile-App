@@ -10,6 +10,7 @@ import { ToastProvider } from "./src/context/ToastContext";
 import { NetworkProvider } from "./src/context/NetworkContext";
 import { ToastContainer } from "./src/components/common";
 import OfflineBanner from "./src/components/common/OfflineBanner";
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Siguraduhin nating naka-enable ang screens para sa performance
 enableScreens();
@@ -66,15 +67,17 @@ export default function App() {
   }
 
   return (
-    <NetworkProvider>
-      <ToastProvider>
-        <>
-          <OfflineBanner />
-          <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
-          <AppNavigator />
-          <ToastContainer />
-        </>
-      </ToastProvider>
-    </NetworkProvider>
+    <SafeAreaProvider>
+      <NetworkProvider>
+        <ToastProvider>
+          <>
+            <OfflineBanner />
+            <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+            <AppNavigator />
+            <ToastContainer />
+          </>
+        </ToastProvider>
+      </NetworkProvider>
+    </SafeAreaProvider>
   );
 }
