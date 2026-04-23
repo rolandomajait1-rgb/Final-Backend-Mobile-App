@@ -4,7 +4,7 @@
     "slug": "laverdadherald",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
@@ -19,7 +19,11 @@
       "url": "https://u.expo.dev/fb469747-9638-474f-b584-36626bfce0b6"
     },
     "android": {
-      "package": "com.landzki.laverdadherald"
+      "package": "com.landzki.laverdadherald",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#2C5F7F"
+      }
     }
   }
 }
