@@ -13,7 +13,7 @@ export default function WelcomeScreen({ navigation }) {
     <View className="flex-1">
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
 
-      <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
+      <ImageBackground source={bg} className="flex-1" resizeMode="cover" style={{ opacity: 0.9 }}>
         {/* Dark overlay */}
         <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 

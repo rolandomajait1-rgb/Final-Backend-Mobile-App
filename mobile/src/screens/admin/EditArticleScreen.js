@@ -380,7 +380,7 @@ export default function EditArticleScreen({ navigation, route }) {
         onCategorySelect={() => {}}
         onMenuPress={() => {}}
         onSearchPress={() => {}}
-        onGridPress={() => navigation.navigate('Main')}
+        onGridPress={() => navigation.navigate('MainApp')}
         onSearch={() => {}}
         navigation={navigation}
       />

@@ -16,7 +16,10 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://final-backend-mobile-app-2-4sfz.onrender.com"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "node": "20.11.0",

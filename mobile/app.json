@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "La Verdad Herald",
-    "slug": "laverdadherald",
+    "slug": "laverdad-herald",
     "icon": "./assets/icon.png",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
@@ -13,11 +13,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": "fb469747-9638-474f-b584-36626bfce0b6"
+        "projectId": "1765d994-9d3b-471b-b28f-75963495893b"
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/fb469747-9638-474f-b584-36626bfce0b6"
+      "url": "https://u.expo.dev/1765d994-9d3b-471b-b28f-75963495893b"
     },
     "android": {
       "package": "com.landzki.laverdadherald",
@@ -29,6 +29,7 @@
     "ios": {
       "bundleIdentifier": "com.landzki.laverdadherald",
       "supportsTablet": true
-    }
+    },
+    "owner": "ispm-g4"
   }
 }

@@ -85,7 +85,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
     <View className="flex-1">
       <StatusBar hidden={false} />
 
-      <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={4} style={{ opacity: 0.9 }}>
+      <ImageBackground source={bg} className="flex-1" resizeMode="cover" style={{ opacity: 0.9 }}>
         <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 105, 146, 1)' }} />
 
         <SafeAreaView className="flex-1">

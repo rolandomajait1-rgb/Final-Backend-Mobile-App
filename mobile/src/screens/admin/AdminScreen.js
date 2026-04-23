@@ -269,7 +269,7 @@ export default function AdminScreen({ navigation }) {
         
         // Block unauthorized access
         if (user.role !== 'admin' && user.role !== 'moderator') {
-          navigation.replace('Main');
+          navigation.replace('MainApp');
           return;
         }
       } else {
@@ -311,7 +311,7 @@ export default function AdminScreen({ navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onMenuPress={() => {}}
-          onGridPress={() => navigation.navigate('Main')}
+          onGridPress={() => navigation.navigate('MainApp')}
           onSearch={() => {}}
           navigation={navigation}
         />

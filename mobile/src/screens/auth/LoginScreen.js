@@ -61,7 +61,7 @@ export default function LoginScreen({ navigation }) {
         ['remember_me', remember ? 'true' : 'false'],
       ]);
       setSuccessMessage('Welcome back to La Verdad Herald!');
-      setTimeout(() => navigation.replace('Main'), 1200);
+      setTimeout(() => navigation.replace('MainApp'), 1200);
     } catch (error) {
       // Build comprehensive error message from all possible error sources
       const emailErrors = error.response?.data?.errors?.email;
@@ -117,7 +117,7 @@ export default function LoginScreen({ navigation }) {
       <StatusBar hidden={false} />
 
       <View className="flex-1">
-        <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
+        <ImageBackground source={bg} className="flex-1" resizeMode="cover" style={{ opacity: 0.9 }}>
           {/* Dark overlay */}
           <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 

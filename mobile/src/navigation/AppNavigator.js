@@ -232,7 +232,7 @@ export default function AppNavigator() {
 
   return (
     <ArticleProvider>
-      <NavigationContainer ref={navigationRef} linking={linking} fallback={<WelcomeScreen />}>
+      <NavigationContainer ref={navigationRef} linking={linking} fallback={<View style={{ flex: 1, backgroundColor: '#2C5F7F', justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#f8b200" /></View>}>
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
           <Stack.Screen name="Auth" component={AuthStack} />
           <Stack.Screen name="MainApp" component={TabNavigator} />

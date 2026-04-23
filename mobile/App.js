@@ -11,6 +11,7 @@ import { NetworkProvider } from "./src/context/NetworkContext";
 import { ToastContainer } from "./src/components/common";
 import OfflineBanner from "./src/components/common/OfflineBanner";
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Siguraduhin nating naka-enable ang screens para sa performance
 enableScreens();
@@ -67,17 +68,19 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NetworkProvider>
-        <ToastProvider>
-          <>
-            <OfflineBanner />
-            <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
-            <AppNavigator />
-            <ToastContainer />
-          </>
-        </ToastProvider>
-      </NetworkProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <NetworkProvider>
+          <ToastProvider>
+            <>
+              <OfflineBanner />
+              <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+              <AppNavigator />
+              <ToastContainer />
+            </>
+          </ToastProvider>
+        </NetworkProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -64,7 +64,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
       {/* Background layer - same as LoginScreen */}
       <View className="flex-1">
-        <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
+        <ImageBackground source={bg} className="flex-1" resizeMode="cover" style={{ opacity: 0.9 }}>
           {/* Dark blue overlay */}
           <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 

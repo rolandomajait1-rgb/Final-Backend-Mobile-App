@@ -330,7 +330,7 @@ export default function CreateArticleScreen({ navigation }) {
         onCategorySelect={() => {}}
         onMenuPress={() => {}}
         onSearchPress={() => {}}
-        onGridPress={() => navigation.navigate('Main')}
+        onGridPress={() => navigation.navigate('MainApp')}
         onSearch={() => {}}
         navigation={navigation}
       />
