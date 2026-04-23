@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,14 +23,7 @@ export default function LoginScreen({ navigation }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [showResend, setShowResend] = useState(false);
   const [isResending, setIsResending] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   const validate = () => {
     const e = {};
@@ -66,7 +59,14 @@ export default function LoginScreen({ navigation }) {
       setSuccessMessage('Welcome back to La Verdad Herald!');
       setTimeout(() => navigation.replace('Main'), 1200);
     } catch (error) {
-      const msg = error.response?.data?.errors?.email?.[0] || error.response?.data?.message || '';
+      // Build comprehensive error message from all possible error sources
+      const emailErrors = error.response?.data?.errors?.email;
+      const passwordErrors = error.response?.data?.errors?.password;
+      const emailError = Array.isArray(emailErrors) ? emailErrors[0] : emailErrors;
+      const passwordError = Array.isArray(passwordErrors) ? passwordErrors[0] : passwordErrors;
+      const generalMsg = error.response?.data?.message || '';
+      const msg = String(emailError || passwordError || generalMsg || '');
+      
       const needsVerification = msg.toLowerCase().includes('verify');
       if (needsVerification || (error.response?.status === 403 && error.response?.data?.requires_verification)) {
         setErrors({ general: msg || 'Please verify your email before logging in.' });
@@ -74,11 +74,16 @@ export default function LoginScreen({ navigation }) {
       } else if (error.response?.status === 401) {
         setErrors({ general: 'Invalid email or password. Please try again.' });
       } else if (error.response?.data?.errors) {
+        // Flatten all field errors
         const flat = {};
-        Object.entries(error.response.data.errors).forEach(([k, v]) => { flat[k] = v[0]; });
+        Object.entries(error.response.data.errors).forEach(([k, v]) => { 
+          flat[k] = Array.isArray(v) ? v[0] : v; 
+        });
         setErrors(flat);
+      } else if (msg) {
+        setErrors({ general: msg });
       } else {
-        setErrors({ general: error.response?.data?.message || 'An error occurred. Please try again later.' });
+        setErrors({ general: 'An error occurred. Please try again later.' });
       }
     } finally {
       setIsLoading(false);
@@ -104,7 +109,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       <View className="flex-1">
         <ImageBackground source={bg} className="flex-1" resizeMode="cover" blurRadius={8} style={{ opacity: 0.9 }}>
@@ -155,7 +160,7 @@ export default function LoginScreen({ navigation }) {
 
                 {/* X close button */}
                 <TouchableOpacity
-                  onPress={() => navigation.goBack()}
+                  onPress={() => navigation.navigate('Welcome')}
                   className="absolute top-4 right-4 z-10"
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -165,14 +170,14 @@ export default function LoginScreen({ navigation }) {
                 <Text className="text-center font-bold text-4xl text-black mb-6">Login</Text>
 
                 {/* General error */}
-                {errors.general && (
+                {errors.general ? (
                   <View className="mb-4 rounded-md border border-red-400 bg-red-300/40 p-3">
                     <Text className="text-center text-sm text-red-900">{errors.general}</Text>
                   </View>
-                )}
+                ) : null}
 
                 {/* Resend verification */}
-                {showResend && (
+                {showResend ? (
                   <View className="mb-4 rounded-md border border-yellow-400 bg-yellow-300/40 p-3">
                     <Text className="mb-2 text-center text-sm text-yellow-900">Need a new verification link?</Text>
                     <TouchableOpacity onPress={handleResend} disabled={isResending} className="rounded-md bg-yellow-600 py-2">
@@ -182,14 +187,14 @@ export default function LoginScreen({ navigation }) {
                       }
                     </TouchableOpacity>
                   </View>
-                )}
+                ) : null}
 
                 {/* Success message */}
-                {successMessage !== '' && (
+                {successMessage ? (
                   <View className="mb-4 rounded-md border border-green-400 bg-green-300/40 p-3">
                     <Text className="text-center text-sm text-green-900">{successMessage}</Text>
                   </View>
-                )}
+                ) : null}
 
                 {/* Email */}
                 <View className="mb-6">
@@ -197,14 +202,14 @@ export default function LoginScreen({ navigation }) {
                   <TextInput
                     className={`w-full rounded-md border px-4 py-2 mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                     value={email}
-                    onChangeText={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: null })); }}
+                    onChangeText={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: null, general: null })); }}
                     placeholder="Enter your email"
                     placeholderTextColor="#9ca3af"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
-                  {errors.email && <Text className="mt-1 text-xs text-red-400">{errors.email}</Text>}
+                  {errors.email ? <Text className="mt-1 text-xs text-red-400">{errors.email}</Text> : null}
                 </View>
 
                 {/* Password */}
@@ -214,7 +219,7 @@ export default function LoginScreen({ navigation }) {
                     <TextInput
                       className="flex-1 px-4 py-2 text-black"
                       value={password}
-                      onChangeText={(v) => { setPassword(v); setErrors((p) => ({ ...p, password: null })); }}
+                      onChangeText={(v) => { setPassword(v); setErrors((p) => ({ ...p, password: null, general: null })); }}
                       placeholder="Enter your password"
                       placeholderTextColor="#9ca3af"
                       secureTextEntry={!showPassword}
@@ -225,7 +230,7 @@ export default function LoginScreen({ navigation }) {
                       <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
                     </TouchableOpacity>
                   </View>
-                  {errors.password && <Text className="mt-1 text-xs text-red-400">{errors.password}</Text>}
+                  {errors.password ? <Text className="mt-1 text-xs text-red-400">{errors.password}</Text> : null}
                 </View>
 
                 {/* Remember me + Forgot password */}

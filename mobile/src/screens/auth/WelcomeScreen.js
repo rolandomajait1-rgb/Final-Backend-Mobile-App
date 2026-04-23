@@ -17,7 +17,7 @@ export default function WelcomeScreen({ navigation }) {
         {/* Dark overlay */}
         <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1 items-center justify-between px-4 py-10">
+        <SafeAreaView className="flex-1 items-center justify-between px-4 py-16">
 
           {/* Logo + title block */}
           <View className="flex-1 items-center justify-center">
@@ -38,10 +38,10 @@ export default function WelcomeScreen({ navigation }) {
           </View>
 
           {/* Action buttons */}
-          <View className="w-full items-center gap-3 -mb-10 mt-12">
+          <View className="w-full items-center gap-4 mb-8">
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
-              className="w-2/3 rounded-full items-center mb-2"
+              className="w-2/3 rounded-full items-center"
               style={{ backgroundColor: '#0686f6ff', paddingVertical: 20 }}
               activeOpacity={0.85}
             >
@@ -50,7 +50,7 @@ export default function WelcomeScreen({ navigation }) {
 
             <TouchableOpacity
               onPress={() => navigation.navigate('Register')}
-              className="w-2/3 rounded-full items-center mb-2"
+              className="w-2/3 rounded-full items-center"
               style={{ backgroundColor: '#f8b200', paddingVertical: 20 }}
               activeOpacity={0.85}
             >
@@ -60,9 +60,7 @@ export default function WelcomeScreen({ navigation }) {
 
         </SafeAreaView>
       </ImageBackground>
-
-      {/* White view at the bottom */}
-      <View className="h-28 bg-sky-800" />
+        <View className="h-28 bg-sky-800" />
     </View>
   );
 }

@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard, Modal,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import { useToast } from '../../context/ToastContext';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -20,20 +21,11 @@ export default function RegisterScreen({ navigation }) {
     password_confirmation: '',
   });
   const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [consentAccepted, setConsentAccepted] = useState(false);
-  const [showConsentModal, setShowConsentModal] = useState(false);
   const scrollRef = useRef(null);
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+  const { showToast } = useToast();
 
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -62,8 +54,6 @@ export default function RegisterScreen({ navigation }) {
     if (formData.password !== formData.password_confirmation)
       e.password_confirmation = ['Passwords do not match'];
     
-    if (!consentAccepted) e.consent = ['You must accept the consent form to register'];
-    
     return e;
   };
 
@@ -86,13 +76,26 @@ export default function RegisterScreen({ navigation }) {
         password: formData.password,
         password_confirmation: formData.password_confirmation,
       }, { timeout: 180000 });
+      // Show success toast
+      showToast('Check your email for verification link!', 'success');
       // Navigate to OTP verification screen for registration
-      navigation.replace('VerifyRegistrationOTP', { email: formData.email });
+      setTimeout(() => {
+        navigation.replace('VerifyRegistrationOTP', { email: formData.email });
+      }, 300);
     } catch (error) {
       if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
         setErrors({ general: 'Server is starting up. Please wait a moment and try again.' });
       } else if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
+        // Laravel validation returns errors as object with array values
+        // Flatten them to ensure consistent format
+        const backendErrors = error.response.data.errors;
+        const flatErrors = {};
+        Object.keys(backendErrors).forEach(key => {
+          flatErrors[key] = Array.isArray(backendErrors[key]) 
+            ? backendErrors[key][0] 
+            : backendErrors[key];
+        });
+        setErrors(flatErrors);
       } else if (error.response?.data?.message) {
         setErrors({ general: error.response.data.message });
       } else {
@@ -108,7 +111,7 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={true} />
+      <StatusBar hidden={false} />
 
       {/* Background layer — same as LoginScreen */}
       <View className="flex-1">
@@ -161,7 +164,7 @@ export default function RegisterScreen({ navigation }) {
 
               {/* X close button */}
               <TouchableOpacity
-                onPress={() => navigation.goBack()}
+                onPress={() => navigation.navigate('Welcome')}
                 className="absolute top-4 right-4 z-10"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -170,19 +173,12 @@ export default function RegisterScreen({ navigation }) {
 
               <Text className="text-center font-extrabold text-3xl text-black mb-8">Register</Text>
 
-              {/* Success */}
-              {successMessage !== '' && (
-                <View className="mb-4 rounded-md border border-green-400 bg-green-50 p-3">
-                  <Text className="text-center text-sm text-green-700">{successMessage}</Text>
-                </View>
-              )}
-
               {/* General error */}
-              {errors.general && (
+              {errors.general ? (
                 <View className="mb-4 rounded-md border border-red-400 bg-red-50 p-3">
                   <Text className="text-center text-sm text-red-700">{errors.general}</Text>
                 </View>
-              )}
+              ) : null}
 
               {/* Full Name */}
               <View className="mb-6">
@@ -196,7 +192,11 @@ export default function RegisterScreen({ navigation }) {
                   autoCapitalize="words"
                   autoCorrect={false}
                 />
-                {errors.name && <Text className="mt-1 text-xs text-red-400">{errors.name[0]}</Text>}
+                {errors.name ? (
+                  <Text className="mt-1 text-xs text-red-400">
+                    {Array.isArray(errors.name) ? errors.name[0] : errors.name}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Email */}
@@ -212,7 +212,11 @@ export default function RegisterScreen({ navigation }) {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                {errors.email && <Text className="mt-1 text-xs text-red-400">{errors.email[0]}</Text>}
+                {errors.email ? (
+                  <Text className="mt-1 text-xs text-red-400">
+                    {Array.isArray(errors.email) ? errors.email[0] : errors.email}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Password */}
@@ -233,7 +237,11 @@ export default function RegisterScreen({ navigation }) {
                     <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
-                {errors.password && <Text className="mt-1 text-xs text-red-400">{errors.password[0]}</Text>}
+                {errors.password ? (
+                  <Text className="mt-1 text-xs text-red-400">
+                    {Array.isArray(errors.password) ? errors.password[0] : errors.password}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Confirm Password */}
@@ -254,43 +262,14 @@ export default function RegisterScreen({ navigation }) {
                     <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
-                {errors.password_confirmation && <Text className="mt-1 text-xs text-red-400">{errors.password_confirmation[0]}</Text>}
+                {errors.password_confirmation ? (
+                  <Text className="mt-1 text-xs text-red-400">
+                    {Array.isArray(errors.password_confirmation) ? errors.password_confirmation[0] : errors.password_confirmation}
+                  </Text>
+                ) : null}
               </View>
 
-              {/* Consent Form */}
-              <View className="mb-6">
-                <TouchableOpacity 
-                  onPress={() => {
-                    setConsentAccepted(!consentAccepted);
-                    if (errors.consent) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.consent;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  className="flex-row items-start"
-                  activeOpacity={0.7}
-                >
-                  <View className={`w-5 h-5 rounded border-2 mr-3 mt-1 items-center justify-center ${consentAccepted ? 'bg-blue-500 border-blue-500' : 'border-gray-400 bg-white'}`}>
-                    {consentAccepted && <Ionicons name="checkmark" size={14} color="white" />}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-gray-700 leading-5">
-                      I agree to the{' '}
-                      <Text 
-                        onPress={() => setShowConsentModal(true)}
-                        className="text-blue-500 underline font-semibold"
-                      >
-                        Parental Consent Form
-                      </Text>
-                      {' '}and give my full consent to join and participate as a member of <Text className="font-bold">La Verdad Student Publications</Text>.
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                {errors.consent && <Text className="mt-2 text-xs text-red-400 ml-8">{errors.consent[0]}</Text>}
-              </View>
+
 
               {/* Submit */}
               <TouchableOpacity
