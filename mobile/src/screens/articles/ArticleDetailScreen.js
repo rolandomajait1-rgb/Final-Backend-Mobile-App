@@ -454,7 +454,8 @@ export default function ArticleDetailScreen({ navigation, route }) {
 
         // Bug #14 Fix: Add error handling for share API call
         try {
-          await client.post(`/api/articles/${article.id}/share`, {});
+          const { shareArticle } = await import("../../api/services/articleService");
+          await shareArticle(article.id);
           showAuditToast("success", "Article shared successfully!");
         } catch (shareErr) {
           console.error("Error recording share:", shareErr);

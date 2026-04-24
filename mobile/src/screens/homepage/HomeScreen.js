@@ -293,9 +293,9 @@ export default function HomeScreen({ navigation }) {
       setShowDeleteModal(false);
       showAuditToast("success", "Article deleted successfully");
       
-      // Refresh latest articles context
+      // Force refresh to clear cache and get fresh data
       try {
-        await refreshArticles();
+        await forceRefreshArticles();
         console.log('Articles refreshed after delete');
       } catch (err) {
         console.error('Failed to refresh articles:', err);

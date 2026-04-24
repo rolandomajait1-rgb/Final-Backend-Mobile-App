@@ -205,11 +205,8 @@ export default function ProfileScreen({ navigation }) {
             setSidebarVisible(false);
             // Also refresh articles context on logout
             forceRefreshArticles();
-            // Navigate to Welcome screen after logout
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Welcome' }],
-            });
+            // Replace current screen with Auth stack (goes to Welcome)
+            navigation.replace('Auth');
           } catch (err) {
             console.error("Logout error:", err);
             showAuditEventToast({
@@ -248,6 +245,9 @@ export default function ProfileScreen({ navigation }) {
       } else {
         setSharedArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       }
+      
+      // Remove from global article cache
+      forceRefreshArticles();
       
       setShowDeleteModal(false);
       showAuditEventToast({

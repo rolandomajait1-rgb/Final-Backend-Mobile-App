@@ -28,3 +28,6 @@ export const updateArticle = (id, formData) =>
 
 export const deleteArticle = (id) =>
   client.delete(ENDPOINTS.ARTICLE_DELETE(id));
+
+export const shareArticle = (id) =>
+  client.post(ENDPOINTS.ARTICLE_SHARE(id));

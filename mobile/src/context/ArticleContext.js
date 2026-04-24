@@ -167,6 +167,15 @@ export function ArticleProvider({ children }) {
     });
   }, [saveCache]);
 
+  // ─── Public: remove article from cache (after delete) ──────────────────────
+  const removeArticleLocally = useCallback((articleId) => {
+    setLatestArticles(prev => {
+      const newArticles = prev.filter(a => a.id !== articleId);
+      saveCache(newArticles);
+      return newArticles;
+    });
+  }, [saveCache]);
+
   // ─── On mount: wake backend → load cache → fetch fresh in background ──────
   useEffect(() => {
     wakeUpBackend();   // fire-and-forget wake-up ping
@@ -191,6 +200,7 @@ export function ArticleProvider({ children }) {
     refreshArticles,
     forceRefreshArticles,
     updateArticleLocally,
+    removeArticleLocally,
   };
 
   return (
