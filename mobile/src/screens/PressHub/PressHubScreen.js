@@ -20,7 +20,7 @@ export default function PressHubScreen({ navigation }) {
         onCategorySelect={() => {}}
         onMenuPress={() => {}}
         onSearchPress={() => {}}
-        onGridPress={() => navigation.navigate('Admin')}
+        onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
         onSearch={() => {}}
         navigation={navigation}
         enableSearch={false}

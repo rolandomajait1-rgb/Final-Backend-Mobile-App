@@ -13,7 +13,8 @@ export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
   try {
     console.log('Uploading image to Cloudinary using FileSystem.uploadAsync:', imageUri);
     
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    // Use 'auto' to support images, raw files (PDFs), etc.
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
     
     const uploadTask = FileSystem.createUploadTask(
       uploadUrl,
@@ -24,7 +25,7 @@ export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
         fieldName: 'file',
         parameters: {
           upload_preset: CLOUDINARY_UPLOAD_PRESET,
-          folder: 'articles',
+          folder: 'presshub',
         },
       },
       (data) => {

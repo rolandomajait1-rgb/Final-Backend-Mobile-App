@@ -192,7 +192,7 @@ export default function ProfileScreen({ navigation }) {
             // Navigate to Welcome screen after logout
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Welcome' }],
+              routes: [{ name: 'Auth' }],
             });
           } catch (err) {
             console.error("Logout error:", err);

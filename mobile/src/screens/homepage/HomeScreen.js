@@ -268,7 +268,7 @@ export default function HomeScreen({ navigation }) {
   const handleEdit = () => {
     if (!menuArticle) return;
     setShowMenu(false);
-    navigation.navigate("EditArticle", { articleId: menuArticle.id });
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
   };
 
   const handleDelete = () => {
@@ -327,7 +327,7 @@ export default function HomeScreen({ navigation }) {
             onCategorySelect={setSelectedCategory}
             onMenuPress={() => {}}
             onSearchPress={() => {}}
-            onGridPress={() => navigation.navigate("Admin")}
+            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
             onSearch={debouncedSearch}
             navigation={navigation}
           />
@@ -347,7 +347,7 @@ export default function HomeScreen({ navigation }) {
           onCategorySelect={setSelectedCategory}
           onMenuPress={() => {}}
           onSearchPress={() => {}}
-          onGridPress={() => navigation.navigate("Admin")}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
           onSearch={debouncedSearch}
           navigation={navigation}
         />
@@ -379,14 +379,17 @@ export default function HomeScreen({ navigation }) {
                   date={formatArticleDate(article.created_at || article.published_at)}
                   image={article.featured_image_url || article.featured_image}
                   onPress={() =>
-                    navigation.navigate("ArticleDetail", {
-                      slug: article.slug,
-                      article,
+                    navigation.navigate("ArticleStack", {
+                      screen: "ArticleDetail",
+                      params: {
+                        slug: article.slug,
+                        article,
+                      }
                     })
                   }
                   onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
                   onTagPress={(tag) =>
-                    navigation.navigate("TagArticles", { tagName: tag })
+                    navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag } })
                   }
                   onAuthorPress={() => handleAuthorPress(article, navigation)}
                 />
@@ -407,15 +410,18 @@ export default function HomeScreen({ navigation }) {
             hasMore={hasMore}
             onLoadMore={onLoadMore}
             onArticlePress={(article) =>
-              navigation.navigate("ArticleDetail", {
-                slug: article.slug,
-                article,
+              navigation.navigate("ArticleStack", {
+                screen: "ArticleDetail",
+                params: {
+                  slug: article.slug,
+                  article,
+                }
               })
             }
             handleMenuPress={(article, e) => handleMenuPress(article, e)}
             isAdminUser={userRole === 'admin' || userRole === 'moderator'}
             onTagPress={(tagName) =>
-              navigation.navigate("TagArticles", { tagName })
+              navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName } })
             }
             onAuthorPress={(article) => handleAuthorPress(article, navigation)}
           />
@@ -462,7 +468,7 @@ export default function HomeScreen({ navigation }) {
       {/* Floating Action Button (Create Article) - Only for Admins/Mods */}
       {(userRole === 'admin' || userRole === 'moderator') && (
         <TouchableOpacity
-          onPress={() => navigation.navigate('CreateArticle')}
+          onPress={() => navigation.navigate('Management', { screen: 'CreateArticle' })}
           style={{
             position: 'absolute',
             right: 18,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeHeader from '../homepage/HomeHeader';
@@ -167,7 +167,8 @@ export default function ManageModeratorsScreen({ navigation }) {
           visible={showAddForm}
           onRequestClose={() => setShowAddForm(false)}
         >
-          <View 
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ 
               flex: 1, 
               backgroundColor: 'rgba(0,0,0,0.5)', 
@@ -257,7 +258,7 @@ export default function ManageModeratorsScreen({ navigation }) {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Action Menu Modal (for Remove) - Removed, using inline dropdown instead */}

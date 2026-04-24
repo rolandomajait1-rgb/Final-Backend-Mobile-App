@@ -105,10 +105,11 @@ export default function DraftArticlesScreen({ navigation }) {
       const payload = {
         title: fullArticle.title,
         content: fullArticle.content,
-        category: fullArticle.categories?.[0]?.name,
-        author: fullArticle.author_name || fullArticle.author?.name || fullArticle.author?.user?.name,
+        category_id: fullArticle.category_id || (fullArticle.categories?.[0]?.id),
+        author_name: fullArticle.author_name || fullArticle.author?.name || fullArticle.author?.user?.name,
         status: 'published',
-        tags: fullArticle.tags?.map(t => t.name).join(','),
+        tags: fullArticle.tags?.map(t => typeof t === 'string' ? t.trim() : t.name.trim()).filter(Boolean) || [],
+        featured_image_url: fullArticle.featured_image_url || fullArticle.featured_image,
         _method: 'PUT'
       };
       

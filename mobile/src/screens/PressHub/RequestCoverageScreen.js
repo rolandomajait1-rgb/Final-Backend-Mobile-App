@@ -5,9 +5,9 @@ import {
   Text,
   TextInput,
   ActivityIndicator,
-  ScrollView,
   Platform,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -143,7 +143,7 @@ const RequestCoverageScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false} enableOnAndroid={true} extraScrollHeight={20}>
           <>
             {/* NOTE Section */}
             <View className="mb-4">
@@ -270,7 +270,7 @@ const RequestCoverageScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <View className="flex-shrink-0">
         <BottomNavigation navigation={navigation} activeTab="PressHub" />
       </View>

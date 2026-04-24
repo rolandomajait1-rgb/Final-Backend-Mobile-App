@@ -5,8 +5,8 @@ import {
   Text,
   TextInput,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
@@ -85,7 +85,7 @@ const SendFeedbackScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false} enableOnAndroid={true} extraScrollHeight={20}>
           <>
             {/* Subtitle */}
             <Text style={{ fontSize: 15, color: '#374151', marginBottom: 8 }}>
@@ -180,7 +180,7 @@ const SendFeedbackScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <View className="flex-shrink-0">
         <BottomNavigation navigation={navigation} activeTab="PressHub" />
       </View>

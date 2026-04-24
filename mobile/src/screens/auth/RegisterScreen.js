@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  Platform, ActivityIndicator,
   ImageBackground, Image, StatusBar,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
@@ -147,20 +148,15 @@ export default function RegisterScreen({ navigation }) {
 
       {/* Absolute overlay — card floats on top */}
       <SafeAreaView className="absolute inset-0">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-          className="flex-1"
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        <KeyboardAwareScrollView
+          ref={scrollRef}
+          contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          className="flex-1 px-6"
+          showsVerticalScrollIndicator={false}
+          enableOnAndroid={true}
+          extraScrollHeight={20}
         >
-          <ScrollView
-            ref={scrollRef}
-            contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
-            keyboardShouldPersistTaps="handled"
-            className="px-6"
-            keyboardDismissMode="interactive"
-            showsVerticalScrollIndicator={false}
-            enableOnAndroid={true}
-          >
 
             {/* Card */}
             <View className="rounded-3xl bg-white mt-60 p-10">
@@ -297,8 +293,7 @@ export default function RegisterScreen({ navigation }) {
 
             </View>
 
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );

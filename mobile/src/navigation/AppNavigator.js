@@ -215,7 +215,7 @@ export default function AppNavigator() {
       if (navigationRef.isReady()) {
         navigationRef.reset({
           index: 0,
-          routes: [{ name: 'Auth', state: { routes: [{ name: 'Login' }] } }],
+          routes: [{ name: 'Auth' }], // This will default to the Welcome screen
         });
       }
     });

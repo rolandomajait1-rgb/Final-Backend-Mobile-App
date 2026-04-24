@@ -25,6 +25,7 @@ import { ArticleContext } from "../../context/ArticleContext";
 import { deleteArticle } from "../../api/services/articleService";
 import { showArticleSuccessToast, showArticleErrorToast, showAuditToast } from "../../utils/toastNotification";
 import { handleAuthorPress } from "../../utils/authorNavigation";
+import { getCategoryColor } from "../../utils/categoryColors";
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 function ArticleHero({
@@ -148,8 +149,10 @@ function ArticleHero({
       >
         {article.categories?.length > 0 && (
           <View className="mb-2">
-            <View className="bg-indigo-700/80 rounded-md px-4 py-2 self-start">
-              {/* Bug #24 Fix: Add fallback for undefined category name */}
+            <View 
+              className="rounded-md px-4 py-2 self-start"
+              style={{ backgroundColor: getCategoryColor(article.categories[0].name) + 'CC' }} // CC = 80% opacity
+            >
               <Text className="text-white font-bold text-xs uppercase tracking-widest">
                 {article.categories[0].name || 'Uncategorized'}
               </Text>
@@ -266,7 +269,7 @@ function ArticleTags({ tags, navigation }) {
           key={index}
           className="border border-gray-300 rounded-full px-3 py-1"
           onPress={() =>
-            navigation?.navigate("TagArticles", { tagName: tag.name })
+            navigation?.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag.name } })
           }
         >
           <Text className="text-gray-600 text-xs font-medium">#{tag.name}</Text>
@@ -470,7 +473,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
   };
 
   const handleEdit = () => {
-    navigation.navigate("EditArticle", { articleId: article.id });
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: article.id } });
   };
 
   const handleDelete = () => {
@@ -537,7 +540,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
         <View className="flex-shrink-0 bg-white">
           <HomeHeader
             categories={categories}
-            onGridPress={() => navigation.navigate("Admin")}
+            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
             navigation={navigation}
           />
           <View style={{ height: 2, backgroundColor: "#f39c12" }} />
@@ -561,7 +564,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
       <View className="flex-shrink-0 bg-white">
         <HomeHeader
           categories={categories}
-          onGridPress={() => navigation.navigate("Admin")}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
           navigation={navigation}
         />
         

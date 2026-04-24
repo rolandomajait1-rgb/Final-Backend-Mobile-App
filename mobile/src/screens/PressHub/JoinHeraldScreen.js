@@ -5,17 +5,20 @@ import {
   Text,
   TextInput,
   ActivityIndicator,
-  ScrollView,
-  Alert,
   Image,
   Linking,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../../api/client';
+import { BASE_URL } from '../../constants/config';
+import { uploadImageToCloudinary } from '../../api/services/cloudinaryService';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import { ErrorMessage } from '../../components/common';
@@ -103,17 +106,17 @@ const JoinHeraldScreen = ({ navigation }) => {
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
         
-        // Check file size (5MB limit)
-        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-        if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-          Alert.alert('File Too Large', 'Photo must be less than 5MB.');
-          return;
-        }
+        // Compress image to ensure it's high quality but manageable size
+        const compressed = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 1000 } }], 
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
         
         setPhoto({
-          uri: asset.uri,
-          name: asset.fileName ?? `photo-${Date.now()}.jpg`,
-          type: asset.mimeType ?? 'image/jpeg',
+          uri: compressed.uri,
+          name: `photo-${Date.now()}.jpg`,
+          type: 'image/jpeg',
         });
       }
     } catch (_err) {
@@ -181,12 +184,15 @@ const JoinHeraldScreen = ({ navigation }) => {
     setIsLoading(true);
     setError(null);
     try {
+      // Small wake-up ping to handle Render cold starts
+      await client.get('/api/health').catch(() => {});
+      
       const body = new FormData();
       body.append('fullName',   formData.fullName.trim());
       body.append('courseYear', formData.courseYear.trim());
       body.append('gender',     formData.gender);
       body.append('email',      formData.email.trim());
-
+      
       body.append('photo', {
         uri:  photo.uri,
         name: photo.name,
@@ -199,9 +205,29 @@ const JoinHeraldScreen = ({ navigation }) => {
         type: consentForm.type,
       });
 
-      await client.post('/api/contact/join-herald', body, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      // Using native fetch instead of Axios for better FormData stability on Android
+      const token = await AsyncStorage.getItem('auth_token');
+      const response = await fetch(`${BASE_URL}/api/contact/join-herald`, {
+        method: 'POST',
+        body: body,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+          // Do NOT set Content-Type, let fetch handle the boundary
+        },
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Submission failed:', response.status, errorData);
+        
+        if (response.status === 422) {
+          throw { response: { status: 422, data: errorData } };
+        } else if (response.status === 413) {
+          throw { response: { status: 413 } };
+        }
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
       if (isMountedRef.current) {
         showToast('Application submitted successfully!', 'success');
         setTimeout(() => {
@@ -212,6 +238,9 @@ const JoinHeraldScreen = ({ navigation }) => {
       }
     } catch (err) {
       console.error('Error joining Herald:', err);
+      if (err.response?.data) {
+        console.error('Backend validation errors:', JSON.stringify(err.response.data, null, 2));
+      }
       let msg = 'Failed to submit application. Please try again.';
       
       if (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') {
@@ -258,7 +287,7 @@ const JoinHeraldScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false} enableOnAndroid={true} extraScrollHeight={20}>
           <>
             {/* Data Privacy Notice */}
             <View className="mb-4">
@@ -498,7 +527,7 @@ const JoinHeraldScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <BottomNavigation navigation={navigation} activeTab="Home" />
     </View>
   );

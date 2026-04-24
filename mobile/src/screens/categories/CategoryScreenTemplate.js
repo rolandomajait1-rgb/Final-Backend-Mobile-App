@@ -57,7 +57,7 @@ export default function CategoryScreen({
   const handleCategorySelect = (cat) => {
     if (!cat?.name) return;
     const screen = CATEGORY_SCREEN_MAP[cat.name];
-    if (screen) navigation.navigate(screen);
+    if (screen) navigation.navigate("ArticleStack", { screen });
   };
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -164,7 +164,7 @@ export default function CategoryScreen({
   const handleEdit = () => {
     if (!menuArticle) return;
     setShowMenu(false);
-    navigation.navigate("EditArticle", { articleId: menuArticle.id });
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
   };
 
   const handleDelete = () => {
@@ -221,11 +221,11 @@ export default function CategoryScreen({
   };
 
   const handleArticlePress = (article) => {
-    navigation.navigate("ArticleDetail", { slug: article.slug });
+    navigation.navigate("ArticleStack", { screen: "ArticleDetail", params: { slug: article.slug } });
   };
 
   const handleTagPress = (tag) => {
-    navigation.navigate("TagArticles", { tagName: tag });
+    navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag } });
   };
 
 

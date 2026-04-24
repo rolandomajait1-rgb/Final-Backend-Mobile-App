@@ -57,8 +57,8 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
     const screenName = categoryScreenMap[category.name];
     
     if (screenName && navigation) {
-      // Navigate to dedicated category screen
-      navigation.navigate(screenName);
+      // Navigate to dedicated category screen via ArticleStack
+      navigation.navigate('ArticleStack', { screen: screenName });
       onClose();
     } else {
       // Fallback to filtering in HomeScreen

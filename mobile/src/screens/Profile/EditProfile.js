@@ -4,11 +4,10 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import HomeHeader from '../homepage/HomeHeader';
@@ -138,9 +137,12 @@ export default function EditProfile({ navigation, route }) {
         <View style={{ height: 2, backgroundColor: '#f39c12' }} />
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        enableOnAndroid={true}
+        extraScrollHeight={20}
       >
         {/* Account Settings Header */}
         <View className="flex-row items-center px-6 py-5 bg-white relative justify-center">
@@ -151,11 +153,9 @@ export default function EditProfile({ navigation, route }) {
         </View>
 
         {/* Main Content */}
-        <ScrollView
+        <View
           className="flex-1 bg-white"
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 60 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 60 }}
         >
           {/* Name Field */}
           <View className="mb-6">
@@ -264,8 +264,8 @@ export default function EditProfile({ navigation, route }) {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </KeyboardAwareScrollView>
       <BottomNavigation navigation={navigation} activeTab="Profile" />
       
       <SaveProfileModal

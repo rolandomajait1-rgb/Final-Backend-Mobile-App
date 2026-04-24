@@ -289,7 +289,7 @@ export default function SearchScreen({ navigation }) {
   };
 
   const handleArticlePress = (article) => {
-    navigation.navigate("ArticleDetail", { slug: article.slug, article });
+    navigation.navigate("ArticleStack", { screen: "ArticleDetail", params: { slug: article.slug, article } });
   };
 
 
@@ -322,7 +322,7 @@ export default function SearchScreen({ navigation }) {
           onSearch={handleSearch}
           searchQuery={query}
           isSearchScreen={true}
-          onGridPress={() => navigation.navigate("Admin")}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
         />
       </View>
 
@@ -349,7 +349,7 @@ export default function SearchScreen({ navigation }) {
               onOpenArticle={() => handleArticlePress(item)}
               onOpenAuthor={() => handleAuthorPress(item)}
               onOpenTag={(tagName) =>
-                navigation.navigate("TagArticles", { tagName })
+                navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName } })
               }
             />
           </View>

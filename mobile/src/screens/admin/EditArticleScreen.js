@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -266,16 +267,18 @@ export default function EditArticleScreen({ navigation, route }) {
       const payload = {
         title: title.trim(),
         content: content.trim(),
-        category: categoryName,
-        author: author.trim(),
+        category_id: category,
+        author_name: author.trim(),
         status: status,
-        tags: tags.map(t => t.trim().replace(/^#/, '')).filter(Boolean).join(','),
+        tags: tags.map(t => t.trim().replace(/^#/, '')).filter(Boolean),
         _method: 'PUT',
       };
 
-      // Add Cloudinary URL if new image was uploaded
-      if (cloudinaryUrl) {
-        payload.featured_image_url = cloudinaryUrl;
+      // Handle image: either the newly uploaded Cloudinary URL or the existing image URI
+      const finalImageUrl = cloudinaryUrl || (image?.uri && !isNewImage ? image.uri : null);
+      if (finalImageUrl) {
+        payload.featured_image_url = finalImageUrl;
+        console.log('Sending featured_image_url:', finalImageUrl);
       }
 
       console.log('Updating article with payload:', JSON.stringify({
@@ -402,7 +405,7 @@ export default function EditArticleScreen({ navigation, route }) {
       </View>
 
       {/* Scrollable Form */}
-      <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false} enableOnAndroid={true} extraScrollHeight={20} keyboardShouldPersistTaps="handled">
 
         {/* Title */}
         <View className="mb-6">
@@ -544,7 +547,7 @@ export default function EditArticleScreen({ navigation, route }) {
         </View>
 
         <View className="h-6" />
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Bottom Navigation Bar */}
       <BottomNavigation navigation={navigation} activeTab="Home" />

@@ -141,7 +141,7 @@ export default function ExploreScreen({ navigation }) {
   };
 
   const handleArticlePress = (article) => {
-    navigation.navigate('ArticleDetail', { slug: article.slug });
+    navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug } });
   };
 
   const handleMenuPress = (article, pos) => {
@@ -177,7 +177,7 @@ export default function ExploreScreen({ navigation }) {
 
   const handleEditArticle = () => {
     setShowMenu(false);
-    navigation.navigate("EditArticle", { articleId: menuArticle.id });
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
   };
 
   if (loading) {
@@ -224,7 +224,7 @@ export default function ExploreScreen({ navigation }) {
                 hashtags={item.tags?.map((t) => t.name) || []}
                 onPress={() => handleArticlePress(item)}
                 onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
-                onTagPress={(tag) => navigation.navigate('TagArticles', { tagName: tag })}
+                onTagPress={(tag) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag } })}
                 onAuthorPress={() => handleAuthorPress(item, navigation)}
               />
             </View>
@@ -301,9 +301,12 @@ export default function ExploreScreen({ navigation }) {
                         key={author.id}
                         className="px-4 py-1 rounded-full border border-gray-300 bg-white"
                         onPress={() => {
-                          navigation.navigate('AuthorProfile', {
-                            authorId: author.id,
-                            authorName: author.name
+                          navigation.navigate('ArticleStack', {
+                            screen: 'AuthorProfile',
+                            params: {
+                              authorId: author.id,
+                              authorName: author.name
+                            }
                           });
                           setSelectedFilter(null);
                         }}
@@ -316,7 +319,7 @@ export default function ExploreScreen({ navigation }) {
                         key={tag.id}
                         className="px-4 py-1 rounded-full border border-gray-300 bg-white"
                         onPress={() => {
-                          navigation.navigate('TagArticles', { tagName: tag.name });
+                          navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag.name } });
                           setSelectedFilter(null);
                         }}
                       >
@@ -339,7 +342,7 @@ export default function ExploreScreen({ navigation }) {
                           };
                           const screenName = categoryScreenMap[category.name];
                           if (screenName) {
-                            navigation.navigate(screenName);
+                            navigation.navigate('ArticleStack', { screen: screenName });
                           }
                           setSelectedFilter(null);
                         }}
@@ -374,7 +377,7 @@ export default function ExploreScreen({ navigation }) {
               hashtags={item.tags?.map((t) => t.name) || []}
               onPress={() => handleArticlePress(item)}
               onTagPress={(tag) => {
-                navigation.navigate('TagArticles', { tagName: tag });
+                navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag } });
               }}
               onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
               onAuthorPress={() => handleAuthorPress(item, navigation)}

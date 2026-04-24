@@ -181,7 +181,7 @@ export default function SearchModal() {
   const handleSuggestionPress = (article) => {
     Keyboard.dismiss();
     handleClose();
-    navigation.navigate('ArticleDetail', { slug: article.slug });
+    navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug } });
   };
 
   // ── "See all results" or explicit submission ──────────────────────────────
@@ -230,18 +230,21 @@ export default function SearchModal() {
       onCopy={() => handleCopy(item)}
       onArticlePress={() => {
         handleClose();
-        navigation.navigate('ArticleDetail', { slug: item.slug });
+        navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: item.slug } });
       }}
       onTagPress={(tagName) => {
         handleClose();
-        navigation.navigate('TagArticles', { tagName });
+        navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } });
       }}
       onAuthorPress={() => {
         if (item.author?.id || item.author_id) {
           handleClose();
-          navigation.navigate('AuthorProfile', {
-            authorId: item.author?.id || item.author_id,
-            authorName: item.display_author_name || item.author_name || item.author?.name,
+          navigation.navigate('ArticleStack', {
+            screen: 'AuthorProfile',
+            params: {
+              authorId: item.author?.id || item.author_id,
+              authorName: item.display_author_name || item.author_name || item.author?.name,
+            }
           });
         }
       }}

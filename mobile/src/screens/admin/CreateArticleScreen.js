@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { showAuditToast } from '../../utils/toastNotification';
@@ -353,7 +354,7 @@ export default function CreateArticleScreen({ navigation }) {
       </View>
 
       {/* Scrollable Form */}
-      <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false} enableOnAndroid={true} extraScrollHeight={20} keyboardShouldPersistTaps="handled">
 
         {/* Title */}
         <View className="mb-6">
@@ -495,7 +496,7 @@ export default function CreateArticleScreen({ navigation }) {
         </View>
 
         <View className="h-6" />
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Bottom Navigation Bar */}
       <BottomNavigation navigation={navigation} activeTab="Home" />

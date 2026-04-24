@@ -6,9 +6,12 @@ export const handleAuthorPress = (article, navigation) => {
   const authorName = article.author_name || article.author?.name || article.author?.user?.name || "Unknown Author";
   
   if (authorId) {
-    navigation.navigate("AuthorProfile", {
-      authorId,
-      authorName,
+    navigation.navigate("ArticleStack", {
+      screen: "AuthorProfile",
+      params: {
+        authorId,
+        authorName,
+      }
     });
   } else {
     Alert.alert("Info", "Author information is not available.");

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  Platform, ActivityIndicator,
   ImageBackground, Image, StatusBar, Keyboard,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
@@ -17,9 +18,24 @@ export default function VerifyOTPScreen({ navigation, route }) {
   const email = route.params?.email || '';
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(60);
+  const [isTimerActive, setIsTimerActive] = useState(true);
   const [error, setError] = useState('');
   const scrollRef = useRef(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    let interval = null;
+    if (isTimerActive && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setIsTimerActive(false);
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, timer]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => {});
@@ -68,6 +84,8 @@ export default function VerifyOTPScreen({ navigation, route }) {
       await client.post('/api/forgot-password', { email: email.trim() });
       setOtp('');
       setError('');
+      setTimer(60);
+      setIsTimerActive(true);
       showToast('OTP resent successfully! Check your email.', 'success');
     } catch (err) {
       let msg = 'Failed to resend OTP. Please try again.';
@@ -116,20 +134,15 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
       {/* Absolute overlay - card floats on top */}
       <SafeAreaView className="absolute inset-0">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-          className="flex-1"
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        <KeyboardAwareScrollView
+          ref={scrollRef}
+          contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          className="flex-1 px-6"
+          showsVerticalScrollIndicator={false}
+          enableOnAndroid={true}
+          extraScrollHeight={20}
         >
-          <ScrollView
-            ref={scrollRef}
-            contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
-            keyboardShouldPersistTaps="handled"
-            className="px-6"
-            keyboardDismissMode="interactive"
-            showsVerticalScrollIndicator={false}
-            enableOnAndroid={true}
-          >
 
             {/* Card */}
             <View className="rounded-3xl bg-white mt-60 p-10">
@@ -144,8 +157,11 @@ export default function VerifyOTPScreen({ navigation, route }) {
                 </TouchableOpacity>
 
                 <Text className="text-center font-bold text-4xl text-black mb-2">Verify OTP</Text>
-                <Text className="text-center text-sm text-gray-500 mb-6">
+                <Text className="text-center text-sm text-gray-500 mb-2">
                   Enter the 6-digit code sent to {email}
+                </Text>
+                <Text className="text-center text-xs text-orange-500 font-medium mb-6">
+                  Code expires in 10 minutes
                 </Text>
 
                 {error !== '' && (
@@ -189,11 +205,15 @@ export default function VerifyOTPScreen({ navigation, route }) {
                 </TouchableOpacity>
 
                 {/* Resend OTP */}
-                <View className="mt-4 flex-row justify-center">
+                <View className="mt-4 flex-row justify-center items-center">
                   <Text className="text-sm text-gray-600">Didn&apos;t receive the code? </Text>
-                  <TouchableOpacity onPress={handleResendOTP} disabled={loading}>
-                    <Text className="text-sm text-blue-600 font-medium">Resend</Text>
-                  </TouchableOpacity>
+                  {timer > 0 ? (
+                    <Text className="text-sm text-gray-400 font-medium">Resend in {timer}s</Text>
+                  ) : (
+                    <TouchableOpacity onPress={handleResendOTP} disabled={loading}>
+                      <Text className="text-sm text-blue-600 font-medium">Resend</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Back to forgot password */}
@@ -205,8 +225,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
               </View>
 
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );

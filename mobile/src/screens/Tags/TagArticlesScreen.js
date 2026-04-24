@@ -155,7 +155,7 @@ export default function TagArticlesScreen({ route, navigation }) {
   };
 
   const handleArticlePress = (article) => {
-    navigation.navigate('ArticleDetail', { slug: article.slug });
+    navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug } });
   };
 
   const handleMenuPress = (article, pos) => {
@@ -191,7 +191,7 @@ export default function TagArticlesScreen({ route, navigation }) {
 
   const handleEditArticle = () => {
     setShowMenu(false);
-    navigation.navigate("EditArticle", { articleId: menuArticle.id });
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
   };
 
   const renderLoadingState = () => (
@@ -267,7 +267,7 @@ export default function TagArticlesScreen({ route, navigation }) {
                   hashtags={item.tags?.map((t) => t.name) || []}
                   onPress={() => handleArticlePress(item)}
                   onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
-                  onTagPress={(tag) => navigation.navigate('TagArticles', { tagName: tag })}
+                  onTagPress={(tag) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag } })}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
                 />
               </View>
