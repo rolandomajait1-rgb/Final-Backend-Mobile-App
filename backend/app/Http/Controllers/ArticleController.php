@@ -129,7 +129,7 @@ class ArticleController extends Controller
         $query = trim($query);
         $query = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
 
-        if (strlen($query) < 3) {
+        if (strlen($query) < 1) {
             return response()->json([
                 'data' => [],
                 'meta' => [
