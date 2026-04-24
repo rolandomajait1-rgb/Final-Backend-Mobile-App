@@ -78,7 +78,6 @@ Route::get('/articles/search', [ArticleController::class, 'publicSearch']);
 Route::get('/articles/by-slug/{slug}', [ArticleController::class, 'publicBySlug']);
 Route::get('/articles/id/{id}', [ArticleController::class, 'publicById']);
 Route::get('/articles/author-public/{authorId}', [ArticleController::class, 'getArticlesByAuthorPublic']);
-Route::post('/articles/{article}/share', [ArticleController::class, 'share']);
 Route::get('/latest-articles', [ArticleController::class, 'latestArticles']);
 
 // Public Authors with pagination
@@ -113,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/articles/{article}', [ArticleController::class, 'update']);
     Route::delete('/articles/{article}', [ArticleController::class, 'destroy']);
     Route::post('/articles/{article}/like', [ArticleController::class, 'like']);
+    Route::post('/articles/{article}/share', [ArticleController::class, 'share']);
     Route::get('/articles/author/{authorId}', [ArticleController::class, 'getArticlesByAuthor']);
 
     // Categories API
@@ -146,7 +146,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin-Only Routes
     Route::middleware(['role:admin'])->group(function () {
         Route::get('/admin/check-access', [UserController::class, 'checkAdminAccess']);
-
         Route::get('/admin/moderators', [UserController::class, 'getModerators']);
         Route::post('/admin/moderators', [UserController::class, 'addModerator']);
         Route::delete('/admin/moderators/{id}', [UserController::class, 'removeModerator']);

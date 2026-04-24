@@ -14,6 +14,7 @@ import client from '../../api/client';
 import { deleteArticle } from '../../api/services/articleService';
 import { showAuditToast } from '../../utils/toastNotification';
 import { handleAuthorPress } from '../../utils/authorNavigation';
+import { useArticles } from '../../context/ArticleContext';
 
 export default function DraftArticlesScreen({ navigation }) {
   const [draftArticles, setDraftArticles] = useState([]);
@@ -30,6 +31,7 @@ export default function DraftArticlesScreen({ navigation }) {
   const [publishingDraft, setPublishingDraft] = useState(false);
   const [menuX, setMenuX] = useState(0);
   const [userRole, setUserRole] = useState(null);
+  const { forceRefreshArticles } = useArticles();
 
   useEffect(() => {
     checkUserRole();
@@ -100,26 +102,45 @@ export default function DraftArticlesScreen({ navigation }) {
       setPublishingDraft(true);
       // Fetch full article to ensure we pass all required fields back to the server
       const res = await client.get(`/api/articles/id/${menuArticle.id}`);
-      const fullArticle = res.data;
+      const fullArticle = res.data?.data || res.data;
+      
+      if (!fullArticle) {
+        throw new Error('Could not retrieve article details');
+      }
+
+      const fallbackCategoryId = categories.find(c => c.name === 'News')?.id || categories[0]?.id || 1;
+      const authorName = fullArticle.author_name || fullArticle.author?.name || fullArticle.author?.user?.name || fullArticle.author?.username || 'Herald Staff';
+      const tagsArray = fullArticle.tags?.map(t => typeof t === 'string' ? t.trim() : (t.name ? t.name.trim() : t)).filter(Boolean) || [];
+
+      const categoryId = fullArticle.category_id || fullArticle.categories?.[0]?.id || fullArticle.category?.id || fallbackCategoryId;
+      const categoryNameFromList = categories.find(c => c.id === categoryId)?.name || 'News';
       
       const payload = {
         title: fullArticle.title,
         content: fullArticle.content,
-        category_id: fullArticle.category_id || (fullArticle.categories?.[0]?.id),
-        author_name: fullArticle.author_name || fullArticle.author?.name || fullArticle.author?.user?.name,
+        category: categoryNameFromList, // Backend now expects category name string
+        category_id: categoryId,
+        author: authorName,
+        author_name: authorName,
         status: 'published',
-        tags: fullArticle.tags?.map(t => typeof t === 'string' ? t.trim() : t.name.trim()).filter(Boolean) || [],
+        tags: tagsArray.join(','), // Backend expects string
         featured_image_url: fullArticle.featured_image_url || fullArticle.featured_image,
         _method: 'PUT'
       };
       
+      console.log('Publishing with payload:', JSON.stringify(payload, null, 2));
       await client.post(`/api/articles/${menuArticle.id}`, payload);
       setShowPublishModal(false);
       showAuditToast('success', 'Article published successfully!');
+      forceRefreshArticles();
       fetchDrafts();
     } catch (error) {
       console.error('Error publishing draft:', error);
-      showAuditToast('error', 'Failed to publish draft. Please try again.');
+      if (error.response?.data?.errors) {
+        console.log('Validation errors:', JSON.stringify(error.response.data.errors, null, 2));
+      }
+      const msg = error.response?.data?.message || 'Failed to publish draft. Please try again.';
+      showAuditToast('error', msg);
     } finally {
       setPublishingDraft(false);
     }
@@ -136,7 +157,9 @@ export default function DraftArticlesScreen({ navigation }) {
     if (!menuArticle?.id || deletingDraft) return;
     try {
       setDeletingDraft(true);
+      console.log('Attempting to delete draft:', menuArticle.id);
       await deleteArticle(menuArticle.id);
+      console.log('Draft deleted successfully');
       
       // Remove from local state immediately
       setDraftArticles(prev => prev.filter(d => d.id !== menuArticle.id));
@@ -145,14 +168,11 @@ export default function DraftArticlesScreen({ navigation }) {
       showAuditToast('success', 'Draft deleted successfully');
       
       // Refresh latest articles context
-      try {
-        const { forceRefreshArticles } = require('../../context/ArticleContext');
-        // Note: DraftArticlesScreen doesn't use ArticleContext, so we skip this
-      } catch (err) {
-        // Non-critical
-      }
+      forceRefreshArticles();
     } catch (error) {
       console.error('Error deleting draft:', error);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
       
       // Check if it's a 404 error (draft already deleted)
       if (error.response?.status === 404) {
@@ -161,7 +181,8 @@ export default function DraftArticlesScreen({ navigation }) {
         setShowDeleteModal(false);
         showAuditToast('info', 'Draft was already deleted');
       } else {
-        showAuditToast('error', 'Failed to delete draft. Please try again.');
+        const errorMsg = error.response?.data?.message || error.message || 'Failed to delete draft';
+        showAuditToast('error', errorMsg);
       }
     } finally {
       setDeletingDraft(false);
@@ -221,12 +242,6 @@ export default function DraftArticlesScreen({ navigation }) {
           <View className="items-center justify-center py-20">
             <MaterialCommunityIcons name="file-document-outline" size={64} color="#ccc" />
             <Text className="text-gray-500 mt-4 text-center">No draft articles yet</Text>
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('CreateArticle')} 
-              className="mt-4 bg-blue-500 px-6 py-3 rounded-lg"
-            >
-              <Text className="text-white font-semibold">Create Article</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <View className="gap-4">

@@ -17,7 +17,9 @@ import { Loader, Button, ProfileSkeleton, ArticleCardSkeleton, ArticleActionMenu
 import BottomNavigation from "../../components/common/BottomNavigation";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import { getCurrentUser, logout } from "../../api/services/authService";
+import { getCategories } from "../../api/services/categoryService";
 import client from "../../api/client";
+import { useArticles } from "../../context/ArticleContext";
 import { colors } from "../../styles";
 import SideBar from "./SideBar";
 import { showAuditEventToast } from "../../utils/toastNotification";
@@ -36,6 +38,7 @@ export default function ProfileScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { forceRefreshArticles } = useArticles();
 
   // Per-tab article state
   const [likedArticles, setLikedArticles] = useState([]);
@@ -44,6 +47,7 @@ export default function ProfileScreen({ navigation }) {
   const tabLoadingRef = useRef(false);
   const [tabPage, setTabPage] = useState(1);
   const [tabHasMore, setTabHasMore] = useState(true);
+  const [categories, setCategories] = useState([]);
 
   // Bug #1 Fix: mountedRef initialized to true at declaration, not just inside useEffect.
   // This prevents ghost state updates if loadProfile completes after unmount.
@@ -51,6 +55,7 @@ export default function ProfileScreen({ navigation }) {
 
   useEffect(() => {
     loadProfile();
+    fetchCategories();
     return () => {
       mountedRef.current = false;
     };
@@ -84,6 +89,15 @@ export default function ProfileScreen({ navigation }) {
       }
     }
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await getCategories();
+      setCategories(res.data || []);
+    } catch (err) {
+      console.error('Error fetching categories in Profile:', err);
+    }
+  };
 
   // Bug #3 & #23 Fix: Improved response validation and error handling
   const fetchTabArticles = useCallback(async (tab, page = 1, replace = false) => {
@@ -189,10 +203,12 @@ export default function ProfileScreen({ navigation }) {
             setLikedArticles([]);
             setSharedArticles([]);
             setSidebarVisible(false);
+            // Also refresh articles context on logout
+            forceRefreshArticles();
             // Navigate to Welcome screen after logout
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Auth' }],
+              routes: [{ name: 'Welcome' }],
             });
           } catch (err) {
             console.error("Logout error:", err);
@@ -239,6 +255,8 @@ export default function ProfileScreen({ navigation }) {
         status: 'success',
         message: 'Article deleted successfully'
       });
+      // Global refresh
+      forceRefreshArticles();
     } catch (err) {
       console.error("Error deleting article:", err);
       showAuditEventToast({
@@ -257,22 +275,60 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handlePublishArticle = async () => {
+    if (!menuArticle || loading) return;
     setShowMenu(false);
     try {
+      setLoading(true);
+      // Fetch full article to ensure we pass all required fields back to the server
+      const res = await client.get(`/api/articles/id/${menuArticle.id}`);
+      const fullArticle = res.data?.data || res.data;
+      
+      if (!fullArticle) {
+        throw new Error('Could not retrieve article details');
+      }
+
+      const fallbackCategoryId = categories.find(c => c.name === 'News')?.id || categories[0]?.id || 1;
+      const authorName = fullArticle.author_name || fullArticle.author?.name || fullArticle.author?.user?.name || fullArticle.author?.username || 'Herald Staff';
+      const tagsArray = fullArticle.tags?.map(t => typeof t === 'string' ? t.trim() : (t.name ? t.name.trim() : t)).filter(Boolean) || [];
+
+      const categoryId = fullArticle.category_id || fullArticle.categories?.[0]?.id || fullArticle.category?.id || fallbackCategoryId;
+      const categoryNameFromList = categories.find(c => c.id === categoryId)?.name || 'News';
+
       const payload = {
-        title: menuArticle.title,
-        content: menuArticle.content,
+        title: fullArticle.title,
+        content: fullArticle.content,
+        category: categoryNameFromList, // Backend now expects category name string
+        category_id: categoryId,
+        author: authorName,
+        author_name: authorName,
         status: 'published',
+        tags: tagsArray.join(','), // Backend expects string
+        featured_image_url: fullArticle.featured_image_url || fullArticle.featured_image,
         _method: 'PUT'
       };
+
       await client.post(`/api/articles/${menuArticle.id}`, payload);
+      
       showAuditEventToast({
         action: 'article_publish',
         status: 'success',
         message: 'Article published!'
       });
+      
+      // Global refresh
+      forceRefreshArticles();
+      // Refresh current screen
+      onRefresh();
     } catch (err) {
       console.error("Error publishing:", err);
+      const msg = err.response?.data?.message || 'Failed to publish article. Please try again.';
+      showAuditEventToast({
+        action: 'article_publish',
+        status: 'error',
+        message: msg
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
