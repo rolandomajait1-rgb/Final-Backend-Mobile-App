@@ -2,6 +2,7 @@
   "expo": {
     "name": "La Verdad Herald",
     "slug": "laverdad-herald",
+    "scheme": "laverdadherald",
     "icon": "./assets/icon.png",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
