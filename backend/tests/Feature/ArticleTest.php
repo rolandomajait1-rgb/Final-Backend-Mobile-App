@@ -365,4 +365,110 @@ class ArticleTest extends TestCase
 
         $this->assertNotEquals($a1->slug, $a2->slug);
     }
+
+    // -------------------------------------------------------------------------
+    // Share - Per Role Testing
+    // -------------------------------------------------------------------------
+
+    public function test_share_requires_authentication(): void
+    {
+        $article = $this->makePublishedArticle();
+
+        $this->postJson("/api/articles/{$article->id}/share")->assertStatus(401);
+    }
+
+    public function test_regular_user_can_share_article(): void
+    {
+        $user    = User::factory()->create(['role' => 'user']);
+        $token   = $user->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $response = $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['shared' => true, 'shares_count' => 1]);
+    }
+
+    public function test_moderator_can_share_article(): void
+    {
+        $mod     = User::factory()->create(['role' => 'moderator']);
+        $token   = $mod->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $response = $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['shared' => true, 'shares_count' => 1]);
+    }
+
+    public function test_admin_can_share_article(): void
+    {
+        $admin   = User::factory()->create(['role' => 'admin']);
+        $token   = $admin->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $response = $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['shared' => true, 'shares_count' => 1]);
+    }
+
+    public function test_share_increments_shares_count(): void
+    {
+        $user    = User::factory()->create();
+        $token   = $user->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+        $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+
+        $article->refresh();
+        $this->assertEquals(2, $article->shares_count);
+    }
+
+    public function test_share_records_user_interaction(): void
+    {
+        $user    = User::factory()->create();
+        $token   = $user->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+
+        $this->assertDatabaseHas('article_user_interactions', [
+            'user_id'    => $user->id,
+            'article_id' => $article->id,
+            'type'       => 'shared',
+        ]);
+    }
+
+    public function test_user_can_retrieve_their_shared_articles(): void
+    {
+        $user    = User::factory()->create();
+        $token   = $user->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $this->withToken($token)->postJson("/api/articles/{$article->id}/share");
+
+        $response = $this->withToken($token)->getJson('/api/user/shared-articles');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertEquals($article->id, $response->json('data.0.id'));
+    }
+
+    public function test_shared_articles_list_requires_auth(): void
+    {
+        $this->getJson('/api/user/shared-articles')->assertStatus(401);
+    }
+
+    public function test_moderator_cannot_delete_article(): void
+    {
+        $mod     = User::factory()->create(['role' => 'moderator']);
+        $token   = $mod->createToken('test')->plainTextToken;
+        $article = $this->makePublishedArticle();
+
+        $this->withToken($token)->deleteJson("/api/articles/{$article->id}")
+            ->assertStatus(403)
+            ->assertJsonFragment(['error' => 'Moderators cannot delete articles.']);
+    }
 }
