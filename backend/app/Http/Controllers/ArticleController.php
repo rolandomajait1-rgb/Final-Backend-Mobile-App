@@ -520,6 +520,7 @@ class ArticleController extends Controller
         ]);
 
         // Handle category - accept both 'category' (string name) and 'category_id' (integer)
+        // Only sync if category field is present
         if ($request->has('category_id')) {
             $draft->categories()->sync([$request->category_id]);
         } elseif ($request->has('category')) {
@@ -528,18 +529,18 @@ class ArticleController extends Controller
         }
 
         // Handle tags - accept both string (comma-separated) and array
-        // Always sync even if empty to allow tag removal
-        $tagIds = [];
+        // ONLY sync if tags field is explicitly present in the request
         if ($request->has('tags')) {
             $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
+            $tagIds = [];
             foreach ($tags as $tagName) {
                 $cleanName = ltrim(trim($tagName), '#');
                 if ($cleanName === '') continue;
                 $tag = Tag::firstOrCreate(['name' => $cleanName]);
                 $tagIds[] = $tag->id;
             }
+            $draft->tags()->sync($tagIds);
         }
-        $draft->tags()->sync($tagIds);
 
         try {
             \App\Models\Log::create([
@@ -599,7 +600,7 @@ class ArticleController extends Controller
         $article->update($data);
 
         // Handle category - accept both 'category' (string name) and 'category_id' (integer)
-        // Always sync to ensure proper update
+        // Only sync if category field is present
         if ($request->has('category_id')) {
             $article->categories()->sync([$request->category_id]);
         } elseif ($request->has('category')) {
@@ -608,18 +609,19 @@ class ArticleController extends Controller
         }
 
         // Handle tags - accept both string (comma-separated) and array
-        // Always sync even if empty to allow tag removal
-        $tagIds = [];
+        // ONLY sync if tags field is explicitly present in the request
         if ($request->has('tags')) {
             $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
+            $tagIds = [];
             foreach ($tags as $tagName) {
                 $cleanName = ltrim(trim($tagName), '#');
                 if ($cleanName === '') continue;
                 $tag = Tag::firstOrCreate(['name' => $cleanName]);
                 $tagIds[] = $tag->id;
             }
+            // Sync tags (empty array will clear all tags if that's the intention)
+            $article->tags()->sync($tagIds);
         }
-        $article->tags()->sync($tagIds);
 
         $action = 'update';
         $oldStatus = $oldValues['status'] ?? null;
