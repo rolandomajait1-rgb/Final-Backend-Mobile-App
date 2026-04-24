@@ -293,7 +293,7 @@ class ArticleController extends Controller
                 'title' => 'required|string|max:255',
                 'content' => 'required|string',
                 'category_id' => 'required|exists:categories,id',
-                'tags' => 'array',
+                'tags' => 'nullable|array',
                 'tags.*' => 'string',
                 'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'featured_image_url' => 'nullable|url',
@@ -357,7 +357,7 @@ class ArticleController extends Controller
                     'author_name'   => $validated['author_name'],
                     'status'        => $status,
                     'published_at'  => $status === 'published' ? now() : null,
-                    'excerpt'       => Str::limit($validated['content'], 150),
+                    'excerpt'       => Str::limit(strip_tags($validated['content']), 150),
                     'featured_image'=> $imagePath,
                 ]);
 
@@ -370,19 +370,21 @@ class ArticleController extends Controller
                     'content_length_original' => $contentLength
                 ]);
 
-                $article->categories()->attach($validated['category_id']);
+                // Use sync() instead of attach() to prevent duplicates
+                $article->categories()->sync([$validated['category_id']]);
 
-                if (! empty($validated['tags'])) {
-                    $tagIds = [];
+                // Handle tags - always sync (even if empty array to clear tags)
+                $tagIds = [];
+                if (!empty($validated['tags'])) {
                     foreach ($validated['tags'] as $tagName) {
                         $cleanName = ltrim(trim($tagName), '#');
                         if ($cleanName === '') continue;
                         $tag = Tag::firstOrCreate(['name' => $cleanName]);
                         $tagIds[] = $tag->id;
                     }
-                    $article->tags()->sync($tagIds);
-                    Log::info('Tags attached', ['article_id' => $article->id, 'tag_count' => count($tagIds)]);
                 }
+                $article->tags()->sync($tagIds);
+                Log::info('Tags attached', ['article_id' => $article->id, 'tag_count' => count($tagIds)]);
 
                 // Create audit log for article creation
                 try {
@@ -473,8 +475,10 @@ class ArticleController extends Controller
     protected function handleModeratorPublishedEdit(Request $request, Article $article, Author $author, string $plainContent, $user): JsonResponse
     {
         $imagePath = $article->featured_image;
-        if ($request->has('featured_image_url') && $request->featured_image_url) {
-            $imagePath = $request->featured_image_url;
+        
+        // Handle image update
+        if ($request->has('featured_image_url')) {
+            $imagePath = $request->featured_image_url ?: null;
         } elseif ($request->hasFile('featured_image')) {
             try {
                 $newPath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
@@ -484,6 +488,11 @@ class ArticleController extends Controller
             } catch (\Exception $e) {
                 return response()->json(['error' => 'Featured image failed to upload.'], 422);
             }
+        }
+        
+        // If remove_image flag is set, clear the image
+        if ($request->has('remove_image') && $request->remove_image) {
+            $imagePath = null;
         }
 
         // Get author name from either field
@@ -509,17 +518,18 @@ class ArticleController extends Controller
         }
 
         // Handle tags - accept both string (comma-separated) and array
+        // Always sync even if empty to allow tag removal
+        $tagIds = [];
         if ($request->has('tags')) {
             $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
-            $tagIds = [];
             foreach ($tags as $tagName) {
                 $cleanName = ltrim(trim($tagName), '#');
                 if ($cleanName === '') continue;
                 $tag = Tag::firstOrCreate(['name' => $cleanName]);
                 $tagIds[] = $tag->id;
             }
-            $draft->tags()->sync($tagIds);
         }
+        $draft->tags()->sync($tagIds);
 
         try {
             \App\Models\Log::create([
@@ -557,9 +567,10 @@ class ArticleController extends Controller
             }
         }
 
-        // Handle image
-        if ($request->has('featured_image_url') && $request->featured_image_url) {
-            $data['featured_image'] = $request->featured_image_url;
+        // Handle image - support URL, file upload, or removal
+        if ($request->has('featured_image_url')) {
+            // If featured_image_url is explicitly set (even if null/empty), use it
+            $data['featured_image'] = $request->featured_image_url ?: null;
         } elseif ($request->hasFile('featured_image')) {
             try {
                 $imagePath = $this->cloudinaryService->uploadImage($request->file('featured_image'));
@@ -570,10 +581,15 @@ class ArticleController extends Controller
                 return response()->json(['error' => 'Featured image failed to upload to Cloudinary. Please try again.'], 422);
             }
         }
+        // If remove_image flag is set, clear the image
+        if ($request->has('remove_image') && $request->remove_image) {
+            $data['featured_image'] = null;
+        }
 
         $article->update($data);
 
         // Handle category - accept both 'category' (string name) and 'category_id' (integer)
+        // Always sync to ensure proper update
         if ($request->has('category_id')) {
             $article->categories()->sync([$request->category_id]);
         } elseif ($request->has('category')) {
@@ -582,17 +598,18 @@ class ArticleController extends Controller
         }
 
         // Handle tags - accept both string (comma-separated) and array
+        // Always sync even if empty to allow tag removal
+        $tagIds = [];
         if ($request->has('tags')) {
             $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
-            $tagIds = [];
             foreach ($tags as $tagName) {
                 $cleanName = ltrim(trim($tagName), '#');
                 if ($cleanName === '') continue;
                 $tag = Tag::firstOrCreate(['name' => $cleanName]);
                 $tagIds[] = $tag->id;
             }
-            $article->tags()->sync($tagIds);
         }
+        $article->tags()->sync($tagIds);
 
         $action = 'update';
         $oldStatus = $oldValues['status'] ?? null;
