@@ -84,7 +84,10 @@ class ArticleController extends Controller
         $articles = $query->paginate($limit);
 
         if (request()->wantsJson()) {
-            return response()->json($articles);
+            return response()->json($articles)
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         return view('articles.index', compact('articles'));
@@ -111,7 +114,10 @@ class ArticleController extends Controller
             $query->whereHas('tags', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($tag)]));
         }
 
-        return response()->json($query->paginate($perPage));
+        return response()->json($query->paginate($perPage))
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function publicSearch(Request $request): JsonResponse
@@ -264,14 +270,18 @@ class ArticleController extends Controller
 
     public function latestArticles(): JsonResponse
     {
-        // Use a new cache key to avoid pulling the old bloated cache from the database
+        // Always fetch fresh data - no caching
         $articles = Article::published()
             ->with('author.user', 'categories', 'tags')
+            ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
             ->latest('published_at')
             ->take(6)
             ->get();
 
-        return response()->json($articles);
+        return response()->json($articles)
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function create(): View
