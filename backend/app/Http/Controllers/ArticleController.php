@@ -486,23 +486,30 @@ class ArticleController extends Controller
             }
         }
 
+        // Get author name from either field
+        $authorName = $request->input('author') ?? $request->input('author_name');
+
         $draft = Article::create([
             'title'         => $request->title,
             'content'       => $request->input('content'),
             'author_id'     => $author->id,
-            'author_name'   => $request->author,
+            'author_name'   => $authorName,
             'status'        => 'draft',
             'published_at'  => null,
             'excerpt'       => Str::limit($plainContent, 150),
             'featured_image'=> $imagePath,
         ]);
 
-        if ($request->category) {
+        // Handle category - accept both 'category' (string name) and 'category_id' (integer)
+        if ($request->has('category_id')) {
+            $draft->categories()->sync([$request->category_id]);
+        } elseif ($request->has('category')) {
             $category = Category::firstOrCreate(['name' => $request->category]);
             $draft->categories()->sync([$category->id]);
         }
 
-        if ($request->tags) {
+        // Handle tags - accept both string (comma-separated) and array
+        if ($request->has('tags')) {
             $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
             $tagIds = [];
             foreach ($tags as $tagName) {
@@ -531,11 +538,14 @@ class ArticleController extends Controller
 
     protected function executeMainArticleUpdate(Request $request, Article $article, Author $author, string $plainContent, array $oldValues): JsonResponse
     {
+        // Get author name from either field
+        $authorName = $request->input('author') ?? $request->input('author_name');
+        
         $data = [
             'title'       => $request->title,
             'content'     => $request->input('content'),
             'author_id'   => $author->id,
-            'author_name' => $request->author,
+            'author_name' => $authorName,
             'excerpt'     => Str::limit($plainContent, 150),
         ];
 
@@ -563,15 +573,17 @@ class ArticleController extends Controller
 
         $article->update($data);
 
-        // Handle category
-        if ($request->category) {
+        // Handle category - accept both 'category' (string name) and 'category_id' (integer)
+        if ($request->has('category_id')) {
+            $article->categories()->sync([$request->category_id]);
+        } elseif ($request->has('category')) {
             $category = Category::firstOrCreate(['name' => $request->category]);
             $article->categories()->sync([$category->id]);
         }
 
-        // Handle tags
-        if ($request->tags) {
-            $tags = explode(',', $request->tags);
+        // Handle tags - accept both string (comma-separated) and array
+        if ($request->has('tags')) {
+            $tags = is_array($request->tags) ? $request->tags : explode(',', $request->tags);
             $tagIds = [];
             foreach ($tags as $tagName) {
                 $cleanName = ltrim(trim($tagName), '#');
@@ -612,11 +624,13 @@ class ArticleController extends Controller
             $request->validate([
                 'title'              => 'required|string|max:255',
                 'content'            => 'required|string',
-                'category'           => 'required|string',
-                'tags'               => 'nullable|string',
+                'category'           => 'required_without:category_id|string',
+                'category_id'        => 'required_without:category|exists:categories,id',
+                'tags'               => 'nullable',
                 'featured_image'     => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'featured_image_url' => 'nullable|url',
-                'author'             => 'required|string|min:1',
+                'author'             => 'required_without:author_name|string|min:1',
+                'author_name'        => 'required_without:author|string|min:1',
                 'status'             => 'nullable|in:published,draft',
             ]);
 
@@ -625,9 +639,12 @@ class ArticleController extends Controller
             $isPublished = ($oldValues['status'] ?? null) === 'published';
             $user = Auth::user();
 
+            // Get author name from either 'author' or 'author_name' field
+            $authorName = $request->input('author') ?? $request->input('author_name');
+            
             // Find or create Author directly by name
             $author = Author::firstOrCreate(
-                ['name' => $request->author],
+                ['name' => $authorName],
                 ['bio'  => '']
             );
 
