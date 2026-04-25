@@ -12,7 +12,7 @@ const JoinHeraldCard = () => {
       className="flex-row items-center p-4 rounded-lg border-2"
       style={{ borderColor: colors.border, backgroundColor: colors.surface }}
       activeOpacity={0.7}
-      onPress={() => navigation.navigate('Management', { screen: 'JoinHerald' })}
+      onPress={() => navigation.navigate('JoinHerald')}
     >
       <Ionicons name="document" size={80} color={colors.primary} />
       <View className="flex-1 ml-4">

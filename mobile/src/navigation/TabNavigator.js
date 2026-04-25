@@ -7,7 +7,7 @@ import HomeScreen from '../screens/homepage/HomeScreen';
 import ExploreScreen from '../screens/Explore';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfile from '../screens/Profile/EditProfile';
-import { PressHubScreen } from '../screens/PressHub';
+import PressHubNavigator from './PressHubNavigator';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createStackNavigator();
@@ -48,7 +48,7 @@ export default function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
-      <Tab.Screen name="PressHub" component={PressHubScreen} />
+      <Tab.Screen name="PressHub" component={PressHubNavigator} />
       <Tab.Screen name="Profile" component={ProfileStackScreen} />
     </Tab.Navigator>
   );

@@ -12,7 +12,7 @@ const RequestCoverageCard = () => {
       className="flex-row items-center p-4 rounded-lg border-2"
       style={{ borderColor: colors.border, backgroundColor: colors.surface }}
       activeOpacity={0.7}
-      onPress={() => navigation.navigate('Management', { screen: 'RequestCoverage' })}
+      onPress={() => navigation.navigate('RequestCoverage')}
     >
       <Ionicons name="mail" size={80} color={colors.primary} />
       <View className="flex-1 ml-4">
