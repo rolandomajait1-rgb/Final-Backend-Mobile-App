@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { searchArticles } from '../../api/services/articleService';
 import { useSearch } from '../../context/SearchContext';
 import { colors } from '../../styles';
+import { handleArticleShare, getArticleUrl } from '../../utils/shareUtils';
 import ResultItem from './ResultItem';
 import CopyFeedback from './CopyFeedback';
 
@@ -203,16 +204,9 @@ export default function SearchModal() {
   };
 
   const handleCopy = async (article) => {
-    try {
-      const url = `${process.env.EXPO_PUBLIC_APP_URL || 'https://ambersian.com'}/articles/${article.slug}`;
-      const content = `${article.title}\n${url}`;
-      await Share.share({ message: content, title: article.title });
+    await handleArticleShare(article, () => {
       showCopyFeedback('Shared successfully', 'success');
-    } catch (err) {
-      if (err.message !== 'User did not share') {
-        showCopyFeedback('Failed to share', 'error');
-      }
-    }
+    });
   };
 
   const showCopyFeedback = (message, type) => {

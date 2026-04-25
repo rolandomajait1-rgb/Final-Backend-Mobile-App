@@ -1,6 +1,6 @@
 import {
   View, Text, ImageBackground, Image,
-  TouchableOpacity, StatusBar,
+  TouchableOpacity, StatusBar, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +9,8 @@ const logo = require('../../../assets/logo.png');
 const textlogo = require('../../../assets/la verdad herald.png');
 
 export default function WelcomeScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+
   return (
     <View className="flex-1">
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
@@ -21,11 +23,14 @@ export default function WelcomeScreen({ navigation }) {
 
           {/* Logo + title block */}
           <View className="flex-1 items-center justify-center">
-            <Image
-              source={logo}
-              style={{ width: 260, height: 150, marginBottom: 14 }}
-              resizeMode="contain"
-            />
+            {/* Logo */}
+            <View style={{ width: width < 375 ? 220 : 260, height: width < 375 ? 130 : 150, marginBottom: 14, alignItems: 'center', justifyContent: 'center' }}>
+              <Image
+                source={logo}
+                style={{ width: width < 375 ? 220 : 260, height: width < 375 ? 130 : 150 }}
+                resizeMode="contain"
+              />
+            </View>
             <Image
               source={textlogo}
               style={{ width: 360, height: 54 }}

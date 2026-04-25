@@ -122,20 +122,6 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
                 </View>
               )}
             </ScrollView>
-
-            {/* Profile / Settings Link */}
-            <TouchableOpacity
-              onPress={() => {
-                navigation?.navigate('Profile');
-                onClose();
-              }}
-              className="flex-row items-center gap-5 px-8 py-5 border-t border-gray-100"
-            >
-              <Ionicons name="person-circle" size={28} color={themeColor} />
-              <Text style={{ color: '#334155' }} className="text-[20px] font-normal">
-                Profile
-              </Text>
-            </TouchableOpacity>
           </Animated.View>
 
           {/* Overlay */}

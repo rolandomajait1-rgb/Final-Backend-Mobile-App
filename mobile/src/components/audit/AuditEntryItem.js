@@ -80,10 +80,12 @@ export default function AuditEntryItem({ log }) {
 
           <View className="flex-1 justify-center pl-1">
             <Text className="text-[18px] font-semibold text-gray-900 mb-0.5" numberOfLines={1} ellipsizeMode="tail">
-              {log.article_title || "Unknown Article"}
+              {log.action?.toLowerCase().includes('login') 
+                ? (log.user_role ? log.user_role.charAt(0).toUpperCase() + log.user_role.slice(1) : 'User')
+                : (log.article_title || "Unknown Article")}
             </Text>
             <Text className="text-[13px] text-gray-500 italic" numberOfLines={1} ellipsizeMode="tail">
-              {log.user_email || "Unknown User"}
+              {log.user?.email || log.user_email || "Unknown User"}
             </Text>
           </View>
 

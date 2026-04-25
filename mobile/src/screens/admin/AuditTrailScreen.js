@@ -137,11 +137,14 @@ export default function AuditTrailScreen({ navigation }) {
       <StatusBar hidden={false} />
       <View className="flex-shrink-0 bg-white">
         <HomeHeader 
+          categories={[]}
+          onCategorySelect={() => {}}
+          onMenuPress={() => {}}
+          onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
+          onSearch={setSearchQuery}
           navigation={navigation} 
           enableSearch={true}
-          onSearch={setSearchQuery}
           searchQuery={searchQuery}
-          onGridPress={() => navigation.navigate('AdminScreen')}
         />
       </View>
 

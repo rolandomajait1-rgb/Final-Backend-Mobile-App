@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, useWindowDimensions } from 'react-native';
 
 export default function Input({
   label,
@@ -11,19 +11,20 @@ export default function Input({
   className,
   ...props
 }) {
+  const { width } = useWindowDimensions();
   return (
-    <View className={`mb-4 ${className || ''}`}>
-      {label && <Text className="text-[13px] font-medium text-[#555555] mb-1">{label}</Text>}
+    <View className={`${width < 375 ? 'mb-3' : 'mb-4'} ${className || ''}`}>
+      {label && <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} font-medium text-[#555555] mb-1`}>{label}</Text>}
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#999999"
         secureTextEntry={secureTextEntry}
-        className={`border ${error ? 'border-[#e74c3c]' : 'border-[#e0e0e0]'} rounded-md py-2 px-4 text-[15px] text-[#1a1a1a] bg-white`}
+        className={`border ${error ? 'border-[#e74c3c]' : 'border-[#e0e0e0]'} rounded-md ${width < 375 ? 'py-1.5 px-3' : 'py-2 px-4'} ${width < 375 ? 'text-sm' : 'text-base'} text-[#1a1a1a] bg-white`}
         {...props}
       />
-      {error && <Text className="text-[11px] text-[#e74c3c] mt-1">{error}</Text>}
+      {error && <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-[#e74c3c] mt-1`}>{error}</Text>}
     </View>
   );
 }

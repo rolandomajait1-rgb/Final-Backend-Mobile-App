@@ -187,7 +187,23 @@ export default function AppNavigator() {
           await Promise.race([removePromise, timeoutPromise]).catch(() => {});
           setInitialRoute('Auth');
         } else {
-          setInitialRoute('MainApp');
+          // Check user role to determine initial route
+          const userData = await asyncStorageWithTimeout('user_data', 1000);
+          if (userData) {
+            try {
+              const user = JSON.parse(userData);
+              if (user.role === 'admin' || user.role === 'moderator') {
+                setInitialRoute('Management');
+              } else {
+                setInitialRoute('MainApp');
+              }
+            } catch (parseErr) {
+              console.warn('[AppNavigator] Failed to parse user_data:', parseErr.message);
+              setInitialRoute('MainApp');
+            }
+          } else {
+            setInitialRoute('MainApp');
+          }
         }
       } catch (err) {
         console.warn('[AppNavigator] Auth check failed (timeout or error):', err.message);

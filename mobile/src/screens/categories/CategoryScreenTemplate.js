@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import { deleteArticle, searchArticles } from "../../api/services/articleService";
 import { showAuditToast } from "../../utils/toastNotification";
@@ -16,7 +17,7 @@ import { ALLOWED_CATEGORIES } from "../../constants/categories";
 import { formatArticleDate } from "../../utils/dateUtils";
 import { debounce } from "../../utils/debounce";
 import { handleAuthorPress } from "../../utils/authorNavigation";
-import { ArticleContext } from "../../context/ArticleContext";
+import { useArticles } from "../../context/ArticleContext";
 
 import { Ionicons } from "@expo/vector-icons";
 import client from "../../api/client";
@@ -43,7 +44,8 @@ export default function CategoryScreen({
   categoryName,
   categorySlug,
 }) {
-  const { forceRefreshArticles } = useContext(ArticleContext);
+  const { width } = useWindowDimensions();
+  const { forceRefreshArticles } = useArticles();
   const CATEGORY_SCREEN_MAP = {
     News: "NewsScreen",
     Literary: "LiteraryScreen",
@@ -234,23 +236,23 @@ export default function CategoryScreen({
     <View className="flex-1 justify-center items-center px-6 py-20">
       <Image
         source={logo}
-        style={{ width: 60, height: 60 }}
+        style={{ width: width < 375 ? 50 : 60, height: width < 375 ? 50 : 60 }}
         resizeMode="contain"
       />
       <Text
-        className="text-2xl font-bold mt-6 text-center"
+        className={`${width < 375 ? 'text-xl' : 'text-2xl'} font-bold mt-6 text-center`}
         style={{ color: colors.text }}
       >
         Nothing Published Yet
       </Text>
       <Text
-        className="text-center mt-2"
+        className={`${width < 375 ? 'text-xs' : 'text-sm'} text-center mt-2`}
         style={{ color: colors.textSecondary }}
       >
         Stay tuned, new stories will be up soon.
       </Text>
     </View>
-  ), []);
+  ), [width]);
 
   // ─── Footer (Load More / Spinner) ────────────────────────────────────────
   const renderFooter = useCallback(() => {
@@ -281,6 +283,7 @@ export default function CategoryScreen({
           categories={categories}
           onCategorySelect={handleCategorySelect}
           onMenuPress={() => {}}
+          onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
           onSearch={debouncedSearch}
           navigation={navigation}
         />
@@ -292,14 +295,14 @@ export default function CategoryScreen({
         colors={[getCategoryColor(categoryName), '#fdf2f8']} // Purple to very light pink
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        className="py-5 px-5" 
+        className={`${width < 375 ? 'py-3 px-3' : 'py-4 px-5'}`}
         style={{ 
           borderBottomWidth: 1,
           borderBottomColor: 'rgba(0,0,0,0.05)'
         }}
       >
         <Text 
-          className="text-4xl text-white font-normal"
+          className={`${width < 375 ? 'text-2xl' : 'text-4xl'} text-white font-normal`}
           style={{ letterSpacing: 0, textShadowColor: 'rgba(0, 0, 0, 0.1)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}
         >
           {categoryName}
@@ -313,14 +316,14 @@ export default function CategoryScreen({
             data={searchResults}
             keyExtractor={(item) => String(item.id)}
             ListHeaderComponent={
-              <View className="px-4 py-4 border-b border-gray-200 bg-white">
-                <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+              <View className={`${width < 375 ? 'px-3 py-3' : 'px-4 py-4'} border-b border-gray-200 bg-white`}>
+                <Text className={`${width < 375 ? 'text-lg' : 'text-2xl'} font-bold`} style={{ color: colors.text }}>
                   Search Results for &quot;{searchQuery}&quot;
                 </Text>
               </View>
             }
             renderItem={({ item }) => (
-              <View className="px-4">
+              <View className={`${width < 375 ? 'px-3' : 'px-4'}`}>
                 <ArticleLargeCard
                   title={item.title}
                   category={item.categories?.[0]?.name || categoryName}
@@ -359,21 +362,21 @@ export default function CategoryScreen({
         <View className="flex-1 justify-center items-center px-4">
           <Ionicons
             name="alert-circle"
-            size={48}
+            size={width < 375 ? 40 : 48}
             color={colors.error || "#ef4444"}
           />
           <Text
-            className="mt-4 text-center"
+            className={`${width < 375 ? 'text-sm' : 'text-base'} mt-4 text-center`}
             style={{ color: colors.error || "#ef4444" }}
           >
             {error}
           </Text>
           <TouchableOpacity
-            className="mt-6 px-6 py-3 rounded-lg"
+            className={`${width < 375 ? 'mt-4 px-4 py-2' : 'mt-6 px-6 py-3'} rounded-lg`}
             style={{ backgroundColor: colors.primary }}
             onPress={() => fetchArticles(1, true)}
           >
-            <Text className="text-white font-semibold">Try Again</Text>
+            <Text className={`${width < 375 ? 'text-sm' : 'text-base'} text-white font-semibold`}>Try Again</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -382,7 +385,7 @@ export default function CategoryScreen({
             data={articles}
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => (
-              <View className="px-4">
+              <View className={`${width < 375 ? 'px-3' : 'px-4'}`}>
                 <ArticleLargeCard
                   title={item.title}
                   category={item.categories?.[0]?.name || categoryName}
@@ -399,7 +402,7 @@ export default function CategoryScreen({
             )}
           ListEmptyComponent={renderEmptyState}
           ListFooterComponent={renderFooter}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
+            contentContainerStyle={{ paddingTop: width < 375 ? 12 : 16, paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
             onEndReached={loadMore}
             onEndReachedThreshold={0.4}
@@ -420,6 +423,31 @@ export default function CategoryScreen({
       )}
 
       <BottomNavigation navigation={navigation} activeTab="Home" />
+
+      {/* Floating Action Button (Create Article) - Only for Admins/Mods */}
+      {(userRole === 'admin' || userRole === 'moderator') && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Management', { screen: 'CreateArticle' })}
+          style={{
+            position: 'absolute',
+            right: 18,
+            bottom: 130,
+            width: width < 375 ? 64 : 72,
+            height: width < 375 ? 64 : 72,
+            borderRadius: 999,
+            backgroundColor: '#f39c12',
+            justifyContent: 'center',
+            alignItems: 'center',
+            elevation: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.18,
+            shadowRadius: 8,
+          }}
+        >
+          <Ionicons name="add" size={width < 375 ? 36 : 40} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       {/* Edit/Delete Menu Modal */}
       <ArticleActionMenu

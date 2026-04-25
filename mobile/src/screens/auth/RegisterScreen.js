@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   Platform, ActivityIndicator,
-  ImageBackground, Image, StatusBar,
+  ImageBackground, Image, StatusBar, useWindowDimensions,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ const logo = require('../../../assets/logo.png');
 const textlogo = require('../../../assets/la verdad herald.png');
 
 export default function RegisterScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -127,15 +128,15 @@ export default function RegisterScreen({ navigation }) {
           <View className="items-center mt-40">
             <Image
               source={logo}
-              style={{ width: 260, height: 150, marginBottom: 14, opacity: 0.3 }}
+              style={{ width: width < 375 ? 200 : 260, height: width < 375 ? 115 : 150, marginBottom: 14, opacity: 0.3 }}
               resizeMode="contain"
             />
             <Image
               source={textlogo}
-              style={{ width: 360, height: 54 }}
+              style={{ width: width < 375 ? 280 : 360, height: width < 375 ? 42 : 54 }}
               resizeMode="contain"
             />
-            <Text className="text-gray-300 text-lg text-center px-2 mt-2">
+            <Text className={`${width < 375 ? 'text-sm' : 'text-lg'} text-gray-300 text-center px-2 mt-2`}>
               The Official Higher Education Student Publication of{'\n'}
               La Verdad Christian College, Inc.
             </Text>
@@ -150,16 +151,16 @@ export default function RegisterScreen({ navigation }) {
       <SafeAreaView className="absolute inset-0">
         <KeyboardAwareScrollView
           ref={scrollRef}
-          contentContainerStyle={{ paddingVertical: 24, flexGrow: 1 }}
+          contentContainerStyle={{ paddingVertical: width < 375 ? 16 : 24, flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
-          className="flex-1 px-6"
+          className={`flex-1 ${width < 375 ? 'px-4' : 'px-6'}`}
           showsVerticalScrollIndicator={false}
           enableOnAndroid={true}
           extraScrollHeight={20}
         >
 
             {/* Card */}
-            <View className="rounded-3xl bg-white mt-60 p-10">
+            <View className={`rounded-3xl bg-white mt-60 ${width < 375 ? 'p-6' : 'p-10'}`}>
 
               {/* X close button */}
               <TouchableOpacity
@@ -167,23 +168,23 @@ export default function RegisterScreen({ navigation }) {
                 className="absolute top-4 right-4 z-10"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={24} color="#6b7280" />
+                <Ionicons name="close" size={width < 375 ? 20 : 24} color="#6b7280" />
               </TouchableOpacity>
 
-              <Text className="text-center font-extrabold text-3xl text-black mb-8">Register</Text>
+              <Text className={`${width < 375 ? 'text-2xl' : 'text-3xl'} text-center font-extrabold text-black ${width < 375 ? 'mb-6' : 'mb-8'}`}>Register</Text>
 
               {/* General error */}
               {errors.general ? (
-                <View className="mb-4 rounded-md border border-red-400 bg-red-50 p-3">
-                  <Text className="text-center text-sm text-red-700">{errors.general}</Text>
+                <View className={`mb-4 rounded-md border border-red-400 bg-red-50 ${width < 375 ? 'p-2' : 'p-3'}`}>
+                  <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} text-center text-red-700`}>{errors.general}</Text>
                 </View>
               ) : null}
 
               {/* Full Name */}
-              <View className="mb-6">
-                <Text className="mb-1 text-lg font-medium text-black">Full Name</Text>
+              <View className={`${width < 375 ? 'mb-4' : 'mb-6'}`}>
+                <Text className={`${width < 375 ? 'text-base' : 'text-lg'} mb-1 font-medium text-black`}>Full Name</Text>
                 <TextInput
-                  className={`w-full rounded-md border px-4 py-2 mb-2 bg-white/80 text-black ${errors.name ? 'border-red-400' : 'border-gray-300'}`}
+                  className={`w-full rounded-md border ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} mb-2 bg-white/80 text-black ${errors.name ? 'border-red-400' : 'border-gray-300'}`}
                   value={formData.name}
                   onChangeText={(v) => handleChange('name', v)}
                   placeholder="Enter your full name"
@@ -192,17 +193,17 @@ export default function RegisterScreen({ navigation }) {
                   autoCorrect={false}
                 />
                 {errors.name ? (
-                  <Text className="mt-1 text-xs text-red-400">
+                  <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} mt-1 text-red-400`}>
                     {Array.isArray(errors.name) ? errors.name[0] : errors.name}
                   </Text>
                 ) : null}
               </View>
 
               {/* Email */}
-              <View className="mb-6">
-                <Text className="mb-1 text-lg font-medium text-black">Email Address</Text>
+              <View className={`${width < 375 ? 'mb-4' : 'mb-6'}`}>
+                <Text className={`${width < 375 ? 'text-base' : 'text-lg'} mb-1 font-medium text-black`}>Email Address</Text>
                 <TextInput
-                  className={`w-full rounded-md border px-4 py-2 mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
+                  className={`w-full rounded-md border ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                   value={formData.email}
                   onChangeText={(v) => handleChange('email', v)}
                   placeholder="Enter your email"
@@ -212,18 +213,18 @@ export default function RegisterScreen({ navigation }) {
                   autoCorrect={false}
                 />
                 {errors.email ? (
-                  <Text className="mt-1 text-xs text-red-400">
+                  <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} mt-1 text-red-400`}>
                     {Array.isArray(errors.email) ? errors.email[0] : errors.email}
                   </Text>
                 ) : null}
               </View>
 
               {/* Password */}
-              <View className="mb-6">
-                <Text className="mb-1 text-lg font-medium text-black">Password</Text>
+              <View className={`${width < 375 ? 'mb-4' : 'mb-6'}`}>
+                <Text className={`${width < 375 ? 'text-base' : 'text-lg'} mb-1 font-medium text-black`}>Password</Text>
                 <View className={`flex-row items-center rounded-md border bg-white/80 ${errors.password ? 'border-red-400' : 'border-gray-300'}`}>
                   <TextInput
-                    className="flex-1 px-4 py-2 text-black"
+                    className={`flex-1 ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} text-black`}
                     value={formData.password}
                     onChangeText={(v) => handleChange('password', v)}
                     placeholder="Enter your password"
@@ -233,22 +234,22 @@ export default function RegisterScreen({ navigation }) {
                     onFocus={scrollToEnd}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={width < 375 ? 18 : 20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
                 {errors.password ? (
-                  <Text className="mt-1 text-xs text-red-400">
+                  <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} mt-1 text-red-400`}>
                     {Array.isArray(errors.password) ? errors.password[0] : errors.password}
                   </Text>
                 ) : null}
               </View>
 
               {/* Confirm Password */}
-              <View className="mb-6">
-                <Text className="mb-1 text-lg font-medium text-black">Confirm Password</Text>
-                <View className={`flex-row items-center rounded-md mb-4 border bg-white/80 ${errors.password_confirmation ? 'border-red-400' : 'border-gray-300'}`}>
+              <View className={`${width < 375 ? 'mb-4' : 'mb-6'}`}>
+                <Text className={`${width < 375 ? 'text-base' : 'text-lg'} mb-1 font-medium text-black`}>Confirm Password</Text>
+                <View className={`flex-row items-center rounded-md ${width < 375 ? 'mb-2' : 'mb-4'} border bg-white/80 ${errors.password_confirmation ? 'border-red-400' : 'border-gray-300'}`}>
                   <TextInput
-                    className="flex-1 px-4 py-2 text-black"
+                    className={`flex-1 ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} text-black`}
                     value={formData.password_confirmation}
                     onChangeText={(v) => handleChange('password_confirmation', v)}
                     placeholder="Confirm your password"
@@ -258,11 +259,11 @@ export default function RegisterScreen({ navigation }) {
                     onFocus={scrollToEnd}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="pr-3">
-                    <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
+                    <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={width < 375 ? 18 : 20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
                 {errors.password_confirmation ? (
-                  <Text className="mt-1 text-xs text-red-400">
+                  <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} mt-1 text-red-400`}>
                     {Array.isArray(errors.password_confirmation) ? errors.password_confirmation[0] : errors.password_confirmation}
                   </Text>
                 ) : null}
@@ -274,20 +275,20 @@ export default function RegisterScreen({ navigation }) {
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={isSubmitting}
-                className="rounded-full py-4 items-center"
-                style={{ backgroundColor: '#f8b200', width: 150, alignSelf: 'center' }}
+                className="rounded-full items-center"
+                style={{ backgroundColor: '#f8b200', width: width < 375 ? 120 : 150, alignSelf: 'center', paddingVertical: width < 375 ? 12 : 16 }}
               >
                 {isSubmitting
                   ? <ActivityIndicator color="white" size="small" />
-                  : <Text className="text-center font-bold text-white text-lg">Sign Up</Text>
+                  : <Text className={`${width < 375 ? 'text-base' : 'text-lg'} text-center font-bold text-white`}>Sign Up</Text>
                 }
               </TouchableOpacity>
 
               {/* Login link */}
-              <View className="mt-6 flex-row justify-center">
-                <Text className="text-lg text-black mb-1">Already have an account? </Text>
+              <View className={`flex-row justify-center ${width < 375 ? 'mt-4' : 'mt-6'}`}>
+                <Text className={`${width < 375 ? 'text-sm' : 'text-lg'} text-black mb-1`}>Already have an account? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                  <Text className="text-lg text-blue-500">Log in</Text>
+                  <Text className={`${width < 375 ? 'text-sm' : 'text-lg'} text-blue-500`}>Log in</Text>
                 </TouchableOpacity>
               </View>
 
