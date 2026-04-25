@@ -27,6 +27,7 @@ import { debounce } from "../../utils/debounce";
 import { showAuditToast } from "../../utils/toastNotification";
 import { formatArticleDate } from "../../utils/dateUtils";
 import { handleAuthorPress } from "../../utils/authorNavigation";
+import { handleCategoryPress } from "../../utils/categoryNavigation";
 
 // ─── ARTICLES LIST ────────────────────────────────────────────────────────────
 const ArticlesListContent = ({
@@ -41,6 +42,7 @@ const ArticlesListContent = ({
   onTagPress,
   onAuthorPress,
   isAdminUser,
+  navigation,
 }) => (
   <ScrollView
     showsVerticalScrollIndicator={false}
@@ -72,6 +74,7 @@ const ArticlesListContent = ({
             onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
             onTagPress={onTagPress}
             onAuthorPress={() => onAuthorPress(article)}
+            onCategoryPress={(category) => handleCategoryPress(category, navigation)}
           />
         ))
       ) : (
@@ -104,6 +107,8 @@ const ArticlesListContent = ({
               onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
               onAuthorPress={() => onAuthorPress(article)}
               onTagPress={onTagPress}
+              onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+              navigation={navigation}
             />
           ))}
         </View>
@@ -115,34 +120,16 @@ const ArticlesListContent = ({
         />
       )}
     </View>
-
-    {hasMore && (
-      <View className="items-center mb-4">
-        <TouchableOpacity
-          onPress={onLoadMore}
-          disabled={loadingMore}
-          className="py-2"
-        >
-          <Text className="text-blue-500 font-semibold text-base">
-            {loadingMore ? "Loading..." : "Load More"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    )}
   </ScrollView>
 );
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation }) {
-  const { latestArticles = [], refreshArticles } = useArticles();
+  const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles } = useArticles();
   const hasMountedRef = useRef(false);
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const isAdminUser = userRole === 'admin' || userRole === 'moderator';
   const [menuArticle, setMenuArticle] = useState(null);
@@ -154,8 +141,6 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  // Local filtered articles for category selection
-  const [filteredArticles, setFilteredArticles] = useState([]);
 
   useEffect(() => {
     checkUserRole();
@@ -173,7 +158,10 @@ export default function HomeScreen({ navigation }) {
     try {
       const res = await getCategories();
       setCategories(res.data ?? []);
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      setCategoriesLoading(false);
+    }
   };
 
   const handleSearch = useCallback(async (query) => {
@@ -201,27 +189,6 @@ export default function HomeScreen({ navigation }) {
     [handleSearch]
   );
 
-  // Bug #3 Fix: fetchArticles now actually stores its results and filters by category
-  const fetchArticles = useCallback(async (pageNum = 1, categoryId = null) => {
-    try {
-      const params = { limit: 10, page: pageNum };
-      if (categoryId) params.category = categoryId;
-      const res = await getArticles(params);
-      const articles = res.data?.data ?? [];
-      const lastPage = res.data?.last_page ?? 1;
-      
-      // Always update filteredArticles for pagination
-      setFilteredArticles(prev =>
-        pageNum === 1 ? articles : [...prev, ...articles]
-      );
-      
-      setHasMore(pageNum < lastPage);
-      setPage(pageNum);
-    } catch (e) {
-      console.error("Error fetching articles:", e);
-    }
-  }, []);
-
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -237,22 +204,10 @@ export default function HomeScreen({ navigation }) {
     }, [refreshArticles]),
   );
 
-  useEffect(() => {
-    setLoading(true);
-    fetchArticles(1, selectedCategory).finally(() => setLoading(false));
-  }, [selectedCategory, fetchArticles]);
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchArticles(1, selectedCategory), refreshArticles()]);
+    await refreshArticles();
     setRefreshing(false);
-  };
-
-  const onLoadMore = async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    await fetchArticles(page + 1, selectedCategory);
-    setLoadingMore(false);
   };
 
   const handleMenuPress = (article, pos) => {
@@ -287,7 +242,6 @@ export default function HomeScreen({ navigation }) {
       await deleteArticle(menuArticle.id);
       
       // Remove from local state immediately
-      setFilteredArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
       
       setShowDeleteModal(false);
@@ -306,7 +260,6 @@ export default function HomeScreen({ navigation }) {
       // Check if it's a 404 error (article already deleted)
       if (error.response?.status === 404) {
         // Remove from local state since it doesn't exist anymore
-        setFilteredArticles(prev => prev.filter(a => a.id !== menuArticle.id));
         setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
         setShowDeleteModal(false);
         showAuditToast("info", "Article was already deleted");
@@ -318,13 +271,13 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  if (loading) {
+  if (articlesLoading || categoriesLoading) {
     return (
       <View className="flex-1 bg-gray-50">
         <View className="flex-shrink-0">
           <HomeHeader
             categories={categories}
-            onCategorySelect={setSelectedCategory}
+            onCategorySelect={() => {}}
             onMenuPress={() => {}}
             onSearchPress={() => {}}
             onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
@@ -344,7 +297,7 @@ export default function HomeScreen({ navigation }) {
       <View className="flex-shrink-0">
         <HomeHeader
           categories={categories}
-          onCategorySelect={setSelectedCategory}
+          onCategorySelect={() => {}}
           onMenuPress={() => {}}
           onSearchPress={() => {}}
           onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
@@ -392,6 +345,7 @@ export default function HomeScreen({ navigation }) {
                     navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag } })
                   }
                   onAuthorPress={() => handleAuthorPress(article, navigation)}
+                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
                 />
               ))
             ) : (
@@ -402,13 +356,12 @@ export default function HomeScreen({ navigation }) {
           </ScrollView>
         ) : (
           <ArticlesListContent
-            // Use filteredArticles for pagination, fallback to latestArticles only on initial load
-            latestArticles={filteredArticles.length > 0 ? filteredArticles : latestArticles}
+            latestArticles={latestArticles}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            loadingMore={loadingMore}
-            hasMore={hasMore}
-            onLoadMore={onLoadMore}
+            loadingMore={false}
+            hasMore={false}
+            onLoadMore={() => {}}
             onArticlePress={(article) =>
               navigation.navigate("ArticleStack", {
                 screen: "ArticleDetail",
@@ -424,6 +377,7 @@ export default function HomeScreen({ navigation }) {
               navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName } })
             }
             onAuthorPress={(article) => handleAuthorPress(article, navigation)}
+            navigation={navigation}
           />
         )}
       </View>
@@ -472,7 +426,7 @@ export default function HomeScreen({ navigation }) {
           style={{
             position: 'absolute',
             right: 18,
-            bottom: 112,
+            bottom: 130,
             width: 72,
             height: 72,
             borderRadius: 999,
