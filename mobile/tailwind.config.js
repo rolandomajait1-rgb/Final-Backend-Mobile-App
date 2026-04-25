@@ -6,7 +6,14 @@ module.exports = {
   ],
   presets: [require('nativewind/preset')],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['Montserrat-Regular', 'system-ui', 'sans-serif'],
+        medium: ['Montserrat-Medium', 'system-ui', 'sans-serif'],
+        semibold: ['Montserrat-SemiBold', 'system-ui', 'sans-serif'],
+        bold: ['Montserrat-Bold', 'system-ui', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 };

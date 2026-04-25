@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Set Montserrat as default font for all text */
+* {
+  font-family: 'Montserrat-Regular';
+}
