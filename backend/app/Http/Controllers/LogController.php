@@ -23,7 +23,18 @@ class LogController extends Controller
             // Add article title if the log is related to an article
             if ($log->model_type === 'App\\Models\\Article' && $log->model_id) {
                 $article = \App\Models\Article::find($log->model_id);
-                $log->article_title = $article ? $article->title : 'Deleted Article';
+                
+                if ($article) {
+                    // Article still exists
+                    $log->article_title = $article->title;
+                } else {
+                    // Article was deleted or doesn't exist, try to get title from old_values or new_values
+                    $oldValues = json_decode($log->old_values, true);
+                    $newValues = json_decode($log->new_values, true);
+                    
+                    // Try old_values first (for delete), then new_values (for create/publish)
+                    $log->article_title = $oldValues['title'] ?? $newValues['title'] ?? 'Unknown Article';
+                }
             }
             
             return $log;

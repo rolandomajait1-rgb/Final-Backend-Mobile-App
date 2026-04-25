@@ -83,19 +83,6 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Audit log: successful login
-        try {
-            \App\Models\Log::create([
-                'user_id'    => $user->id,
-                'action'     => 'login',
-                'model_type' => 'App\\Models\\User',
-                'model_id'   => $user->id,
-                'new_values' => json_encode(['email' => $user->email]),
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Failed to write login audit log: ' . $e->getMessage());
-        }
-
         return response()->json(['token' => $token, 'role' => $user->role, 'user' => $user]);
     }
 
@@ -164,19 +151,6 @@ class AuthController extends Controller
     public function logoutApi(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        // Audit log: logout
-        try {
-            \App\Models\Log::create([
-                'user_id'    => $user->id,
-                'action'     => 'logout',
-                'model_type' => 'App\\Models\\User',
-                'model_id'   => $user->id,
-                'new_values' => json_encode(['email' => $user->email]),
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Failed to write logout audit log: ' . $e->getMessage());
-        }
 
         $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
 
