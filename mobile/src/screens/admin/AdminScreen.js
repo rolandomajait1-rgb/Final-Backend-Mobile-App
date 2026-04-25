@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -16,6 +16,16 @@ import BottomNavigation from '../../components/common/BottomNavigation';
 import EnhancedGrowthChart from '../../components/admin/EnhancedGrowthChart';
 import CategoryPieChart from '../../components/admin/CategoryPieChart';
 import client from '../../api/client';
+import { debounce } from '../../utils/debounce';
+import { searchArticles } from '../../api/services/articleService';
+import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
+import { handleAuthorPress } from '../../utils/authorNavigation';
+import { handleCategoryPress } from '../../utils/categoryNavigation';
+import { isAdminOrModerator } from '../../utils/authUtils';
+import { showAuditToast } from '../../utils/toastNotification';
+import { ArticleActionMenu } from '../../components/common';
+import { formatArticleDate } from '../../utils/dateUtils';
+import { colors } from '../../styles';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const BRAND_BLUE       = '#2c6587';
@@ -230,6 +240,60 @@ export default function AdminScreen({ navigation }) {
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [isUserModerator, setIsUserModerator] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [menuArticle, setMenuArticle] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuX, setMenuX] = useState(0);
+  const [menuY, setMenuY] = useState(0);
+
+  const handleSearch = useCallback(async (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await searchArticles(query.trim());
+      setSearchResults(res.data?.data ?? []);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+
+  const handleMenuPress = (article, pos) => {
+    setMenuArticle(article);
+    setMenuX(pos.px);
+    setMenuY(pos.py);
+    setShowMenu(true);
+  };
+
+  const handleEditArticle = () => {
+    setShowMenu(false);
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
+  };
+
+  const handleDeleteArticle = async () => {
+    setShowMenu(false);
+    try {
+      const { deleteArticle } = await import("../../api/services/articleService");
+      await deleteArticle(menuArticle.id);
+      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      showAuditToast("success", "Article deleted successfully");
+    } catch (err) {
+      console.error("Error deleting article:", err);
+      showAuditToast("error", "Failed to delete article");
+    }
+  };
+
   const fetchCategories = useCallback(async () => {
     try {
       const res = await client.get('/api/categories');
@@ -311,9 +375,11 @@ export default function AdminScreen({ navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onMenuPress={() => {}}
-          onGridPress={() => navigation.navigate('MainApp')}
-          onSearch={() => {}}
+          onGridPress={() => {}} // Disabled - already in Admin dashboard
+          onSearch={debouncedSearch}
           navigation={navigation}
+          enableSearch={true}
+          searchQuery={searchQuery}
         />
       </View>
 
@@ -350,6 +416,42 @@ export default function AdminScreen({ navigation }) {
         }
         contentContainerStyle={{ paddingBottom: 140, paddingTop: 20 }}
       >
+        {searchQuery.trim() !== '' ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            {searching ? (
+              <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ marginTop: 12, color: MUTED, fontSize: 14 }}>Searching...</Text>
+              </View>
+            ) : searchResults.length === 0 ? (
+              <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+                <Ionicons name="search-outline" size={48} color="#d1d5db" />
+                <Text style={{ marginTop: 12, color: MUTED, fontSize: 14, textAlign: 'center' }}>No articles found for "{searchQuery}"</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {searchResults.map((article) => (
+                  <ArticleMediumCard
+                    key={article.id}
+                    title={article.title}
+                    category={article.categories?.[0]?.name || 'Uncategorized'}
+                    author={article.author_name || article.author?.name || 'Unknown Author'}
+                    date={formatArticleDate(article.created_at || article.published_at)}
+                    image={article.featured_image_url || article.featured_image}
+                    hashtags={article.tags?.map((t) => t.name) || []}
+                    onPress={() => navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug, article } })}
+                    onMenuPress={isUserAdmin ? (pos) => handleMenuPress(article, pos) : undefined}
+                    onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
+                    onAuthorPress={() => handleAuthorPress(article, navigation)}
+                    onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                    navigation={navigation}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <>
         {/* ── Loading ── */}
         {loading && !stats ? (
           <View style={{ alignItems: 'center', paddingTop: 60 }}>
@@ -547,11 +649,13 @@ export default function AdminScreen({ navigation }) {
             </View>
           </>
         )}
+          </>
+        )}
       </ScrollView>
 
       {/* Bottom Nav */}
       <View style={{ flexShrink: 0 }}>
-        <BottomNavigation navigation={navigation} activeTab="Home" />
+        <BottomNavigation navigation={navigation} activeTab="Admin" />
       </View>
 
       {/* Floating Action Button (Create Article) */}
@@ -576,6 +680,28 @@ export default function AdminScreen({ navigation }) {
       >
         <Ionicons name="add" size={40} color="#fff" />
       </TouchableOpacity>
+
+      {/* Article Action Menu */}
+      <ArticleActionMenu
+        visible={showMenu}
+        x={menuX}
+        y={menuY}
+        onClose={() => setShowMenu(false)}
+        actions={[
+          {
+            label: "Edit",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: handleEditArticle,
+          },
+          {
+            label: "Delete",
+            icon: "trash-outline",
+            color: "#ef4444",
+            onPress: handleDeleteArticle,
+          },
+        ]}
+      />
     </View>
   );
 }
