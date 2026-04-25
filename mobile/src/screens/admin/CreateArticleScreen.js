@@ -375,11 +375,11 @@ export default function CreateArticleScreen({ navigation }) {
           <TouchableOpacity
             onPress={pickImage}
             className="border border-gray-300 rounded-2xl items-center justify-center bg-gray-50 overflow-hidden"
-            style={{ height: 180 }}
+            style={{ height: 260 }}
           >
             {image ? (
               <View className="relative w-full h-full">
-                <Image source={{ uri: getImageUri(image.uri) }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+                <Image source={{ uri: getImageUri(image.uri) }} style={{ width: '100%', height: 260 }} resizeMode="cover" />
                 <TouchableOpacity
                   onPress={() => setImage(null)}
                   className="absolute top-2 right-2 bg-red-500 rounded-full p-2"

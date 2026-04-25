@@ -23,6 +23,7 @@ const categoryIcons = {
 
 const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navigation }) => {
   const slideAnim = useRef(new Animated.Value(-300)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   // Map category names to screen names (only 7 allowed categories)
   const categoryScreenMap = {
@@ -39,19 +40,34 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
-      Animated.timing(slideAnim, {
-        toValue: -300,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -300,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  }, [visible, slideAnim]);
+  }, [visible, slideAnim, overlayOpacity]);
 
   const handleCategorySelect = (category) => {
     const screenName = categoryScreenMap[category.name];
@@ -125,11 +141,19 @@ const SidebarMenu = ({ visible, onClose, categories = [], onCategorySelect, navi
           </Animated.View>
 
           {/* Overlay */}
-          <TouchableOpacity
-            className="flex-1 bg-black/50"
-            onPress={onClose}
-            activeOpacity={1}
-          />
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              opacity: overlayOpacity,
+            }}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              onPress={onClose}
+              activeOpacity={1}
+            />
+          </Animated.View>
         </View>
       </SafeAreaView>
     </Modal>

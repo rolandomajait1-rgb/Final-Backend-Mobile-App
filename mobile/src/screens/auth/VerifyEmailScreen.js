@@ -123,7 +123,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
               {loading && (
                 <View className="items-center py-8">
-                  <ActivityIndicator size="large" color="#f8b200" />
+                  <ActivityIndicator size="large" color="#ffffff" />
                   <Text className="text-center text-gray-600 mt-4">Verifying your email...</Text>
                 </View>
               )}

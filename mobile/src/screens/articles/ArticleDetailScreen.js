@@ -28,6 +28,7 @@ import { handleAuthorPress } from "../../utils/authorNavigation";
 import { handleCategoryPress } from "../../utils/categoryNavigation";
 import { getCategoryColor } from "../../utils/categoryColors";
 import { handleArticleShare, getArticleUrl, extractGist } from "../../utils/shareUtils";
+import { getArticleLikedState, saveArticleLikedState } from "../../hooks/useLikedArticles";
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 function ArticleHero({
@@ -294,8 +295,8 @@ export default function ArticleDetailScreen({ navigation, route }) {
   const { id, slug, article: passedArticle } = route.params ?? {};
   const [article, setArticle] = useState(passedArticle || null);
   const [loading, setLoading] = useState(!passedArticle);
-  const [likes, setLikes] = useState(passedArticle?.likes_count || 0);
-  const [liked, setLiked] = useState(passedArticle?.user_liked || false);
+  const [likes, setLikes] = useState(0);
+  const [liked, setLiked] = useState(false);
   const [shares, setShares] = useState(passedArticle?.shares_count || 0);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false); // Only admin, not moderator
@@ -303,6 +304,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
   const [deletingArticle, setDeletingArticle] = useState(false);
   const userInteractedRef = useRef(false); // Track if user has liked/unliked
   const [categories, setCategories] = useState([]);
+  const likedStateLoadedRef = useRef(false); // Track if we've loaded liked state
   
   // Bug #6 Fix: Add mounted ref to prevent state updates after unmount
   const mountedRef = useRef(true);
@@ -350,8 +352,8 @@ export default function ArticleDetailScreen({ navigation, route }) {
     }
 
     try {
-      // Bug #17 Fix: Show loading state even when passedArticle exists
-      if (mountedRef.current) {
+      // Bug #17 Fix: Only show loading if we don't have passedArticle
+      if (mountedRef.current && !passedArticle) {
         setLoading(true);
       }
       
@@ -365,29 +367,21 @@ export default function ArticleDetailScreen({ navigation, route }) {
       if (res?.data && mountedRef.current) {
         setArticle(res.data);
         
-        // Check if user has liked this article before (from AsyncStorage)
-        try {
-          const likedArticlesKey = 'liked_articles';
-          const stored = await AsyncStorage.getItem(likedArticlesKey);
-          const likedArticles = stored ? JSON.parse(stored) : {};
+        // Don't overwrite like state if we've already loaded it or user has interacted
+        if (!userInteractedRef.current && !likedStateLoadedRef.current) {
+          // Check if user has liked this article before (from AsyncStorage)
+          const likedState = await getArticleLikedState(res.data.id);
           
-          if (likedArticles[res.data.id]) {
+          if (likedState) {
             // User has liked this article before, use stored state
-            setLikes(likedArticles[res.data.id].count);
+            setLikes(likedState.count);
             setLiked(true);
-            userInteractedRef.current = true;
-          } else if (!userInteractedRef.current) {
+          } else {
             // No stored like, use backend data
             setLikes(res.data.likes_count || 0);
             setLiked(res.data.user_liked || false);
           }
-        } catch (err) {
-          console.error('Error loading liked state:', err);
-          // Fallback to backend data
-          if (!userInteractedRef.current) {
-            setLikes(res.data.likes_count || 0);
-            setLiked(res.data.user_liked || false);
-          }
+          likedStateLoadedRef.current = true;
         }
         
         setShares(res.data.shares_count || 0);
@@ -402,10 +396,29 @@ export default function ArticleDetailScreen({ navigation, route }) {
         setLoading(false);
       }
     }
-  }, [id, slug, navigation]);
+  }, [id, slug, navigation, passedArticle]);
 
   // Fetch article data and admin status on mount
   useEffect(() => {
+    // Load liked state immediately from AsyncStorage before anything else
+    const loadInitialLikedState = async () => {
+      const articleId = passedArticle?.id || id;
+      if (articleId && !likedStateLoadedRef.current) {
+        const likedState = await getArticleLikedState(articleId);
+        if (likedState && mountedRef.current) {
+          setLikes(likedState.count);
+          setLiked(true);
+          likedStateLoadedRef.current = true;
+        } else if (passedArticle && mountedRef.current) {
+          // Use passedArticle data if no stored state
+          setLikes(passedArticle.likes_count || 0);
+          setLiked(passedArticle.user_liked || false);
+          likedStateLoadedRef.current = true;
+        }
+      }
+    };
+    
+    loadInitialLikedState();
     fetchArticle();
     checkAdminStatus();
     fetchCategories();
@@ -414,7 +427,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchArticle, checkAdminStatus, fetchCategories]);
+  }, [fetchArticle, checkAdminStatus, fetchCategories, passedArticle, id]);
 
   const handleLike = async () => {
     if (!article?.id) return;
@@ -425,26 +438,17 @@ export default function ArticleDetailScreen({ navigation, route }) {
     setLiked(newLiked);
     setLikes(newCount);
     
-    // Persist liked state to AsyncStorage
-    try {
-      const likedArticlesKey = 'liked_articles';
-      const stored = await AsyncStorage.getItem(likedArticlesKey);
-      const likedArticles = stored ? JSON.parse(stored) : {};
-      
-      if (newLiked) {
-        likedArticles[article.id] = { liked: true, count: newCount };
-      } else {
-        delete likedArticles[article.id];
-      }
-      
-      await AsyncStorage.setItem(likedArticlesKey, JSON.stringify(likedArticles));
-    } catch (err) {
-      console.error('Error persisting like state:', err);
+    // Update article in context immediately for all screens
+    if (updateArticleLocally) {
+      updateArticleLocally(article.id, { 
+        user_liked: newLiked, 
+        likes_count: newCount,
+        like_count: newCount // Some screens use like_count instead of likes_count
+      });
     }
     
-    if (updateArticleLocally) {
-      updateArticleLocally(article.id, { user_liked: newLiked, likes_count: newCount });
-    }
+    // Persist liked state to AsyncStorage using centralized utility
+    await saveArticleLikedState(article.id, newLiked, newCount);
 
     try {
       await client.post(`/api/articles/${article.id}/like`);
@@ -456,8 +460,15 @@ export default function ArticleDetailScreen({ navigation, route }) {
       setLikes(newLiked ? likes - 1 : likes + 1);
       
       if (updateArticleLocally) {
-        updateArticleLocally(article.id, { user_liked: !newLiked, likes_count: newLiked ? likes - 1 : likes + 1 });
+        updateArticleLocally(article.id, { 
+          user_liked: !newLiked, 
+          likes_count: newLiked ? likes - 1 : likes + 1,
+          like_count: newLiked ? likes - 1 : likes + 1
+        });
       }
+      
+      // Rollback AsyncStorage
+      await saveArticleLikedState(article.id, !newLiked, newLiked ? likes - 1 : likes + 1);
       
       showAuditToast("error", "Failed to like article. Please log in.");
     }

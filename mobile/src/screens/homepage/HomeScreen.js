@@ -92,7 +92,7 @@ const ArticlesListContent = ({
       </Text>
       {latestArticles?.length > 1 ? (
         <View className="gap-1">
-          {latestArticles.slice(1, 6).map((article) => (
+          {latestArticles.slice(1).map((article) => (
             <ArticleMediumCard
               key={article.id}
               title={article.title}

@@ -74,7 +74,7 @@ export default function App() {
           <ToastProvider>
             <>
               <OfflineBanner />
-              <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+              <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} />
               <AppNavigator />
               <ToastContainer />
             </>

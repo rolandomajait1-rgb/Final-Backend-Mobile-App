@@ -203,7 +203,7 @@ export default function ManageModeratorsScreen({ navigation }) {
           }}
           onSearch={debouncedSearch}
           navigation={navigation}
-          enableSearch={true}
+          enableSearch={false}
           searchQuery={headerSearchQuery}
         />
       </View>

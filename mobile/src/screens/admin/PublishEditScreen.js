@@ -76,7 +76,7 @@ export default function PublishEditScreen({ navigation, route }) {
       Alert.alert(
         'Success',
         status === 'published' ? 'Article published successfully!' : 'Article saved as draft!',
-        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+        [{ text: 'OK', onPress: () => navigation.navigate('MainApp', { screen: 'Home' }) }]
       );
     } catch (error) {
       console.error('Error updating article:', error);

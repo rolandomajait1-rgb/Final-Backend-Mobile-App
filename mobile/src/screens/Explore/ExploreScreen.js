@@ -5,6 +5,7 @@ import {
   View, Text, FlatList,
   RefreshControl, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
 import { Loader, ArticleActionMenu } from '../../components/common';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal';
@@ -301,7 +302,7 @@ export default function ExploreScreen({ navigation }) {
           ListHeaderComponent={
             <View className="px-4 py-4 border-b border-gray-200 bg-white">
               <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-                Search Results for &quot;{searchQuery}&quot;
+              Articles Results for {searchQuery}
               </Text>
             </View>
           }
@@ -328,7 +329,7 @@ export default function ExploreScreen({ navigation }) {
                 <ActivityIndicator size="large" color={colors.primary} />
               ) : (
                 <Text className="text-center text-gray-500 text-lg">
-                  No articles found for &quot;{searchQuery}&quot;
+                  No articles found for {searchQuery}
                 </Text>
               )}
             </View>
@@ -342,10 +343,23 @@ export default function ExploreScreen({ navigation }) {
           <>
             {/* Filter Section */}
             <View className="px-4 py-4 bg-white border-b border-gray-200">
-              <Text className="text-gray-500 text-xl font-bold mb-3 ml-3 tracing-widest">Filter</Text>
+              <Text className="text-gray-500 text-xl font-bold mb-3 ml-3 tracing-widest">Trending</Text>
               <View className="flex-row gap-3 justify-center">
                 <TouchableOpacity
                   className={`px-6 py-2 rounded-full border ${
+                    selectedFilter === 'article' ? 'border-cyan-700 bg-gray-50' : 'border-gray-300 bg-white'
+                  }`}
+                  onPress={() => setSelectedFilter(selectedFilter === 'article' ? null : 'article')}
+                >
+                  <Text 
+                    className={selectedFilter === 'article' ? 'text-cyan-700' : 'text-gray-600'}
+                    style={{ letterSpacing: 1 }}
+                  >
+                    Articles
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className={`px-10 py-2 rounded-full border ${
                     selectedFilter === 'author' ? 'border-cyan-700 bg-gray-50' : 'border-gray-300 bg-white'
                   }`}
                   onPress={() => setSelectedFilter(selectedFilter === 'author' ? null : 'author')}
@@ -370,50 +384,76 @@ export default function ExploreScreen({ navigation }) {
                     Tag
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  className={`px-6 py-2 rounded-full border ${
-                    selectedFilter === 'category' ? 'border-cyan-700 bg-gray-50' : 'border-gray-300 bg-white'
-                  }`}
-                  onPress={() => setSelectedFilter(selectedFilter === 'category' ? null : 'category')}
-                >
-                  <Text 
-                    className={selectedFilter === 'category' ? 'text-cyan-700' : 'text-gray-600'}
-                    style={{ letterSpacing: 1 }}
-                  >
-                    Category
-                  </Text>
-                </TouchableOpacity>
               </View>
 
               {/* Show selected filter items as pills */}
               {selectedFilter && (
                 <View className="mt-6">
-                  <View className="flex-row flex-wrap gap-2">
-                     {selectedFilter === 'author' && authors.map((author) => (
+                  {selectedFilter === 'article' && (
+                    <Text className="text-xl font-bold text-gray-900 mb-4 px-1">
+                      Top 10 Articles
+                    </Text>
+                  )}
+                  {selectedFilter === 'author' && (
+                    <Text className="text-xl font-bold text-gray-900 mb-4 px-1">
+                      Top 10 Authors
+                    </Text>
+                  )}
+                  {selectedFilter === 'tag' && (
+                    <Text className="text-xl font-bold text-gray-900 mb-4 px-1">
+                      Top 10 Tags
+                    </Text>
+                  )}
+                  <View className="gap-3">
+                    {selectedFilter === 'article' && trendingArticles.slice(0, 10).map((article, index) => (
+                      <TouchableOpacity
+                        key={article.id}
+                        className="flex-row items-center bg-white p-4 rounded-xl border border-gray-200"
+                        onPress={() => navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug, article } })}
+                      >
+                        <View className="w-8 h-8 rounded-full bg-cyan-700 items-center justify-center mr-3">
+                          <Text className="text-white font-bold">{index + 1}</Text>
+                        </View>
+                        <Text className="flex-1 text-gray-800 font-medium" numberOfLines={2}>
+                          {article.title}
+                        </Text>
+                        {index === 0 && <Ionicons name="trophy" size={24} color="#FFD700" />}
+                        {index === 1 && <Ionicons name="trophy" size={24} color="#C0C0C0" />}
+                        {index === 2 && <Ionicons name="trophy" size={24} color="#CD7F32" />}
+                      </TouchableOpacity>
+                    ))}
+                    {selectedFilter === 'author' && authors.map((author, index) => (
                       <TouchableOpacity
                         key={author.id}
-                        className="px-4 py-1 rounded-full border border-gray-300 bg-white"
+                        className="flex-row items-center bg-white p-4 rounded-lg border border-gray-200"
                         onPress={() => handleFilterItemClick('author', author)}
                       >
-                        <Text className="text-gray-700">{author.name}</Text>
+                        <View className="w-8 h-8 rounded-full bg-cyan-700 items-center justify-center mr-3">
+                          <Text className="text-white font-bold">{index + 1}</Text>
+                        </View>
+                        <Text className="flex-1 text-gray-800 font-medium">
+                          {author.name}
+                        </Text>
+                        {index === 0 && <Ionicons name="trophy" size={24} color="#FFD700" />}
+                        {index === 1 && <Ionicons name="trophy" size={24} color="#C0C0C0" />}
+                        {index === 2 && <Ionicons name="trophy" size={24} color="#CD7F32" />}
                       </TouchableOpacity>
                     ))}
-                    {selectedFilter === 'tag' && tags.map((tag) => (
+                    {selectedFilter === 'tag' && tags.map((tag, index) => (
                       <TouchableOpacity
                         key={tag.id}
-                        className="px-4 py-1 rounded-full border border-gray-300 bg-white"
+                        className="flex-row items-center bg-white p-4 rounded-lg border border-gray-200"
                         onPress={() => handleFilterItemClick('tag', tag)}
                       >
-                        <Text className="text-gray-700">#{tag.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                    {selectedFilter === 'category' && topCategories.map((category) => (
-                      <TouchableOpacity
-                        key={category.id}
-                        className="px-4 py-1 rounded-full border border-gray-300 bg-white"
-                        onPress={() => handleFilterItemClick('category', category)}
-                      >
-                        <Text className="text-gray-700">{category.name}</Text>
+                        <View className="w-8 h-8 rounded-full bg-cyan-700 items-center justify-center mr-3">
+                          <Text className="text-white font-bold">{index + 1}</Text>
+                        </View>
+                        <Text className="flex-1 text-gray-800 font-medium">
+                          #{tag.name}
+                        </Text>
+                        {index === 0 && <Ionicons name="trophy" size={24} color="#FFD700" />}
+                        {index === 1 && <Ionicons name="trophy" size={24} color="#C0C0C0" />}
+                        {index === 2 && <Ionicons name="trophy" size={24} color="#CD7F32" />}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -437,7 +477,7 @@ export default function ExploreScreen({ navigation }) {
                   <Text className="text-cyan-700 font-semibold">Clear filter</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
+            ) : (selectedFilter === 'article' || selectedFilter === 'author' || selectedFilter === 'tag') ? null : (
               <View className="px-4 py-4 border-b border-gray-200 bg-white">
                 <Text className="text-2xl font-bold" style={{ color: colors.text }}>
                   Trending Articles
@@ -446,6 +486,7 @@ export default function ExploreScreen({ navigation }) {
             )}
           </>
         }
+        data={selectedFilterItem ? filteredArticles : ((selectedFilter === 'article' || selectedFilter === 'author' || selectedFilter === 'tag') ? [] : trendingArticles)}
         renderItem={({ item }) => (
           <View className="px-4">
             <ArticleLargeCard
@@ -465,20 +506,9 @@ export default function ExploreScreen({ navigation }) {
             />
           </View>
         )}
-        data={selectedFilterItem ? filteredArticles : trendingArticles}
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={10}
-        ListEmptyComponent={
-          <View className="flex-1 justify-center items-center px-4 py-12">
-            <Text className="text-center text-gray-500 text-lg">
-              {selectedFilterItem 
-                ? `No articles found for ${selectedFilterItem.name}`
-                : 'No trending articles yet'
-              }
-            </Text>
-          </View>
-        }
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
           <RefreshControl

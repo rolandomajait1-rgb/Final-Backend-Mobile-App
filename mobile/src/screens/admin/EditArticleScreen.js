@@ -300,7 +300,7 @@ export default function EditArticleScreen({ navigation, route }) {
       setShowModal(false);
 
       // Navigate first, then show toast after navigation completes
-      navigation.navigate('Home');
+      navigation.navigate('MainApp', { screen: 'Home' });
       
       // Show toast after a short delay to ensure navigation completes
       setTimeout(() => {
@@ -560,6 +560,7 @@ export default function EditArticleScreen({ navigation, route }) {
         onDiscard={handleDiscard}
         isSaving={loading}
         title="Save Edit"
+        saveText="Save as Draft"
         description={userRole === 'moderator' 
           ? "As a moderator, you can save changes as draft. Only admins can publish."
           : "Save your changes and come back to finish your article later."

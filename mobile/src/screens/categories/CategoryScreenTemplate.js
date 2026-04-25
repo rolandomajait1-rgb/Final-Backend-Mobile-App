@@ -80,6 +80,7 @@ export default function CategoryScreen({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const loadingMoreRef = useRef(false);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -92,7 +93,10 @@ export default function CategoryScreen({
 
   const fetchArticles = useCallback(async (pageNum = 1, replace = false, silent = false) => {
     if (pageNum === 1 && !silent) setLoading(true);
-    else if (pageNum > 1) setLoadingMore(true);
+    else if (pageNum > 1) {
+      setLoadingMore(true);
+      loadingMoreRef.current = true;
+    }
     setError(null);
 
     try {
@@ -115,6 +119,7 @@ export default function CategoryScreen({
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      loadingMoreRef.current = false;
       setRefreshing(false);
     }
   }, [categoryName, categorySlug]);
@@ -219,7 +224,10 @@ export default function CategoryScreen({
   };
 
   const loadMore = () => {
-    if (!loadingMore && hasMore) fetchArticles(page + 1, false);
+    if (!loadingMoreRef.current && hasMore) {
+      console.log('Loading more articles, current page:', page);
+      fetchArticles(page + 1, false);
+    }
   };
 
   const handleArticlePress = (article) => {

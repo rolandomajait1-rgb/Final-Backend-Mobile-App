@@ -111,7 +111,32 @@ const linking = {
 
 // 1. Auth Stack
 const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator 
+    screenOptions={{ 
+      headerShown: false,
+      cardStyleInterpolator: ({ current, layouts }) => {
+        return {
+          cardStyle: {
+            opacity: current.progress,
+          },
+        };
+      },
+      transitionSpec: {
+        open: {
+          animation: 'timing',
+          config: {
+            duration: 250,
+          },
+        },
+        close: {
+          animation: 'timing',
+          config: {
+            duration: 200,
+          },
+        },
+      },
+    }}
+  >
     <Stack.Screen name="Welcome" component={WelcomeScreen} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
@@ -125,7 +150,50 @@ const AuthStack = () => (
 
 // 2. Admin & PressHub Stack
 const ManagementStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator 
+    screenOptions={{ 
+      headerShown: false,
+      cardStyleInterpolator: ({ current, next, layouts }) => {
+        return {
+          cardStyle: {
+            transform: [
+              {
+                translateX: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [layouts.screen.width, 0],
+                }),
+              },
+            ],
+          },
+          overlayStyle: {
+            opacity: current.progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.5],
+            }),
+          },
+        };
+      },
+      transitionSpec: {
+        open: {
+          animation: 'spring',
+          config: {
+            stiffness: 1000,
+            damping: 500,
+            mass: 3,
+            overshootClamping: true,
+            restDisplacementThreshold: 0.01,
+            restSpeedThreshold: 0.01,
+          },
+        },
+        close: {
+          animation: 'timing',
+          config: {
+            duration: 200,
+          },
+        },
+      },
+    }}
+  >
     <Stack.Screen name="Admin" component={AdminScreen} />
     <Stack.Screen name="Statistics" component={StatisticsScreen} />
     <Stack.Screen name="DraftArticles" component={DraftArticlesScreen} />
@@ -143,7 +211,50 @@ const ManagementStack = () => (
 
 // 3. Article Detail Stack
 const ArticleDetailStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator 
+    screenOptions={{ 
+      headerShown: false,
+      cardStyleInterpolator: ({ current, next, layouts }) => {
+        return {
+          cardStyle: {
+            transform: [
+              {
+                translateX: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [layouts.screen.width, 0],
+                }),
+              },
+            ],
+          },
+          overlayStyle: {
+            opacity: current.progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.5],
+            }),
+          },
+        };
+      },
+      transitionSpec: {
+        open: {
+          animation: 'spring',
+          config: {
+            stiffness: 1000,
+            damping: 500,
+            mass: 3,
+            overshootClamping: true,
+            restDisplacementThreshold: 0.01,
+            restSpeedThreshold: 0.01,
+          },
+        },
+        close: {
+          animation: 'timing',
+          config: {
+            duration: 200,
+          },
+        },
+      },
+    }}
+  >
     <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
     <Stack.Screen name="TagArticles" component={TagArticlesScreen} />
     <Stack.Screen name="AuthorProfile" component={AuthorProfileScreen} />
@@ -231,7 +342,7 @@ export default function AppNavigator() {
       if (navigationRef.isReady()) {
         navigationRef.reset({
           index: 0,
-          routes: [{ name: 'Auth' }], // This will default to the Welcome screen
+          routes: [{ name: 'Auth', params: { screen: 'Welcome' } }],
         });
       }
     });
@@ -241,15 +352,49 @@ export default function AppNavigator() {
   if (!initialRoute) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#2C5F7F' }}>
-        <ActivityIndicator size="large" color="#f8b200" />
+        <ActivityIndicator size="large" color="#ffffff" />
       </View>
     );
   }
 
   return (
     <ArticleProvider>
-      <NavigationContainer ref={navigationRef} linking={linking} fallback={<View style={{ flex: 1, backgroundColor: '#2C5F7F', justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#f8b200" /></View>}>
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+      <NavigationContainer 
+        ref={navigationRef} 
+        linking={linking} 
+        fallback={
+          <View style={{ flex: 1, backgroundColor: '#2C5F7F', justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#ffffff" />
+          </View>
+        }
+      >
+        <Stack.Navigator 
+          screenOptions={{ 
+            headerShown: false,
+            cardStyleInterpolator: ({ current, layouts }) => {
+              return {
+                cardStyle: {
+                  opacity: current.progress,
+                },
+              };
+            },
+            transitionSpec: {
+              open: {
+                animation: 'timing',
+                config: {
+                  duration: 300,
+                },
+              },
+              close: {
+                animation: 'timing',
+                config: {
+                  duration: 250,
+                },
+              },
+            },
+          }} 
+          initialRouteName={initialRoute}
+        >
           <Stack.Screen name="Auth" component={AuthStack} />
           <Stack.Screen name="MainApp" component={TabNavigator} />
           <Stack.Screen name="Management" component={ManagementStack} />
@@ -258,7 +403,14 @@ export default function AppNavigator() {
             name="Search" 
             component={SearchScreen}
             options={{
-              animationEnabled: false,
+              animationEnabled: true,
+              cardStyleInterpolator: ({ current, layouts }) => {
+                return {
+                  cardStyle: {
+                    opacity: current.progress,
+                  },
+                };
+              },
             }}
           />
         </Stack.Navigator>

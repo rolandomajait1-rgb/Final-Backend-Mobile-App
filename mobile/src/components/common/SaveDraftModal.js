@@ -19,7 +19,7 @@ export default function SaveDraftModal({
   title = "Save Edit",
   description = "Save your changes and come back to finish your article later.",
   publishText = "Publish",
-  saveText = "Save",
+  saveText = "Save as draft",
   discardText = "Discard",
 }) {
   return (

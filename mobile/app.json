@@ -12,6 +12,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#2C5F7F"
     },
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#ffffff"
+    },
     "extra": {
       "eas": {
         "projectId": "1765d994-9d3b-471b-b28f-75963495893b"

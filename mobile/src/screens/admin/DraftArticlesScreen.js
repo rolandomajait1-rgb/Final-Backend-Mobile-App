@@ -230,7 +230,7 @@ export default function DraftArticlesScreen({ navigation }) {
           onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
           onSearch={debouncedSearch}
           navigation={navigation}
-          enableSearch={true}
+          enableSearch={false}
           searchQuery={searchQuery}
         />
       </View>

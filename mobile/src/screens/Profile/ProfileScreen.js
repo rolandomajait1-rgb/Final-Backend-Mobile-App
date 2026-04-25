@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   ScrollView,
   RefreshControl,
   ActivityIndicator,
   useWindowDimensions,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -195,34 +195,28 @@ export default function ProfileScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const handleLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await logout();
-            setUser(null);
-            setLikedArticles([]);
-            setSharedArticles([]);
-            setSidebarVisible(false);
-            // Also refresh articles context on logout
-            forceRefreshArticles();
-            // Replace current screen with Auth stack (goes to Welcome)
-            navigation.replace('Auth');
-          } catch (err) {
-            console.error("Logout error:", err);
-            showAuditEventToast({
-              action: 'user_logout',
-              status: 'error',
-              message: 'Failed to sign out'
-            });
-          }
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setUser(null);
+      setLikedArticles([]);
+      setSharedArticles([]);
+      setSidebarVisible(false);
+      // Also refresh articles context on logout
+      forceRefreshArticles();
+      // Use navigation reset to ensure we go to Welcome and stay there
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Auth', params: { screen: 'Welcome' } }],
+      });
+    } catch (err) {
+      console.error("Logout error:", err);
+      showAuditEventToast({
+        action: 'user_logout',
+        status: 'error',
+        message: 'Failed to sign out'
+      });
+    }
   };
 
   const handleMenuPress = (article, pos) => {
@@ -446,8 +440,8 @@ export default function ProfileScreen({ navigation }) {
               />
               <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} text-gray-400 mt-3 text-center`}>
                 {activeTab === "liked"
-                  ? "You haven&apos;t liked any articles yet."
-                  : "You haven&apos;t shared any articles yet."}
+                  ? "You haven't liked any articles yet."
+                  : "You haven't shared any articles yet."}
               </Text>
             </View>
           ) : (

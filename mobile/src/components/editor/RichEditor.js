@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,7 +12,6 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
     italic: false,
     underline: false,
     strikethrough: false,
-    align: 'left',
   });
 
   const formats = ['Title', 'Heading', 'Subheading', 'Body', 'Monospaced'];
@@ -34,18 +33,15 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
 
   const applyStyle = (command, styleKey) => {
     richText.current?.commandDOM(`document.execCommand('${command}', false, null)`);
+    // Toggle the state to reflect the action
     setActiveStyles(prev => ({
       ...prev,
       [styleKey]: !prev[styleKey]
     }));
   };
 
-  const applyAlignment = (command, alignKey) => {
+  const applyAlignment = (command) => {
     richText.current?.commandDOM(`document.execCommand('${command}', false, null)`);
-    setActiveStyles(prev => ({
-      ...prev,
-      align: alignKey
-    }));
   };
 
   const ToolButton = ({ onPress, isActive, children, style }) => (
@@ -114,17 +110,17 @@ const RichTextEditor = ({ value, onChange, height = 300 }) => {
             <View style={{ width: 1, height: 24, backgroundColor: '#E5E7EB', marginHorizontal: 2 }} />
 
             {/* Alignment Buttons */}
-            <ToolButton onPress={() => applyAlignment('justifyLeft', 'left')} isActive={activeStyles.align === 'left'} style={{marginLeft: 2, marginRight: 2}}>
-              <MaterialCommunityIcons name="format-align-left" size={20} color={activeStyles.align === 'left' ? '#b45309' : colors.primary} />
+            <ToolButton onPress={() => applyAlignment('justifyLeft')} style={{marginLeft: 2, marginRight: 2}}>
+              <MaterialCommunityIcons name="format-align-left" size={20} color={colors.primary} />
             </ToolButton>
-            <ToolButton onPress={() => applyAlignment('justifyCenter', 'center')} isActive={activeStyles.align === 'center'} style={{marginRight: 2}}>
-              <MaterialCommunityIcons name="format-align-center" size={20} color={activeStyles.align === 'center' ? '#b45309' : colors.primary} />
+            <ToolButton onPress={() => applyAlignment('justifyCenter')} style={{marginRight: 2}}>
+              <MaterialCommunityIcons name="format-align-center" size={20} color={colors.primary} />
             </ToolButton>
-            <ToolButton onPress={() => applyAlignment('justifyRight', 'right')} isActive={activeStyles.align === 'right'} style={{marginRight: 2}}>
-              <MaterialCommunityIcons name="format-align-right" size={20} color={activeStyles.align === 'right' ? '#b45309' : colors.primary} />
+            <ToolButton onPress={() => applyAlignment('justifyRight')} style={{marginRight: 2}}>
+              <MaterialCommunityIcons name="format-align-right" size={20} color={colors.primary} />
             </ToolButton>
-            <ToolButton onPress={() => applyAlignment('justifyFull', 'justify')} isActive={activeStyles.align === 'justify'}>
-              <MaterialCommunityIcons name="format-align-justify" size={20} color={activeStyles.align === 'justify' ? '#b45309' : colors.primary} />
+            <ToolButton onPress={() => applyAlignment('justifyFull')}>
+              <MaterialCommunityIcons name="format-align-justify" size={20} color={colors.primary} />
             </ToolButton>
 
           </View>
