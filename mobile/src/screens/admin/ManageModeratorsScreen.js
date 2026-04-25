@@ -1,16 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
+import RemoveModeratorModal from '../../components/common/RemoveModeratorModal';
 import { showAuditToast, showModeratorSuccessToast, showModeratorErrorToast } from '../../utils/toastNotification';
 import client from '../../api/client';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { debounce } from '../../utils/debounce';
+import { searchArticles } from '../../api/services/articleService';
+import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
+import { handleAuthorPress } from '../../utils/authorNavigation';
+import { handleCategoryPress } from '../../utils/categoryNavigation';
+import { isAdminOrModerator } from '../../utils/authUtils';
+import { ArticleActionMenu } from '../../components/common';
+import { formatArticleDate } from '../../utils/dateUtils';
+import { colors } from '../../styles';
 
 export default function ManageModeratorsScreen({ navigation }) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [headerSearchQuery, setHeaderSearchQuery] = useState(''); // For HomeHeader article search
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [moderatorSearchQuery, setModeratorSearchQuery] = useState(''); // For moderator filtering
   const [moderators, setModerators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addLoading, setAddLoading] = useState(false);
@@ -19,6 +32,14 @@ export default function ManageModeratorsScreen({ navigation }) {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedModerator, setSelectedModerator] = useState(null);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [moderatorToRemove, setModeratorToRemove] = useState(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [menuArticle, setMenuArticle] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuX, setMenuX] = useState(0);
+  const [menuY, setMenuY] = useState(0);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -35,9 +56,36 @@ export default function ManageModeratorsScreen({ navigation }) {
       }
       fetchCategories();
       fetchModerators();
+      checkAdminStatus();
     };
     checkRole();
   }, [navigation]);
+
+  const checkAdminStatus = async () => {
+    const adminStatus = await isAdminOrModerator();
+    setIsAdminUser(adminStatus);
+  };
+
+  const handleSearch = useCallback(async (query) => {
+    setHeaderSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await searchArticles(query.trim());
+      setSearchResults(res.data?.data ?? []);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
 
   const fetchCategories = async () => {
     try {
@@ -86,21 +134,59 @@ export default function ManageModeratorsScreen({ navigation }) {
   };
 
   const handleRemoveModerator = async (moderator) => {
-    setSelectedModerator(null);
+    setModeratorToRemove(moderator);
+    setSelectedModerator(null); // Close the dropdown
+    setShowRemoveModal(true);
+  };
+
+  const confirmRemoveModerator = async () => {
+    if (!moderatorToRemove) return;
     
+    setRemoveLoading(true);
     try {
-      await client.delete(`/api/admin/moderators/${moderator.id}`);
+      await client.delete(`/api/admin/moderators/${moderatorToRemove.id}`);
       showModeratorSuccessToast('removed');
+      setShowRemoveModal(false);
+      setModeratorToRemove(null);
       fetchModerators();
     } catch (err) {
       console.error('Error removing moderator:', err);
       showModeratorErrorToast('removed');
+      setShowRemoveModal(false);
+      setModeratorToRemove(null);
+    } finally {
+      setRemoveLoading(false);
+    }
+  };
+
+  const handleMenuPress = (article, pos) => {
+    setMenuArticle(article);
+    setMenuX(pos.px);
+    setMenuY(pos.py);
+    setShowMenu(true);
+  };
+
+  const handleEditArticle = () => {
+    setShowMenu(false);
+    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
+  };
+
+  const handleDeleteArticle = async () => {
+    setShowMenu(false);
+    try {
+      const { deleteArticle } = await import("../../api/services/articleService");
+      await deleteArticle(menuArticle.id);
+      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      showAuditToast("success", "Article deleted successfully");
+    } catch (err) {
+      console.error("Error deleting article:", err);
+      showAuditToast("error", "Failed to delete article");
     }
   };
 
   const filteredModerators = moderators.filter((mod) =>
-    (mod.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    (mod.email?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+    (mod.name?.toLowerCase() || '').includes(moderatorSearchQuery.toLowerCase()) ||
+    (mod.email?.toLowerCase() || '').includes(moderatorSearchQuery.toLowerCase())
   );
 
   return (
@@ -110,14 +196,19 @@ export default function ManageModeratorsScreen({ navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onMenuPress={() => {}}
-          onSearchPress={() => {}}
-          onGridPress={() => {}}
-          onSearch={() => {}}
+          onGridPress={() => {
+            // Don't navigate if already in Management stack
+            // Just go back to Admin dashboard
+            navigation.navigate('Management', { screen: 'Admin' });
+          }}
+          onSearch={debouncedSearch}
           navigation={navigation}
+          enableSearch={true}
+          searchQuery={headerSearchQuery}
         />
       </View>
 
-      <View className="flex-row items-center px-4 py-4 border-b border-gray-200">
+      <View className="flex-row items-center px-4 py-4 border-b border-gray-200 bg-white">
         <TouchableOpacity 
           onPress={() => navigation.goBack()} 
           className="w-10 h-10 rounded-full justify-center items-center mr-4" 
@@ -129,17 +220,59 @@ export default function ManageModeratorsScreen({ navigation }) {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Search Bar */}
-        <View className="px-5 pt-5 pb-3">
-          <View className="flex-row items-center border border-gray-300 rounded-full px-4 py-2.5 bg-white">
-            <Ionicons name="search" size={20} color="#075985" />
+        {headerSearchQuery.trim() !== '' ? (
+          <View className="px-5 py-4">
+            {searching ? (
+              <View className="items-center justify-center py-12">
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text className="text-gray-500 mt-4">Searching...</Text>
+              </View>
+            ) : searchResults.length === 0 ? (
+              <View className="items-center justify-center py-12">
+                <Ionicons name="search-outline" size={48} color="#d1d5db" />
+                <Text className="text-gray-500 mt-4 text-center">No articles found for "{headerSearchQuery}"</Text>
+              </View>
+            ) : (
+              <View className="gap-3">
+                {searchResults.map((article) => (
+                  <ArticleMediumCard
+                    key={article.id}
+                    title={article.title}
+                    category={article.categories?.[0]?.name || 'Uncategorized'}
+                    author={article.author_name || article.author?.name || 'Unknown Author'}
+                    date={formatArticleDate(article.created_at || article.published_at)}
+                    image={article.featured_image_url || article.featured_image}
+                    hashtags={article.tags?.map((t) => t.name) || []}
+                    onPress={() => navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug, article } })}
+                    onMenuPress={isAdminUser ? (pos) => handleMenuPress(article, pos) : undefined}
+                    onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
+                    onAuthorPress={() => handleAuthorPress(article, navigation)}
+                    onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                    navigation={navigation}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <>
+        {/* Search Box */}
+        <View className="px-5 py-4">
+          <View className="flex-row items-center border border-gray-300 rounded-full bg-white px-3 py-2">
+            <Ionicons name="search-outline" size={20} color="#9ca3af" />
             <TextInput
-              className="flex-1 ml-3 text-gray-800 text-[16px]"
-              placeholder="Search"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor="#94a3b8"
+              className="flex-1 ml-2 text-gray-900"
+              placeholder="Search by name or email"
+              placeholderTextColor="#9ca3af"
+              value={moderatorSearchQuery}
+              onChangeText={setModeratorSearchQuery}
+              style={{ fontSize: 14 }}
             />
+            {moderatorSearchQuery ? (
+              <TouchableOpacity onPress={() => setModeratorSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#9ca3af" />
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
 
@@ -354,11 +487,47 @@ export default function ManageModeratorsScreen({ navigation }) {
             </View>
           )}
         </View>
+          </>
+        )}
       </ScrollView>
 
       <View className="flex-shrink-0">
         <BottomNavigation navigation={navigation} activeTab="Home" />
       </View>
+
+      {/* Remove Moderator Modal */}
+      <RemoveModeratorModal
+        visible={showRemoveModal}
+        moderatorName={moderatorToRemove?.name || 'Moderator'}
+        onConfirm={confirmRemoveModerator}
+        onCancel={() => {
+          setShowRemoveModal(false);
+          setModeratorToRemove(null);
+        }}
+        loading={removeLoading}
+      />
+
+      {/* Article Action Menu */}
+      <ArticleActionMenu
+        visible={showMenu}
+        x={menuX}
+        y={menuY}
+        onClose={() => setShowMenu(false)}
+        actions={[
+          {
+            label: "Edit",
+            icon: "create-outline",
+            color: "#0284c7",
+            onPress: handleEditArticle,
+          },
+          {
+            label: "Delete",
+            icon: "trash-outline",
+            color: "#ef4444",
+            onPress: handleDeleteArticle,
+          },
+        ]}
+      />
     </View>
   );
 }
