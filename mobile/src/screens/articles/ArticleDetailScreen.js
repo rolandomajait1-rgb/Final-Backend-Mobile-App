@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useContext, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -21,11 +21,13 @@ import { ArticleDetailSkeleton } from "../../components/common";
 import ArticleActionMenu from "../../components/common/ArticleActionMenu";
 import HomeHeader from "../homepage/HomeHeader";
 import { isAdminOrModerator } from "../../utils/authUtils";
-import { ArticleContext } from "../../context/ArticleContext";
+import { useArticles } from "../../context/ArticleContext";
 import { deleteArticle } from "../../api/services/articleService";
 import { showArticleSuccessToast, showArticleErrorToast, showAuditToast } from "../../utils/toastNotification";
 import { handleAuthorPress } from "../../utils/authorNavigation";
+import { handleCategoryPress } from "../../utils/categoryNavigation";
 import { getCategoryColor } from "../../utils/categoryColors";
+import { handleArticleShare, getArticleUrl, extractGist } from "../../utils/shareUtils";
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 function ArticleHero({
@@ -148,15 +150,23 @@ function ArticleHero({
         }}
       >
         {article.categories?.length > 0 && (
-          <View className="mb-2">
-            <View 
-              className="rounded-md px-4 py-2 self-start"
-              style={{ backgroundColor: getCategoryColor(article.categories[0].name) + 'CC' }} // CC = 80% opacity
-            >
-              <Text className="text-white font-bold text-xs uppercase tracking-widest">
-                {article.categories[0].name || 'Uncategorized'}
-              </Text>
-            </View>
+          <View className="mb-2 flex-row flex-wrap gap-2">
+            {article.categories.map((cat, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => handleCategoryPress(cat.name, navigation)}
+                activeOpacity={0.7}
+              >
+                <View 
+                  className="rounded-md px-4 py-2"
+                  style={{ backgroundColor: getCategoryColor(cat.name) + 'CC' }} // CC = 80% opacity
+                >
+                  <Text className="text-white font-bold text-xs uppercase tracking-widest">
+                    {cat.name || 'Uncategorized'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
         <Text
@@ -242,7 +252,7 @@ function ArticleActions({ likes, liked, shares, onLike, onShare }) {
             color={liked ? "#3b82f6" : "#666"}
           />
         </Animated.View>
-        <Text className="text-gray-600 font-medium text-sm">{likes}</Text>
+        <Text className="font-medium text-sm" style={{ color: liked ? "#3b82f6" : "#666" }}>{likes}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -267,12 +277,12 @@ function ArticleTags({ tags, navigation }) {
       {tags.map((tag, index) => (
         <TouchableOpacity
           key={index}
-          className="border border-gray-300 rounded-full px-3 py-1"
-          onPress={() =>
-            navigation?.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag.name } })
-          }
+          onPress={() => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag.name } })}
+          activeOpacity={0.7}
         >
-          <Text className="text-gray-600 text-xs font-medium">#{tag.name}</Text>
+          <View className="border border-gray-300 rounded-full px-3 py-1">
+            <Text className="text-gray-600 text-xs font-medium">#{tag.name}</Text>
+          </View>
         </TouchableOpacity>
       ))}
     </View>
@@ -291,13 +301,13 @@ export default function ArticleDetailScreen({ navigation, route }) {
   const [isAdmin, setIsAdmin] = useState(false); // Only admin, not moderator
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingArticle, setDeletingArticle] = useState(false);
+  const userInteractedRef = useRef(false); // Track if user has liked/unliked
   const [categories, setCategories] = useState([]);
   
   // Bug #6 Fix: Add mounted ref to prevent state updates after unmount
   const mountedRef = useRef(true);
   
-  const articleContext = useContext(ArticleContext);
-  const updateArticleLocally = articleContext?.updateArticleLocally;
+  const { updateArticleLocally } = useArticles();
 
   const checkAdminStatus = useCallback(async () => {
     const adminStatus = await isAdminOrModerator();
@@ -354,8 +364,32 @@ export default function ArticleDetailScreen({ navigation, route }) {
       
       if (res?.data && mountedRef.current) {
         setArticle(res.data);
-        setLikes(res.data.likes_count || 0);
-        setLiked(res.data.user_liked || false);
+        
+        // Check if user has liked this article before (from AsyncStorage)
+        try {
+          const likedArticlesKey = 'liked_articles';
+          const stored = await AsyncStorage.getItem(likedArticlesKey);
+          const likedArticles = stored ? JSON.parse(stored) : {};
+          
+          if (likedArticles[res.data.id]) {
+            // User has liked this article before, use stored state
+            setLikes(likedArticles[res.data.id].count);
+            setLiked(true);
+            userInteractedRef.current = true;
+          } else if (!userInteractedRef.current) {
+            // No stored like, use backend data
+            setLikes(res.data.likes_count || 0);
+            setLiked(res.data.user_liked || false);
+          }
+        } catch (err) {
+          console.error('Error loading liked state:', err);
+          // Fallback to backend data
+          if (!userInteractedRef.current) {
+            setLikes(res.data.likes_count || 0);
+            setLiked(res.data.user_liked || false);
+          }
+        }
+        
         setShares(res.data.shares_count || 0);
       }
     } catch (err) {
@@ -387,8 +421,26 @@ export default function ArticleDetailScreen({ navigation, route }) {
     const newLiked = !liked;
     const newCount = newLiked ? likes + 1 : Math.max(0, likes - 1);
     
+    userInteractedRef.current = true; // Mark that user has interacted
     setLiked(newLiked);
     setLikes(newCount);
+    
+    // Persist liked state to AsyncStorage
+    try {
+      const likedArticlesKey = 'liked_articles';
+      const stored = await AsyncStorage.getItem(likedArticlesKey);
+      const likedArticles = stored ? JSON.parse(stored) : {};
+      
+      if (newLiked) {
+        likedArticles[article.id] = { liked: true, count: newCount };
+      } else {
+        delete likedArticles[article.id];
+      }
+      
+      await AsyncStorage.setItem(likedArticlesKey, JSON.stringify(likedArticles));
+    } catch (err) {
+      console.error('Error persisting like state:', err);
+    }
     
     if (updateArticleLocally) {
       updateArticleLocally(article.id, { user_liked: newLiked, likes_count: newCount });
@@ -411,66 +463,29 @@ export default function ArticleDetailScreen({ navigation, route }) {
     }
   };
 
-  const extractGist = (htmlContent) => {
-    if (!htmlContent) return '';
-    
-    // Remove HTML tags and normalize whitespace (removes newlines)
-    const plainText = htmlContent
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    // Get first 80 characters as gist
-    return plainText.length > 80 
-      ? plainText.substring(0, 80).trim() + '...' 
-      : plainText;
-  };
-
   const handleShare = async () => {
-    if (!article) return;
-    try {
-      const gist = extractGist(article.content);
-      const url = `https://laverdadherald.com/articles/${article.slug || article.id}`;
-      const shareMessage = gist 
-        ? `Check out: ${article.title}\n\n"${gist}"\n\n${url}`
-        : `Check out: ${article.title}\n\n${url}`;
-      
-      const result = await Share.share({
-        title: article.title,
-        message: shareMessage,
-      });
-
-      if (result.action === Share.sharedAction) {
-        // Increment share count locally for immediate UI feedback
-        const newShares = shares + 1;
-        setShares(newShares);
-        if (updateArticleLocally) {
-          updateArticleLocally(article.id, { shares_count: newShares });
-        }
-
-        // Bug #14 Fix: Add error handling for share API call
-        try {
-          const { shareArticle } = await import("../../api/services/articleService");
-          await shareArticle(article.id);
-          showAuditToast("success", "Article shared successfully!");
-        } catch (shareErr) {
-          console.error("Error recording share:", shareErr);
-          // Rollback share count on error
-          setShares(shares);
-          if (updateArticleLocally) {
-            updateArticleLocally(article.id, { shares_count: shares });
-          }
-          showAuditToast("error", "Share recorded locally but failed to sync.");
-        }
+    const success = await handleArticleShare(article, async () => {
+      // Increment share count locally for immediate UI feedback
+      const newShares = shares + 1;
+      setShares(newShares);
+      if (updateArticleLocally) {
+        updateArticleLocally(article.id, { shares_count: newShares });
       }
-    } catch (err) {
-      console.error("Error sharing article:", err);
-      showAuditToast("error", "Failed to share article.");
-    }
+
+      // Record share in backend
+      try {
+        const { shareArticle } = await import("../../api/services/articleService");
+        await shareArticle(article.id);
+      } catch (shareErr) {
+        console.error("Error recording share:", shareErr);
+        // Rollback share count on error
+        setShares(shares);
+        if (updateArticleLocally) {
+          updateArticleLocally(article.id, { shares_count: shares });
+        }
+        showAuditToast("error", "Share recorded locally but failed to sync.");
+      }
+    });
   };
 
   const handleEdit = () => {

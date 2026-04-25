@@ -12,11 +12,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { colors } from '../../styles';
-import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
+import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
 import { ArticleActionMenu } from '../../components/common';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal';
 import { showAuditToast } from '../../utils/toastNotification';
 import { handleAuthorPress } from '../../utils/authorNavigation';
+import { handleCategoryPress } from '../../utils/categoryNavigation';
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
@@ -258,7 +259,7 @@ export default function TagArticlesScreen({ route, navigation }) {
             }
             renderItem={({ item }) => (
               <View className="px-5">
-                <ArticleLargeCard
+                <ArticleMediumCard
                   title={item.title}
                   category={item.categories?.[0]?.name || 'Uncategorized'}
                   author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
@@ -269,6 +270,8 @@ export default function TagArticlesScreen({ route, navigation }) {
                   onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
                   onTagPress={(tag) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag } })}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
+                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                  navigation={navigation}
                 />
               </View>
             )}
@@ -316,7 +319,7 @@ export default function TagArticlesScreen({ route, navigation }) {
                 }
                 renderItem={({ item }) => (
                   <View className="px-5">
-                    <ArticleLargeCard
+                    <ArticleMediumCard
                       title={item.title}
                       category={item.categories?.[0]?.name || 'Uncategorized'}
                       author={item.author_name || item.author?.name || item.author?.user?.name || 'Unknown Author'}
@@ -327,10 +330,12 @@ export default function TagArticlesScreen({ route, navigation }) {
                       onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
                       onTagPress={(tName) => {
                         if (tName !== tagName) {
-                          navigation.push('TagArticles', { tagName: tName });
+                          navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tName } });
                         }
                       }}
                       onAuthorPress={() => handleAuthorPress(item, navigation)}
+                      onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                      navigation={navigation}
                     />
                   </View>
                 )}

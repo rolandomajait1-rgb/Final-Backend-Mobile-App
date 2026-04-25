@@ -7,6 +7,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -24,8 +25,12 @@ import { colors } from "../../styles";
 import SideBar from "./SideBar";
 import { showAuditEventToast } from "../../utils/toastNotification";
 import { handleAuthorPress } from "../../utils/authorNavigation";
+import { handleCategoryPress } from "../../utils/categoryNavigation";
+import { useResponsive, scaleSize } from "../../utils/responsiveUtils";
+import { formatArticleDate } from "../../utils/dateUtils";
 
 export default function ProfileScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -337,23 +342,6 @@ export default function ProfileScreen({ navigation }) {
   if (!user) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 items-center justify-center px-6">
-          <Ionicons
-            name="person-circle-outline"
-            size={80}
-            color={colors.border}
-          />
-          <Text className="text-2xl font-bold text-gray-900 mt-4">
-            You&apos;re not signed in
-          </Text>
-          <Text className="text-sm text-gray-600 text-center mt-2 mb-6">
-            Sign in to access your profile and saved articles.
-          </Text>
-          <Button
-            title="Sign In"
-            onPress={() => navigation.navigate("Login")}
-          />
-        </View>
       </SafeAreaView>
     );
   }
@@ -386,19 +374,19 @@ export default function ProfileScreen({ navigation }) {
         <View className="h-9 bg-white" />
         
         {/* Profile Header */}
-        <View className="px-5 py-6 pb-8" style={{ backgroundColor: '#075985' }}>
+        <View className={`${width < 375 ? 'px-4 py-4 pb-6' : 'px-5 py-6 pb-8'}`} style={{ backgroundColor: '#075985' }}>
           <View className="flex-row items-center">
-            <View className="w-[72px] h-[72px] rounded-full bg-white justify-center items-center mr-4">
-              <Ionicons name="person" size={46} color="#075985" />
+            <View className={`${width < 375 ? 'w-14 h-14' : 'w-16 h-16'} rounded-full bg-white justify-center items-center mr-4`}>
+              <Ionicons name="person" size={width < 375 ? 32 : 36} color="#075985" />
             </View>
             <View className="flex-1 justify-center">
-              <Text className="text-[26px] font-bold text-white tracking-tight mb-0.5">{user.name}</Text>
-              <Text className="text-[15px] text-white">
+              <Text className={`${width < 375 ? 'text-lg' : 'text-2xl'} font-bold text-white tracking-tight mb-0.5`}>{user.name}</Text>
+              <Text className={`${width < 375 ? 'text-xs' : 'text-base'} text-white`}>
                 Joined in {joinedDate}
               </Text>
               {user.role && (
                 <View className="bg-[#083344] self-start px-2.5 py-0.5 rounded-full mt-1.5 border border-[#083344]">
-                  <Text className="text-white text-[11px] font-medium capitalize">
+                  <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-white font-medium capitalize`}>
                     {user.role}
                   </Text>
                 </View>
@@ -408,25 +396,25 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => setSidebarVisible(true)}
               className="p-2 -mr-2"
             >
-              <Ionicons name="menu" size={32} color="white" />
+              <Ionicons name="menu" size={width < 375 ? 24 : 28} color="white" />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Pill Tabs */}
-        <View className="flex-row px-5 py-5 pb-2">
+        <View className={`flex-row ${width < 375 ? 'px-4 py-3 pb-1' : 'px-5 py-5 pb-2'}`}>
           {["liked", "shared"].map((tab) => {
             const isSelected = activeTab === tab;
             return (
               <TouchableOpacity
                 key={tab}
                 onPress={() => setActiveTab(tab)}
-                className={`py-2.5 px-6 mr-3 rounded-full border ${
+                className={`${width < 375 ? 'py-2 px-4' : 'py-2.5 px-6'} mr-3 rounded-full border ${
                   isSelected ? "border-gray-800" : "border-gray-200"
                 }`}
               >
                 <Text
-                  className={`text-[13px] font-medium ${
+                  className={`${width < 375 ? 'text-xs' : 'text-sm'} font-medium ${
                     isSelected ? "text-gray-800" : "text-gray-500"
                   }`}
                 >
@@ -438,7 +426,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Articles List */}
-        <View className="px-5 py-4">
+        <View className={`${width < 375 ? 'px-4 py-3' : 'px-5 py-4'}`}>
           {tabLoading && currentArticles.length === 0 ? (
             <>
               {[...Array(5)].map((_, index) => (
@@ -453,10 +441,10 @@ export default function ProfileScreen({ navigation }) {
                     ? "thumbs-up-outline"
                     : "share-social-outline"
                 }
-                size={48}
+                size={width < 375 ? 40 : 48}
                 color="#ccc"
               />
-              <Text className="text-gray-400 mt-3 text-center">
+              <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} text-gray-400 mt-3 text-center`}>
                 {activeTab === "liked"
                   ? "You haven&apos;t liked any articles yet."
                   : "You haven&apos;t shared any articles yet."}
@@ -471,16 +459,16 @@ export default function ProfileScreen({ navigation }) {
                     category={article.categories?.[0]?.name || 'Uncategorized'}
                     author={article.author_name || article.author?.user?.name || article.author?.name || 'Unknown Author'}
                     date={(article.created_at || article.published_at)
-                      ? new Date(article.created_at || article.published_at).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric', 
-                          year: 'numeric'
-                        })
+                      ? formatArticleDate(article.created_at || article.published_at)
                       : 'Recently'}
                     image={article.featured_image_url || article.featured_image}
-                    onPress={() => navigation.navigate("ArticleDetail", { slug: article.slug, article })}
+                    hashtags={article.tags?.map((t) => t.name) || []}
+                    onPress={() => navigation.navigate("ArticleStack", { screen: "ArticleDetail", params: { slug: article.slug, article } })}
                     onMenuPress={isAdminUser ? (pos) => handleMenuPress(article, pos) : undefined}
+                    onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
                     onAuthorPress={() => handleAuthorPress(article, navigation)}
+                    onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                    navigation={navigation}
                   />
                 </View>
               ))}
@@ -490,12 +478,12 @@ export default function ProfileScreen({ navigation }) {
                 <TouchableOpacity
                   onPress={handleLoadMore}
                   disabled={tabLoading}
-                  className="items-center py-4"
+                  className={`items-center ${width < 375 ? 'py-2' : 'py-4'}`}
                 >
                   {tabLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Text className="text-blue-500 font-semibold text-base">
+                    <Text className={`${width < 375 ? 'text-sm' : 'text-base'} text-blue-500 font-semibold`}>
                       Load More
                     </Text>
                   )}
