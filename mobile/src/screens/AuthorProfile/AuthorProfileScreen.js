@@ -20,8 +20,8 @@ import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { formatArticleDate } from '../../utils/dateUtils';
 import { searchArticles } from '../../api/services/articleService';
 import { debounce } from '../../utils/debounce';
-import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
 import { handleAuthorPress } from '../../utils/authorNavigation';
+import { handleCategoryPress } from '../../utils/categoryNavigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeHeader from '../homepage/HomeHeader';
 
@@ -195,8 +195,8 @@ export default function AuthorProfileScreen({ route, navigation }) {
   const renderHeader = () => (
     <View className="bg-white">
       {/* Author Info Header */}
-      <View className="px-5 pt-2 pb-6 bg-white border-b-[3px]" style={{ borderBottomColor: '#075985' }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mb-4 self-start p-1 -ml-1">
+      <View className="px-5 pt-2 pb-4 bg-white border-b-[3px]" style={{ borderBottomColor: '#075985' }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} className="mb-2 self-start p-1 -ml-1">
           <Ionicons name="arrow-back" size={24} color="#075985" />
         </TouchableOpacity>
 
@@ -215,7 +215,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Latest Articles Header Container Inside FlatList Header */}
+      {/* Latest Articles Header */}
       <View className="px-5 pt-6 pb-4">
         <Text className="text-[22px] text-gray-700 font-normal">
           Latest Articles
@@ -240,7 +240,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
         No Articles Yet
       </Text>
       <Text className="text-center mt-2" style={{ color: colors.textSecondary }}>
-        This author hasn&apos;t published any articles yet.
+        This author hasn't published any articles yet.
       </Text>
     </View>
   );
@@ -281,7 +281,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
             }
             renderItem={({ item }) => (
               <View className="px-5">
-                <ArticleLargeCard
+                <ArticleMediumCard
                   title={item.title}
                   category={item.categories?.[0]?.name || 'Uncategorized'}
                   author={item.author?.user?.name || item.author?.name || 'Unknown Author'}
@@ -292,6 +292,8 @@ export default function AuthorProfileScreen({ route, navigation }) {
                   onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
                   onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
+                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                  navigation={navigation}
                 />
               </View>
             )}
@@ -344,6 +346,8 @@ export default function AuthorProfileScreen({ route, navigation }) {
                   onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
                   onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
+                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                  navigation={navigation}
                 />
               </View>
             )}

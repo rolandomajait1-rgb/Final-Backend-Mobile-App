@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, FlatList,
@@ -17,13 +18,17 @@ import client from '../../api/client';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { formatArticleDate } from '../../utils/dateUtils';
 import { handleAuthorPress } from '../../utils/authorNavigation';
+import { handleCategoryPress } from '../../utils/categoryNavigation';
 
 export default function ExploreScreen({ navigation }) {
   const [trendingArticles, setTrendingArticles] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [topCategories, setTopCategories] = useState([]); // Top 10 categories by engagement
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState(null); // 'author', 'tag', 'category'
+  const [selectedFilterItem, setSelectedFilterItem] = useState(null); // The selected author/tag/category object
+  const [filteredArticles, setFilteredArticles] = useState([]);
   const [authors, setAuthors] = useState([]);
   const [tags, setTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,44 +56,95 @@ export default function ExploreScreen({ navigation }) {
 
   const fetchTrendingArticles = useCallback(async () => {
     try {
-      // Fetch articles and sort by view_count or created date
+      // Fetch articles and sort by trending score (views + likes + shares)
       const res = await getArticles({ limit: 20 });
       const data = res.data?.data ?? res.data ?? [];
       
-      // Sort by view_count (trending) - articles with most views first
+      // Calculate trending score: views + (likes * 2) + (shares * 3)
+      // Likes and shares are weighted more heavily than views
       const sorted = [...data].sort((a, b) => {
-        const viewsA = a.view_count || 0;
-        const viewsB = b.view_count || 0;
-        return viewsB - viewsA;
+        const scoreA = (a.view_count || 0) + ((a.like_count || a.likes_count || 0) * 2) + ((a.shares_count || 0) * 3);
+        const scoreB = (b.view_count || 0) + ((b.like_count || b.likes_count || 0) * 2) + ((b.shares_count || 0) * 3);
+        return scoreB - scoreA;
       });
       
       setTrendingArticles(sorted);
       
-      // Extract unique authors and tags from articles
-      const uniqueAuthors = [];
-      const uniqueTags = [];
-      const authorIds = new Set();
-      const tagNames = new Set();
+      // Calculate trending score for an article
+      const calculateScore = (article) => {
+        return (article.view_count || 0) + 
+               ((article.like_count || article.likes_count || 0) * 2) + 
+               ((article.shares_count || 0) * 3);
+      };
+      
+      // Extract authors with their total scores
+      const authorScores = new Map();
+      const tagScores = new Map();
+      const categoryScores = new Map();
       
       sorted.forEach(article => {
-        if (article.author && !authorIds.has(article.author.id)) {
-          authorIds.add(article.author.id);
-          uniqueAuthors.push({
-            id: article.author.id,
-            name: article.author.user?.name || article.author.name || 'Unknown',
-          });
+        const score = calculateScore(article);
+        
+        // Extract author info
+        let authorId = null;
+        let authorName = null;
+        
+        if (article.author) {
+          authorId = article.author.id;
+          authorName = article.author.user?.name || article.author.name;
+        } else if (article.author_id) {
+          authorId = article.author_id;
+          authorName = article.author_name || article.display_author_name;
         }
         
-        article.tags?.forEach(tag => {
-          if (!tagNames.has(tag.name)) {
-            tagNames.add(tag.name);
-            uniqueTags.push(tag);
+        // Accumulate author scores
+        if (authorId && authorName) {
+          if (!authorScores.has(authorId)) {
+            authorScores.set(authorId, { id: authorId, name: authorName, score: 0 });
           }
+          authorScores.get(authorId).score += score;
+        }
+        
+        // Accumulate tag scores
+        article.tags?.forEach(tag => {
+          if (!tagScores.has(tag.id)) {
+            tagScores.set(tag.id, { ...tag, score: 0 });
+          }
+          tagScores.get(tag.id).score += score;
+        });
+        
+        // Accumulate category scores
+        article.categories?.forEach(cat => {
+          if (!categoryScores.has(cat.id)) {
+            categoryScores.set(cat.id, { ...cat, score: 0 });
+          }
+          categoryScores.get(cat.id).score += score;
         });
       });
       
-      setAuthors(uniqueAuthors);
-      setTags(uniqueTags);
+      // Sort and get top 10 for each
+      const topAuthors = Array.from(authorScores.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10)
+        .map(({ id, name }) => ({ id, name }));
+      
+      const topTags = Array.from(tagScores.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10)
+        .map(({ id, name, slug }) => ({ id, name, slug }));
+      
+      const topCategories = Array.from(categoryScores.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10)
+        .map(({ id, name, slug }) => ({ id, name, slug }));
+      
+      setAuthors(topAuthors);
+      setTags(topTags);
+      setTopCategories(topCategories);
+      
+      console.log('Top 10 Authors by engagement:', topAuthors);
+      console.log('Top 10 Tags by engagement:', topTags);
+      console.log('Top 10 Categories by engagement:', topCategories);
     } catch (e) {
       console.error('Error fetching trending articles:', e);
     }
@@ -113,6 +169,29 @@ export default function ExploreScreen({ navigation }) {
     }
   }, []);
 
+  const handleFilterItemClick = useCallback((filterType, item) => {
+    setSelectedFilterItem(item);
+    
+    // Filter articles based on the selected filter type
+    let filtered = [];
+    if (filterType === 'author') {
+      filtered = trendingArticles.filter(article => 
+        article.author?.id === item.id || article.author_id === item.id
+      );
+    } else if (filterType === 'tag') {
+      filtered = trendingArticles.filter(article =>
+        article.tags?.some(tag => tag.name === item.name)
+      );
+    } else if (filterType === 'category') {
+      filtered = trendingArticles.filter(article =>
+        article.categories?.some(cat => cat.id === item.id)
+      );
+    }
+    
+    setFilteredArticles(filtered);
+    setSelectedFilter(null); // Close the filter pills
+  }, [trendingArticles]);
+
   // Debounce search to avoid too many API calls
   const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
 
@@ -133,6 +212,18 @@ export default function ExploreScreen({ navigation }) {
     };
     loadData();
   }, [fetchTrendingArticles]);
+
+  // Reset filter when screen loses focus
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Cleanup: Reset filter state when leaving the screen
+        setSelectedFilter(null);
+        setSelectedFilterItem(null);
+        setFilteredArticles([]);
+      };
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -197,6 +288,7 @@ export default function ExploreScreen({ navigation }) {
         <HomeHeader
           categories={categories}
           onCategorySelect={() => {}}
+          onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
           onSearch={debouncedSearch}
           navigation={navigation}
         />
@@ -226,6 +318,7 @@ export default function ExploreScreen({ navigation }) {
                 onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
                 onTagPress={(tag) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag } })}
                 onAuthorPress={() => handleAuthorPress(item, navigation)}
+                onCategoryPress={(category) => handleCategoryPress(category, navigation)}
               />
             </View>
           )}
@@ -300,16 +393,7 @@ export default function ExploreScreen({ navigation }) {
                       <TouchableOpacity
                         key={author.id}
                         className="px-4 py-1 rounded-full border border-gray-300 bg-white"
-                        onPress={() => {
-                          navigation.navigate('ArticleStack', {
-                            screen: 'AuthorProfile',
-                            params: {
-                              authorId: author.id,
-                              authorName: author.name
-                            }
-                          });
-                          setSelectedFilter(null);
-                        }}
+                        onPress={() => handleFilterItemClick('author', author)}
                       >
                         <Text className="text-gray-700">{author.name}</Text>
                       </TouchableOpacity>
@@ -318,34 +402,16 @@ export default function ExploreScreen({ navigation }) {
                       <TouchableOpacity
                         key={tag.id}
                         className="px-4 py-1 rounded-full border border-gray-300 bg-white"
-                        onPress={() => {
-                          navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag.name } });
-                          setSelectedFilter(null);
-                        }}
+                        onPress={() => handleFilterItemClick('tag', tag)}
                       >
                         <Text className="text-gray-700">#{tag.name}</Text>
                       </TouchableOpacity>
                     ))}
-                    {selectedFilter === 'category' && categories.map((category) => (
+                    {selectedFilter === 'category' && topCategories.map((category) => (
                       <TouchableOpacity
                         key={category.id}
                         className="px-4 py-1 rounded-full border border-gray-300 bg-white"
-                        onPress={() => {
-                          const categoryScreenMap = {
-                            'News': 'NewsScreen',
-                            'Literary': 'LiteraryScreen',
-                            'Opinion': 'OpinionScreen',
-                            'Sports': 'SportsScreen',
-                            'Features': 'FeaturesScreen',
-                            'Specials': 'SpecialsScreen',
-                            'Art': 'ArtScreen',
-                          };
-                          const screenName = categoryScreenMap[category.name];
-                          if (screenName) {
-                            navigation.navigate('ArticleStack', { screen: screenName });
-                          }
-                          setSelectedFilter(null);
-                        }}
+                        onPress={() => handleFilterItemClick('category', category)}
                       >
                         <Text className="text-gray-700">{category.name}</Text>
                       </TouchableOpacity>
@@ -355,15 +421,29 @@ export default function ExploreScreen({ navigation }) {
               )}
             </View>
 
-            {/* Trending Articles Header */}
-            <View className="px-4 py-4 border-b border-gray-200 bg-white">
-              <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-                Trending Articles
-              </Text>
-              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                Most viewed articles
-              </Text>
-            </View>
+            {/* Trending Articles Header or Filter Results Header */}
+            {selectedFilterItem ? (
+              <View className="px-4 py-4 border-b border-gray-200 bg-white">
+                <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+                  Search result for: {selectedFilterItem.name}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setSelectedFilterItem(null);
+                    setFilteredArticles([]);
+                  }}
+                  className="mt-2"
+                >
+                  <Text className="text-cyan-700 font-semibold">Clear filter</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="px-4 py-4 border-b border-gray-200 bg-white">
+                <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+                  Trending Articles
+                </Text>
+              </View>
+            )}
           </>
         }
         renderItem={({ item }) => (
@@ -381,17 +461,21 @@ export default function ExploreScreen({ navigation }) {
               }}
               onMenuPress={isAdminUser ? (pos) => handleMenuPress(item, pos) : undefined}
               onAuthorPress={() => handleAuthorPress(item, navigation)}
+              onCategoryPress={(category) => handleCategoryPress(category, navigation)}
             />
           </View>
         )}
-        data={trendingArticles}
+        data={selectedFilterItem ? filteredArticles : trendingArticles}
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={10}
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center px-4 py-12">
             <Text className="text-center text-gray-500 text-lg">
-              No trending articles yet
+              {selectedFilterItem 
+                ? `No articles found for ${selectedFilterItem.name}`
+                : 'No trending articles yet'
+              }
             </Text>
           </View>
         }
