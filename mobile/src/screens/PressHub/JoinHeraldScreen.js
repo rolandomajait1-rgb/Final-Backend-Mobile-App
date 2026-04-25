@@ -268,12 +268,10 @@ const JoinHeraldScreen = ({ navigation }) => {
       <View className="flex-shrink-0">
         <HomeHeader
           categories={[]}
-          selectedCategory={null}
           onCategorySelect={() => {}}
-          error={null}
-          ErrorMessage={ErrorMessage}
-          showCategories={false}
+          onGridPress={() => {}} // Disabled in sub-screens to prevent navigation stack issues
           navigation={navigation}
+          enableSearch={false}
         />
       </View>
 

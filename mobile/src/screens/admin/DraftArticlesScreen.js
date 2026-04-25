@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, FlatList } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import HomeHeader from '../homepage/HomeHeader';
@@ -14,7 +14,12 @@ import client from '../../api/client';
 import { deleteArticle } from '../../api/services/articleService';
 import { showAuditToast } from '../../utils/toastNotification';
 import { handleAuthorPress } from '../../utils/authorNavigation';
+import { handleCategoryPress } from '../../utils/categoryNavigation';
 import { useArticles } from '../../context/ArticleContext';
+import { debounce } from '../../utils/debounce';
+import { searchArticles } from '../../api/services/articleService';
+import { colors } from '../../styles';
+import { formatArticleDate } from '../../utils/dateUtils';
 
 export default function DraftArticlesScreen({ navigation }) {
   const [draftArticles, setDraftArticles] = useState([]);
@@ -31,7 +36,31 @@ export default function DraftArticlesScreen({ navigation }) {
   const [publishingDraft, setPublishingDraft] = useState(false);
   const [menuX, setMenuX] = useState(0);
   const [userRole, setUserRole] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const { forceRefreshArticles } = useArticles();
+
+  const handleSearch = useCallback(async (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await searchArticles(query.trim());
+      setSearchResults(res.data?.data ?? []);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
 
   useEffect(() => {
     checkUserRole();
@@ -198,71 +227,113 @@ export default function DraftArticlesScreen({ navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onMenuPress={() => {}}
-          onSearchPress={() => {}}
-          onGridPress={() => {}}
-          onSearch={() => {}}
+          onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
+          onSearch={debouncedSearch}
           navigation={navigation}
+          enableSearch={true}
+          searchQuery={searchQuery}
         />
       </View>
 
       {/* Content */}
-      <ScrollView 
-        className="flex-1 px-4 py-4"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Back Button and Title */}
-        <View className="flex-row items-center mb-6">
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()} 
-            className="w-11 h-11 rounded-full bg-[#215878] items-center justify-center mr-3"
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text className="text-2xl font-bold text-gray-900">Draft Articles</Text>
-        </View>
-
-        {/* Loading State */}
-        {loading ? (
-          <View className="items-center justify-center py-20">
-            <ActivityIndicator size="large" color="#3b82f6" />
-            <Text className="text-gray-500 mt-4">Loading drafts...</Text>
-          </View>
-        ) : error ? (
-          <View className="items-center justify-center py-20">
-            <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#ef4444" />
-            <Text className="text-red-500 mt-4 text-center">{error}</Text>
-            <TouchableOpacity onPress={fetchDrafts} className="mt-4 bg-blue-500 px-6 py-3 rounded-lg">
-              <Text className="text-white font-semibold">Retry</Text>
+      {searchQuery.trim() !== '' ? (
+        <ScrollView 
+          className="flex-1 px-4 py-4"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        >
+          {searching ? (
+            <View className="items-center justify-center py-12">
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text className="text-gray-500 mt-4">Searching...</Text>
+            </View>
+          ) : searchResults.length === 0 ? (
+            <View className="items-center justify-center py-12">
+              <Ionicons name="search-outline" size={48} color={colors.border} />
+              <Text className="text-gray-500 mt-4 text-center">No articles found for "{searchQuery}"</Text>
+            </View>
+          ) : (
+            <View className="gap-3">
+              {searchResults.map((article) => (
+                <ArticleMediumCard
+                  key={article.id}
+                  title={article.title}
+                  category={article.categories?.[0]?.name || 'Uncategorized'}
+                  author={article.author_name || article.author?.name || 'Unknown Author'}
+                  date={formatArticleDate(article.created_at || article.published_at)}
+                  image={article.featured_image_url || article.featured_image}
+                  hashtags={article.tags?.map((t) => t.name) || []}
+                  onPress={() => navigation.navigate('EditArticle', { articleId: article.id })}
+                  onMenuPress={(pos) => handleMenuPress(article, pos)}
+                  onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
+                  onAuthorPress={() => handleAuthorPress(article, navigation)}
+                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                  navigation={navigation}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView 
+          className="flex-1 px-4 py-4"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Back Button and Title */}
+          <View className="flex-row items-center mb-6">
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()} 
+              className="w-11 h-11 rounded-full bg-[#215878] items-center justify-center mr-3"
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
+            <Text className="text-2xl font-bold text-gray-900">Draft Articles</Text>
           </View>
-        ) : draftArticles.length === 0 ? (
-          <View className="items-center justify-center py-20">
-            <MaterialCommunityIcons name="file-document-outline" size={64} color="#ccc" />
-            <Text className="text-gray-500 mt-4 text-center">No draft articles yet</Text>
-          </View>
-        ) : (
-          <View className="gap-4">
-            {draftArticles.map((article) => (
-              <ArticleMediumCard
-                key={article.id}
-                title={article.title}
-                category={article.categories?.[0]?.name || 'DRAFT'}
-                author={article.author_name || 'Unknown Author'}
-                date={formatTimeAgo(article.updated_at)}
-                image={article.featured_image_url || article.featured_image}
-                hashtags={article.tags}
-                onPress={() => navigation.navigate('EditArticle', { articleId: article.id })}
-                onMenuPress={(e) => handleMenuPress(article, e)}
-                onAuthorPress={() => handleAuthorPress(article, navigation)}
-                isDraft={true}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+
+          {/* Loading State */}
+          {loading ? (
+            <View className="items-center justify-center py-20">
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text className="text-gray-500 mt-4">Loading drafts...</Text>
+            </View>
+          ) : error ? (
+            <View className="items-center justify-center py-20">
+              <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#ef4444" />
+              <Text className="text-red-500 mt-4 text-center">{error}</Text>
+              <TouchableOpacity onPress={fetchDrafts} className="mt-4 bg-blue-500 px-6 py-3 rounded-lg">
+                <Text className="text-white font-semibold">Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : draftArticles.length === 0 ? (
+            <View className="items-center justify-center py-20">
+              <MaterialCommunityIcons name="file-document-outline" size={64} color="#ccc" />
+              <Text className="text-gray-500 mt-4 text-center">No draft articles yet</Text>
+            </View>
+          ) : (
+            <View className="gap-4">
+              {draftArticles.map((article) => (
+                <ArticleMediumCard
+                  key={article.id}
+                  title={article.title}
+                  category={article.categories?.[0]?.name || 'DRAFT'}
+                  author={article.author_name || 'Unknown Author'}
+                  date={formatTimeAgo(article.updated_at)}
+                  image={article.featured_image_url || article.featured_image}
+                  hashtags={article.tags}
+                  onPress={() => navigation.navigate('EditArticle', { articleId: article.id })}
+                  onMenuPress={(e) => handleMenuPress(article, e)}
+                  onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
+                  onAuthorPress={() => handleAuthorPress(article, navigation)}
+                  isDraft={true}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
 
       {/* Edit/Delete Menu Modal */}
       <ArticleActionMenu
@@ -332,7 +403,7 @@ export default function DraftArticlesScreen({ navigation }) {
         style={{
           position: 'absolute',
           right: 18,
-          bottom: 112,
+          bottom: 130,
           width: 72,
           height: 72,
           borderRadius: 999,

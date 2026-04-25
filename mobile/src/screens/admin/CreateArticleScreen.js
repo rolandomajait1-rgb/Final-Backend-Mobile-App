@@ -508,11 +508,12 @@ export default function CreateArticleScreen({ navigation }) {
         onSave={handleSave}
         onDiscard={handleDiscard}
         isSaving={loading}
-        title="Save Article"
+        title="Ready to Post?"
         description={userRole === 'moderator' 
           ? "As a moderator, you can save as draft. Only admins can publish."
           : "Save your changes and come back to finish your article later."
         }
+        saveText="Save Draft"
       />
 
       <ImageUploadProgress visible={uploading} progress={uploadProgress} />
