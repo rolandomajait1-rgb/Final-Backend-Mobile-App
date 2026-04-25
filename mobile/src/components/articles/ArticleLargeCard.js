@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { getCategoryColor } from '../../utils/categoryColors';
@@ -15,33 +15,42 @@ export default function ArticleLargeCard({
   onPress, 
   onMenuPress,
   onTagPress,
-  onAuthorPress
+  onAuthorPress,
+  onCategoryPress
 }) {
+  const { width } = useWindowDimensions();
   const badgeColor = getCategoryColor(category);
   const menuBtnRef = useRef(null);
 
+  const handleCategoryPress = () => {
+    if (onCategoryPress) {
+      onCategoryPress(category);
+    }
+  };
+
+  const handleTagPress = (tagName) => {
+    if (onTagPress) {
+      onTagPress(tagName);
+    }
+  };
+
+  const handleAuthorPress = () => {
+    if (onAuthorPress) {
+      onAuthorPress();
+    }
+  };
+
   return (
     <TouchableOpacity 
-      className="mb-6 bg-white rounded-xl overflow-hidden"
-      style={{
-        shadowColor: "#075985",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
-        elevation: 6,
-        marginHorizontal: 0,
-        marginTop: 4,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.04)"
-      }}
+      className="mb-6 bg-white rounded-xl overflow-hidden shadow-lg"
       onPress={onPress} 
       activeOpacity={0.85}
     >
       {/* Large Image - Rounded Top and Bottom */}
-      <View className="relative bg-[#d1dce6] overflow-hidden  mb-4 rounded-lg">
+      <View className="relative bg-[#d1dce6] overflow-hidden mb-4 rounded-lg">
         <Image
           source={{ uri: getImageUri(image) }}
-          className="w-full h-[268px]"
+          className={`w-full ${width < 375 ? 'h-44' : 'h-72'}`}
           resizeMode="cover"
         />
 
@@ -54,74 +63,85 @@ export default function ArticleLargeCard({
                 onMenuPress({ px, py: py + h });
               });
             }}
-            className="absolute top-4 right-4 z-10 rounded-full p-2"
-            style={{ backgroundColor: 'rgba(14, 116, 144, 0.6)' }} 
+            className={`absolute ${width < 375 ? 'top-2 right-2' : 'top-4 right-4'} z-10 rounded-full p-2 bg-teal-700/60`}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 8 }}
           >
-            <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            <Ionicons name="ellipsis-vertical" size={width < 375 ? 20 : 24} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Content Section */}
-      <View className="px-4 pb-5">
+      <View className={`${width < 375 ? 'px-3 pb-3' : 'px-4 pb-5'}`} pointerEvents="box-none">
         {/* Title and Category Badge - Side by side vertically centered */}
-        <View className="flex-row items-center justify-between mb-3">
+        <View className="flex-row items-center justify-between mb-3" pointerEvents="box-none">
           <Text 
-            className="text-gray-900 text-[26px] font-bold flex-1 mr-4 tracking-tight" 
+            className={`${width < 375 ? 'text-lg' : 'text-2xl'} text-gray-900 font-bold flex-1 mr-4 tracking-tight`}
             numberOfLines={2}
           >
             {title}
           </Text>
           {category && (
-            <TouchableOpacity 
-              style={{ backgroundColor: badgeColor + '15' }} // 15% opacity for background
-              className="rounded-md px-3 py-1.5 self-start ml-2"
-              onPress={() => onTagPress && onTagPress(category)}
-            >
-              <Text 
-                style={{ color: badgeColor }} 
-                className="font-bold text-[11px] uppercase tracking-widest"
+            <View className="ml-2" pointerEvents="box-none">
+              <TouchableOpacity
+                onPress={handleCategoryPress}
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                {category}
-              </Text>
-            </TouchableOpacity>
+                <View 
+                  className={`rounded-md ${width < 375 ? 'px-2 py-1' : 'px-3 py-1.5'} self-start`}
+                  style={{ backgroundColor: badgeColor + '15' }}
+                >
+                  <Text 
+                    className={`${width < 375 ? 'text-[10px]' : 'text-[11px]'} font-bold uppercase tracking-widest`}
+                    style={{ color: badgeColor }} 
+                  >
+                    {category}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
         
         {/* Hashtags - Pill style */}
         {hashtags && hashtags.length > 0 && (
-          <View className="flex-row flex-wrap gap-2 mb-4">
-            {hashtags.map((tag, index) => (
-              <TouchableOpacity 
-                key={index} 
-                className="bg-gray-50 border border-gray-200 rounded-full px-4 py-1"
-                onPress={() => {
-                  onTagPress && onTagPress(tag);
-                }}
-              >
-                <Text className="text-gray-500 text-xs font-semibold">
-                  #{tag}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View className={`flex-row flex-wrap ${width < 375 ? 'gap-1' : 'gap-2'} mb-4`} pointerEvents="box-none">
+            {hashtags.map((tag, index) => {
+              const tagName = typeof tag === 'string' ? tag : tag.name;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => handleTagPress(tagName)}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <View 
+                    className={`bg-gray-50 border border-gray-200 rounded-full ${width < 375 ? 'px-3 py-0.5' : 'px-4 py-1'}`}
+                  >
+                    <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-gray-500 font-semibold`}>
+                      #{tagName}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
         {/* Author and Date */}
-        <View className="flex-row items-center gap-2 mt-2">
+        <View className="flex-row items-center gap-2 mt-2" pointerEvents="box-none">
           <TouchableOpacity 
-            onPress={() => {
-              onAuthorPress && onAuthorPress();
-            }}
-            activeOpacity={0.7}
+            onPress={handleAuthorPress}
+            activeOpacity={0.6}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text className="text-cyan-700 text-sm font-semibold">
+            <Text className={`${width < 375 ? 'text-xs' : 'text-s'} text-gray-700 font-semibold`}>
               {author}
             </Text>
           </TouchableOpacity>
           <View className="w-1 h-1 bg-gray-300 rounded-full mx-1.5" />
-          <Text className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+          <Text className={`${width < 375 ? 'text-xs' : 'text-s'} text-gray-400 font-medium uppercase tracking-wider`}>
             {date}
           </Text>
         </View>

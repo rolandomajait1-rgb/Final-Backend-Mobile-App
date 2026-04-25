@@ -1,5 +1,5 @@
 import React, { memo, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { getCategoryColor } from '../../utils/categoryColors';
@@ -15,25 +15,23 @@ function ArticleMediumCard({
   onPress, 
   onMenuPress,
   onAuthorPress,
-  onTagPress 
+  onTagPress,
+  onCategoryPress,
+  navigation
 }) {
+  const { width } = useWindowDimensions();
   const badgeColor = getCategoryColor(category);
   const menuBtnRef = useRef(null);
 
+  const handleCategoryPress = () => {
+    if (onCategoryPress) {
+      onCategoryPress(category);
+    }
+  };
+
   return (
     <TouchableOpacity 
-      className="flex-row bg-white items-center mb-3 p-3 rounded-lg" 
-      style={{
-        shadowColor: "#075985",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        elevation: 3,
-        marginHorizontal: 0,
-        marginTop: 4,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.03)"
-      }}
+      className={`flex-row bg-white items-center mb-3 ${width < 375 ? 'p-2' : 'p-3'} rounded-lg shadow-md`}
       onPress={onPress} 
       activeOpacity={0.8}
     >
@@ -41,17 +39,17 @@ function ArticleMediumCard({
       <View className="rounded-xl overflow-hidden bg-gray-100">
         <Image
           source={{ uri: getImageUri(image) }}
-          className="w-[100px] h-[100px]"
+          className={`${width < 375 ? 'w-20 h-24' : 'w-28 h-28'}`}
           resizeMode="cover"
         />
       </View>
 
       {/* Content - Right Side */}
-      <View className="flex-1 ml-4 justify-center">
+      <View className={`flex-1 ${width < 375 ? 'ml-2' : 'ml-3'} justify-center`}>
         <View className="flex-row justify-between items-start gap-2">
-          <View className="flex-1">
+          <View className="flex-1 pr-2">
             <Text 
-              className="text-gray-900 text-[20px] font-bold leading-7 mb-2" 
+              className={`${width < 375 ? 'text-s' : 'text-base'} text-gray-900 font-bold leading-5 mb-1`}
               numberOfLines={2}
             >
               {title}
@@ -59,52 +57,40 @@ function ArticleMediumCard({
             
             {/* Category Badge */}
             {category && (
-              <TouchableOpacity 
-                style={{ backgroundColor: badgeColor + '15' }} // 15% opacity
-                className="rounded-md px-2 py-0.5 self-start mb-2"
-                onPress={() => onTagPress && onTagPress(category)}
-              >
-                <Text 
-                  style={{ color: badgeColor }}
-                  className="font-bold text-[9px] uppercase tracking-widest"
+              <View className="mb-1">
+                <TouchableOpacity
+                  onPress={handleCategoryPress}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Tags - Compact style for Medium Card */}
-            {hashtags && hashtags.length > 0 && (
-              <View className="flex-row flex-wrap gap-1 mb-2">
-                {hashtags.slice(0, 3).map((tag, index) => (
-                  <TouchableOpacity 
-                    key={index} 
-                    onPress={() => {
-                      // Bug #19 Fix: Add null check before calling optional callback
-                      if (onTagPress) {
-                        onTagPress(tag.name || tag);
-                      }
-                    }}
+                  <View 
+                    className={` ${width < 375 ? 'px-1.5 py-0.5' : 'px-2 py-1'} self-start`}
+                    style={{ backgroundColor: badgeColor + '15' }}
                   >
-                    <Text className="text-gray-500 text-[10px] font-medium">#{tag.name || tag}</Text>
-                  </TouchableOpacity>
-                ))}
+                    <Text 
+                      className={`${width < 375 ? 'text-[8px]' : 'text-[9px]'} font-bold uppercase tracking-widest`}
+                      style={{ color: badgeColor }}
+                    >
+                      {category}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             )}
-
+ 
             {/* Meta Info */}
-            <View className="flex-row items-center mt-1">
+            <View className="flex-row items-center mt-0.5 flex-wrap">
               <TouchableOpacity 
                 onPress={() => {
-                  // Bug #19 Fix: Add null check before calling optional callback
                   if (onAuthorPress) {
                     onAuthorPress();
                   }
                 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text className="text-gray-800 text-[13px] font-bold underline">{author}</Text>
+                <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-gray-800 font-bold underline`}>{author}</Text>
               </TouchableOpacity>
-              {date ? <Text className="text-gray-500 text-[11px] ml-1"> • {date}</Text> : null}
+              {date ? <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-gray-500 ml-1`}> • {date}</Text> : null}
             </View>
           </View>
 
@@ -117,10 +103,10 @@ function ArticleMediumCard({
                   onMenuPress({ px, py: py + h });
                 });
               }}
-              className="p-2 -mr-2"
+              className="p-1"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="ellipsis-vertical" size={20} color="#0369a1" />
+              <Ionicons name="ellipsis-vertical" size={width < 375 ? 18 : 20} color="#0369a1" />
             </TouchableOpacity>
           )}
         </View>
