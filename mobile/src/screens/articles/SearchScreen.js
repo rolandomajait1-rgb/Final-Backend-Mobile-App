@@ -230,7 +230,7 @@ export default function SearchScreen({ navigation }) {
   };
 
   const doSearch = useCallback(async (text) => {
-    const normalizedQuery = text.trim();
+    const normalizedQuery = text.trim().toLowerCase();
     const requestId = ++requestIdRef.current;
 
     if (normalizedQuery.length < MIN_QUERY_LENGTH) {
@@ -250,11 +250,41 @@ export default function SearchScreen({ navigation }) {
         return;
       }
 
-      const nextResults = Array.isArray(response.data?.data)
+      let nextResults = Array.isArray(response.data?.data)
         ? response.data.data
         : Array.isArray(response.data)
           ? response.data
           : [];
+
+      // If no exact results, filter by partial matches in tags, authors, categories
+      if (nextResults.length === 0) {
+        // Get all articles and filter locally
+        try {
+          const allArticlesResponse = await searchArticles('');
+          const allArticles = Array.isArray(allArticlesResponse.data?.data)
+            ? allArticlesResponse.data.data
+            : Array.isArray(allArticlesResponse.data)
+              ? allArticlesResponse.data
+              : [];
+
+          nextResults = allArticles.filter(article => {
+            const titleMatch = article.title?.toLowerCase().includes(normalizedQuery);
+            const authorMatch = (article.author?.user?.name || article.author?.name || article.author_name || '')
+              .toLowerCase()
+              .includes(normalizedQuery);
+            const categoryMatch = article.categories?.some(cat =>
+              cat.name?.toLowerCase().includes(normalizedQuery)
+            );
+            const tagMatch = article.tags?.some(tag =>
+              tag.name?.toLowerCase().includes(normalizedQuery)
+            );
+
+            return titleMatch || authorMatch || categoryMatch || tagMatch;
+          });
+        } catch (err) {
+          console.error('Error fetching all articles for filtering:', err);
+        }
+      }
 
       setResults(nextResults);
     } catch (err) {
