@@ -153,10 +153,9 @@
 <body>
     <div class="container">
         <div class="logo">
-            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald Logo" />
+            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald Logo" onerror="this.style.display='none'" />
         </div>
         
-        <div class="icon">📱</div>
         
         <h1>APK Download</h1>
         
@@ -178,12 +177,7 @@
             <p>
                 If you already have the app installed, you can open articles directly using the "Open in App" button on shared articles.
             </p>
-        </div>
-        
-        <a href="/" class="btn btn-primary">
-            Back to Home
-        </a>
-        
+        </div>        
         <p class="footer">
             Truth in Every Story
         </p>
