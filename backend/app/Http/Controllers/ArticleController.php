@@ -623,10 +623,17 @@ class ArticleController extends Controller
             $article->tags()->sync($tagIds);
         }
 
+        // Determine the action based on status changes
         $action = 'update';
         $oldStatus = $oldValues['status'] ?? null;
-        if ($oldStatus === 'draft' && $article->status === 'published') {
+        $newStatus = $article->status;
+        
+        if ($oldStatus === 'draft' && $newStatus === 'published') {
             $action = 'publish';
+        } elseif ($oldStatus === 'published' && $newStatus === 'draft') {
+            $action = 'save_as_draft';
+        } elseif ($oldStatus === 'draft' && $newStatus === 'draft') {
+            $action = 'update_draft';
         }
 
         try {
