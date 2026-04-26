@@ -58,13 +58,16 @@
             height: 100px;
             margin: 0 auto 24px;
             border-radius: 50%;
-            background: #f8b200;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 48px;
-            color: white;
-            font-weight: bold;
+        }
+        
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         
         h1 {
@@ -191,9 +194,11 @@
 </head>
 <body>
     <div class="container">
-        <div class="logo">LV</div>
+        <div class="logo">
+            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald Logo" />
+        </div>
         <h1>La Verdad Herald</h1>
-        <p class="article-title">"{{ e($article->title) }}"</p>
+        <p class="article-title">{{ e($article->title) }}</p>
         <p class="description">
             Get the full experience by opening this article in the La Verdad Herald app.
         </p>
@@ -202,8 +207,8 @@
             <a href="#" onclick="return openInApp();" class="btn btn-primary">
                 Open in App
             </a>
-            <a href="{{ e(route('article.web', $article->slug)) }}" class="btn btn-secondary">
-                Read on Web
+            <a href="{{ e(route('download.apk')) }}" class="btn btn-secondary">
+                Download APK
             </a>
         </div>
         

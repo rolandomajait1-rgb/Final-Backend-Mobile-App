@@ -34,9 +34,10 @@ Route::get('/login', function () {
 Route::get('/download-app', function () {
     $apkPath = storage_path('app/releases/LaVerdadHerald.apk');
     
-    // Check if the file exists, if not abort with 404
+    // Check if the file exists
     if (!file_exists($apkPath)) {
-        abort(404, 'The application APK is not available for download right now. Please tell the administrator to upload it.');
+        // Return a nice "Coming Soon" page instead of 404
+        return response()->view('download-coming-soon', [], 200);
     }
     
     // Serve the file securely avoiding exposing the direct path, with headers that prevent caching
