@@ -186,6 +186,31 @@ class AuthService
     }
 
     /**
+     * Send registration OTP (for login attempts by unverified users)
+     *
+     * @return void
+     * @throws \Exception
+     */
+    public function sendRegistrationOTP(string $email): void
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw new \Exception('User not found');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            throw new \Exception('User already verified');
+        }
+
+        // Generate new OTP for email verification
+        $otp = $this->generateOTP($email, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
+
+        // Send OTP via email — throws on failure
+        $this->mailService->sendOTPEmail($user, $otp, \App\Models\OTPToken::TYPE_EMAIL_VERIFICATION);
+    }
+
+    /**
      * Resend registration OTP
      *
      * @return array ['success' => bool, 'message' => string]
