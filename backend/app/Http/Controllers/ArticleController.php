@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -72,11 +73,9 @@ class ArticleController extends Controller
 
         // Filter by tag if provided
         if ($request->has('tag') && $request->tag) {
-            \Log::info('Filtering by tag: ' . $request->tag);
             $query->whereHas('tags', function ($q) use ($request) {
                 $q->where('name', $request->tag);
             });
-            \Log::info('Articles count after tag filter: ' . $query->count());
         }
 
         // Filter by limit if provided - max 100 to prevent DoS
@@ -98,26 +97,33 @@ class ArticleController extends Controller
         $perPage  = min(max((int) $request->get('per_page', $request->get('limit', 10)), 1), 100);
         $category = trim($request->get('category', ''));
         $tag      = trim($request->get('tag', ''));
+        $page     = max(1, (int) $request->get('page', 1));
 
-        $query = Article::published()
-            ->with('categories', 'tags')
-            ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
-            ->latest('published_at');
+        // Cache key based on query parameters
+        $cacheKey = "articles_public_{$page}_{$perPage}_{$category}_{$tag}";
 
-        // Filter by category name (exact, case-insensitive)
-        if ($category !== '') {
-            $query->whereHas('categories', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($category)]));
-        }
+        $articles = Cache::remember($cacheKey, 300, function () use ($perPage, $category, $tag) {
+            $query = Article::published()
+                ->with('author.user', 'categories', 'tags')
+                ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
+                ->latest('published_at');
 
-        // Filter by tag name (exact, case-insensitive)
-        if ($tag !== '') {
-            $query->whereHas('tags', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($tag)]));
-        }
+            // Filter by category name (exact, case-insensitive)
+            if ($category !== '') {
+                $query->whereHas('categories', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($category)]));
+            }
 
-        return response()->json($query->paginate($perPage))
-            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            ->header('Pragma', 'no-cache')
-            ->header('Expires', '0');
+            // Filter by tag name (exact, case-insensitive)
+            if ($tag !== '') {
+                $query->whereHas('tags', fn ($q) => $q->whereRaw('LOWER(name) = ?', [strtolower($tag)]));
+            }
+
+            return $query->paginate($perPage);
+        });
+
+        return response()->json($articles)
+            ->header('Cache-Control', 'public, max-age=300')
+            ->header('Expires', now()->addMinutes(5)->toRfc7231String());
     }
 
     public function publicSearch(Request $request): JsonResponse
@@ -192,10 +198,12 @@ class ArticleController extends Controller
                 return response()->json(['message' => 'Invalid article slug'], 400);
             }
 
-            $article = Article::published()
-                ->with('author.user', 'categories', 'tags')
-                ->where('slug', $slug)
-                ->first();
+            $article = \Illuminate\Support\Facades\Cache::remember('article_slug_' . $slug, 300, function () use ($slug) {
+                return Article::published()
+                    ->with('author.user', 'categories', 'tags')
+                    ->where('slug', $slug)
+                    ->first();
+            });
 
             if (!$article) {
                 return response()->json(['message' => 'Article not found'], 404);
@@ -236,7 +244,10 @@ class ArticleController extends Controller
                 return response()->json(['message' => 'Invalid article ID'], 400);
             }
 
-            $article = Article::with('author.user', 'categories', 'tags')->find($id);
+            $article = \Illuminate\Support\Facades\Cache::remember('article_id_' . $id, 300, function () use ($id) {
+                return Article::with('author.user', 'categories', 'tags')->find($id);
+            });
+            
             if (! $article) {
                 return response()->json(['message' => 'Article not found'], 404);
             }
@@ -270,18 +281,19 @@ class ArticleController extends Controller
 
     public function latestArticles(): JsonResponse
     {
-        // Always fetch fresh data - no caching
-        $articles = Article::published()
-            ->with('author.user', 'categories', 'tags')
-            ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
-            ->latest('published_at')
-            ->take(6)
-            ->get();
+        // Cache for 5 minutes
+        $articles = Cache::remember('latest_articles', 300, function () {
+            return Article::published()
+                ->with('author.user', 'categories', 'tags')
+                ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
+                ->latest('published_at')
+                ->take(6)
+                ->get();
+        });
 
         return response()->json($articles)
-            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            ->header('Pragma', 'no-cache')
-            ->header('Expires', '0');
+            ->header('Cache-Control', 'public, max-age=300')
+            ->header('Expires', now()->addMinutes(5)->toRfc7231String());
     }
 
     public function create(): View
