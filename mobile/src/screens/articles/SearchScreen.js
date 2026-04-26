@@ -342,7 +342,7 @@ export default function SearchScreen({ navigation }) {
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
 
       <View className="flex-shrink-0 bg-white">
         <HomeHeader

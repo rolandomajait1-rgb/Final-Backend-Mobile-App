@@ -126,7 +126,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={false} />
+      <StatusBar style="light" hidden={false} />
 
       <View className="flex-1">
         <ImageBackground source={bg} className="flex-1" resizeMode="cover" style={{ opacity: 0.9 }}>

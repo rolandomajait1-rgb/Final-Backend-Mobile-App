@@ -367,7 +367,7 @@ export default function AdminScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG_PAGE }}>
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
 
       {/* Header */}
       <View style={{ backgroundColor: '#fff' }}>

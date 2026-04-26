@@ -352,7 +352,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
       <ScrollView
         className="flex-1 bg-white"
         showsVerticalScrollIndicator={false}

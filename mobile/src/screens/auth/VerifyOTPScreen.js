@@ -101,7 +101,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={false} />
+      <StatusBar style="light" hidden={false} />
 
       {/* Background layer - same as LoginScreen */}
       <View className="flex-1">

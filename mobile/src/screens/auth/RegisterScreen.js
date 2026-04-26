@@ -116,7 +116,7 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <View className="flex-1">
-      <StatusBar hidden={false} />
+      <StatusBar style="light" hidden={false} />
 
       {/* Background layer — same as LoginScreen */}
       <View className="flex-1">

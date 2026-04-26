@@ -123,14 +123,14 @@ function ArticleHero({
         onClose={() => setMenuVisible(false)}
         actions={[
           {
-            label: "Edit Article",
+            label: "Edit",
             icon: "create-outline",
             color: "#0284c7",
             onPress: onEdit,
           },
           // Only show delete for admin, not moderator
           ...(isAdmin ? [{
-            label: "Delete Article",
+            label: "Delete",
             icon: "trash-outline",
             color: "#ef4444",
             labelColor: "#ef4444",

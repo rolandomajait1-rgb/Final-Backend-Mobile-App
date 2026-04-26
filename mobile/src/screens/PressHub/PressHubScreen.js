@@ -86,7 +86,7 @@ export default function PressHubScreen({ navigation }) {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
 
       {/* Header */}
       <HomeHeader

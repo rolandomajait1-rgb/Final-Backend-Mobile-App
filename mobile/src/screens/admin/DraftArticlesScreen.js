@@ -220,7 +220,7 @@ export default function DraftArticlesScreen({ navigation }) {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
       {/* Header */}
       <View className="flex-shrink-0">
         <HomeHeader

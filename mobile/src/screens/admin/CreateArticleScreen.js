@@ -323,7 +323,7 @@ export default function CreateArticleScreen({ navigation }) {
   // ─── Render ────────────────────────────────────────────────────
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
 
       {/* Top Navigation Header */}
       <HomeHeader

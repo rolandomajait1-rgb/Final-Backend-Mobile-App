@@ -16,11 +16,13 @@ export default function AuditEntryItem({ log }) {
       return { label: "Published", color: "#10b981" }; // Emerald-500
     }
 
-    // Amber - Draft / Saved / Store (Prioritize this)
+    // Amber - Draft / Saved / Store / Save as Draft / Update Draft
     if (
       lowerAction.includes("draft") || 
       lowerAction.includes("save") || 
-      lowerAction.includes("store")
+      lowerAction.includes("store") ||
+      lowerAction === "save_as_draft" ||
+      lowerAction === "update_draft"
     ) {
       return { label: "Draft", color: "#fbbf24" }; // Amber-400
     }

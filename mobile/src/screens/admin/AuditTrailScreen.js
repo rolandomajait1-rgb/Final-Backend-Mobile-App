@@ -134,7 +134,7 @@ export default function AuditTrailScreen({ navigation }) {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar hidden={false} />
+      <StatusBar style="dark" hidden={false} />
       <View className="flex-shrink-0 bg-white">
         <HomeHeader 
           categories={[]}
