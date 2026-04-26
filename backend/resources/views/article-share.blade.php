@@ -39,7 +39,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            background: linear-gradient(135deg, #006d9fff 0%, #006293ff 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -119,7 +119,7 @@
         }
         
         .btn-primary {
-            background: #0ea5e9;
+            background: #006fa2ff;
             color: white;
         }
         
@@ -170,9 +170,10 @@
 </head>
 <body>
     <div class="card">
-        <div class="logo">
-            <img src="{{ asset('images/logo.png') }}" alt="La Verdad Herald" onerror="this.style.display='none'" />
+       <div class="logo">
+            <img src="{{ asset('images/logo.png') }}" alt="La Verdad Herald Logo" onerror="this.style.display='none'" />
         </div>
+        
         
         <h1>La Verdad Herald</h1>
         <p class="tagline">Truth in Every Story</p>
