@@ -112,6 +112,9 @@ class DashboardController extends Controller
 
             // Recent publications
             'recentArticles'  => \App\Models\Article::with('categories')
+                ->withCount(['interactions as likes_count' => function ($q) {
+                    $q->where('type', 'liked');
+                }])
                 ->latest('published_at')
                 ->take(5)
                 ->get()
@@ -121,6 +124,9 @@ class DashboardController extends Controller
                     'author_name'  => $a->author_name ?? $a->display_author_name ?? 'Unknown',
                     'status'       => $a->status,
                     'published_at' => $a->published_at,
+                    'likes_count'  => $a->likes_count ?? 0,
+                    'views_count'  => $a->view_count ?? 0,
+                    'shares_count' => $a->shares_count ?? 0,
                 ]),
         ];
         });

@@ -13,7 +13,8 @@ class HealthController extends Controller
         $health = [
             'status' => 'healthy',
             'timestamp' => now()->toIso8601String(),
-            'services' => []
+            'services' => [],
+            'metrics' => []
         ];
 
         try {
@@ -33,6 +34,20 @@ class HealthController extends Controller
         $health['services']['cloudinary'] = [
             'status' => config('cloudinary.cloud_name') ? 'configured' : 'not_configured'
         ];
+
+        // Add real-time dashboard metrics
+        try {
+            $health['metrics'] = [
+                'users' => \App\Models\User::count(),
+                'articles' => \App\Models\Article::where('status', 'published')->count(),
+                'drafts' => \App\Models\Article::where('status', 'draft')->count(),
+                'views' => (int) \App\Models\Article::sum('view_count'),
+                'likes' => \App\Models\ArticleInteraction::where('type', 'liked')->count(),
+                'shares' => (int) \App\Models\Article::sum('shares_count'),
+            ];
+        } catch (\Exception $e) {
+            $health['metrics']['error'] = 'Failed to fetch metrics: ' . $e->getMessage();
+        }
 
         $statusCode = $health['status'] === 'healthy' ? 200 : 503;
         return response()->json($health, $statusCode);

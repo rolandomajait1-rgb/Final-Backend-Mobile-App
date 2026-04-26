@@ -847,6 +847,20 @@ class ArticleController extends Controller
 
         if ($existing) {
             $existing->delete();
+            
+            // Log unlike action
+            try {
+                \App\Models\Log::create([
+                    'model_type' => 'App\\Models\\Article',
+                    'model_id'   => $article->id,
+                    'user_id'    => Auth::id(),
+                    'action'     => 'unlike',
+                    'old_values' => json_encode(['liked' => true]),
+                    'new_values' => json_encode(['liked' => false]),
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to log unlike action:', ['error' => $e->getMessage()]);
+            }
 
             return response()->json(['liked' => false, 'likes_count' => $article->interactions()->where('type', 'liked')->count()]);
         }
@@ -856,6 +870,20 @@ class ArticleController extends Controller
             'article_id' => $article->id,
             'type' => 'liked',
         ]);
+        
+        // Log like action
+        try {
+            \App\Models\Log::create([
+                'model_type' => 'App\\Models\\Article',
+                'model_id'   => $article->id,
+                'user_id'    => Auth::id(),
+                'action'     => 'like',
+                'old_values' => json_encode(['liked' => false]),
+                'new_values' => json_encode(['liked' => true]),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to log like action:', ['error' => $e->getMessage()]);
+        }
 
         return response()->json(['liked' => true, 'likes_count' => $article->interactions()->where('type', 'liked')->count()]);
     }
@@ -872,6 +900,20 @@ class ArticleController extends Controller
                 'article_id' => $article->id,
                 'type' => 'shared',
             ]);
+            
+            // Log share action
+            try {
+                \App\Models\Log::create([
+                    'model_type' => 'App\\Models\\Article',
+                    'model_id'   => $article->id,
+                    'user_id'    => Auth::id(),
+                    'action'     => 'share',
+                    'old_values' => json_encode(['shares_count' => $article->shares_count - 1]),
+                    'new_values' => json_encode(['shares_count' => $article->shares_count]),
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to log share action:', ['error' => $e->getMessage()]);
+            }
         }
 
         return response()->json([
