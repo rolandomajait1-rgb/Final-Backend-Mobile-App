@@ -18,8 +18,17 @@
     <meta property="og:title" content="{{ $article->title }}" />
     <meta property="og:description" content="{{ Str::limit(strip_tags($article->content), 150) }}" />
     <meta property="og:url" content="{{ url('/articles/' . $article->slug) }}" />
-    <meta property="og:image" content="{{ $article->featured_image_url }}" />
-    <meta property="og:image:secure_url" content="{{ str_replace('http://', 'https://', $article->featured_image_url) }}" />
+    @php
+        $imageUrl = $article->featured_image_url;
+        // Ensure absolute URL with HTTPS
+        if (!str_starts_with($imageUrl, 'http')) {
+            $imageUrl = url($imageUrl);
+        }
+        $imageUrl = str_replace('http://', 'https://', $imageUrl);
+    @endphp
+    <meta property="og:image" content="{{ $imageUrl }}" />
+    <meta property="og:image:secure_url" content="{{ $imageUrl }}" />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="{{ $article->title }}" />
@@ -33,7 +42,7 @@
     <meta name="twitter:site" content="@laverdadherald" />
     <meta name="twitter:title" content="{{ $article->title }}" />
     <meta name="twitter:description" content="{{ Str::limit(strip_tags($article->content), 150) }}" />
-    <meta name="twitter:image" content="{{ $article->featured_image_url }}" />
+    <meta name="twitter:image" content="{{ $imageUrl }}" />
     <meta name="twitter:image:alt" content="{{ $article->title }}" />
     
     <style>
