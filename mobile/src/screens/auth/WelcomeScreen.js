@@ -1,6 +1,7 @@
+import { useEffect, useRef } from 'react';
 import {
   View, Text, ImageBackground, Image,
-  TouchableOpacity, StatusBar, useWindowDimensions,
+  TouchableOpacity, StatusBar, useWindowDimensions, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +11,24 @@ const textlogo = require('../../../assets/la verdad herald.png');
 
 export default function WelcomeScreen({ navigation }) {
   const { width } = useWindowDimensions();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Smooth fade-in and slide-up animation when screen loads
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
 
   return (
     <View className="flex-1">
@@ -22,15 +41,19 @@ export default function WelcomeScreen({ navigation }) {
         <SafeAreaView className="flex-1 items-center justify-between px-4 py-16">
 
           {/* Logo + title block */}
-          <View className="flex-1 items-center justify-center">
-            {/* Logo */}
-            <View style={{ width: width < 375 ? 220 : 260, height: width < 375 ? 130 : 150, marginBottom: 14, alignItems: 'center', justifyContent: 'center' }}>
-              <Image
-                source={logo}
-                style={{ width: width < 375 ? 220 : 260, height: width < 375 ? 130 : 150 }}
-                resizeMode="contain"
-              />
-            </View>
+          <Animated.View 
+            className="flex-1 items-center justify-center"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+          >
+            {/* Static logo without animation */}
+            <Image
+              source={logo}
+              style={{ width: width < 375 ? 220 : 260, height: width < 375 ? 130 : 150, marginBottom: 14 }}
+              resizeMode="contain"
+            />
             <Image
               source={textlogo}
               style={{ width: 360, height: 54 }}
@@ -40,10 +63,16 @@ export default function WelcomeScreen({ navigation }) {
               The Official Higher Education Student Publication of{'\n'}
               La Verdad Christian College, Inc.
             </Text>
-          </View>
+          </Animated.View>
 
           {/* Action buttons */}
-          <View className="w-full items-center gap-4 mb-8">
+          <Animated.View 
+            className="w-full items-center gap-4 mb-8"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: Animated.multiply(slideAnim, -1) }],
+            }}
+          >
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
               className="w-2/3 rounded-full items-center"
@@ -61,7 +90,7 @@ export default function WelcomeScreen({ navigation }) {
             >
               <Text className="text-white font-bold text-lg">Sign Up</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
         </SafeAreaView>
       </ImageBackground>
