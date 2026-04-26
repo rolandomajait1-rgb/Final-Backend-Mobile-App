@@ -421,6 +421,13 @@ class ArticleController extends Controller
                     Log::warning('Failed to write audit log: ' . $e->getMessage());
                 }
 
+                // Clear article caches when publishing
+                if ($status === 'published') {
+                    Cache::forget('latest_articles');
+                    // Clear all public article list caches
+                    Cache::flush(); // Or use more specific cache tags if available
+                }
+
                 Log::info('Article creation completed successfully', ['article_id' => $article->id]);
                 return response()->json($article->load('author.user', 'categories', 'tags'), 201);
             });
@@ -683,6 +690,15 @@ class ArticleController extends Controller
                 'new_values' => ['title' => $article->title, 'status' => $article->status],
             ]);
         } catch (\Exception $e) {}
+
+        // Clear article caches when publishing or updating published articles
+        if ($article->status === 'published') {
+            Cache::forget('latest_articles');
+            Cache::forget('article_slug_' . $article->slug);
+            Cache::forget('article_id_' . $article->id);
+            // Clear paginated article caches (simplified approach)
+            Cache::flush();
+        }
 
         return response()->json($article->load('author', 'categories', 'tags'));
     }
