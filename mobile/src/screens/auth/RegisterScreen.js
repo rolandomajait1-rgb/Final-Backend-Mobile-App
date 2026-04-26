@@ -237,6 +237,8 @@ export default function RegisterScreen({ navigation }) {
                     placeholderTextColor="#9ca3af"
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    textContentType="newPassword"
+                    autoComplete="password-new"
                     onFocus={scrollToEnd}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
@@ -262,6 +264,8 @@ export default function RegisterScreen({ navigation }) {
                     placeholderTextColor="#9ca3af"
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
+                    textContentType="newPassword"
+                    autoComplete="password-new"
                     onFocus={scrollToEnd}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="pr-3">
