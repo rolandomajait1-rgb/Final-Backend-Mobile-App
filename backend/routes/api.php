@@ -22,10 +22,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', [ApiHealthController::class, 'check']);
 Route::get('/ping', [ApiHealthController::class, 'ping']);
 
-// Legacy health endpoints (keep for backward compatibility)
-Route::get('/config-check', [HealthController::class, 'checkConfig']);
-Route::get('/cloudinary-test', [HealthController::class, 'testCloudinary']);
-
 // Team Members Routes
 Route::get('/team-members', [TeamMemberController::class, 'index']);
 
@@ -49,7 +45,7 @@ Route::middleware('throttle:3,1')->post('/email/resend-verification', [AuthContr
 // Contact Form Routes
 Route::middleware('throttle:10,1')->post('/contact/feedback', [ContactController::class, 'sendFeedback']);
 Route::middleware('throttle:5,1')->post('/contact/request-coverage', [ContactController::class, 'requestCoverage']);
-Route::middleware('throttle:5,1')->post('/contact/join-herald', [ContactController::class, 'joinHerald']);
+Route::middleware('throttle:2,1')->post('/contact/join-herald', [ContactController::class, 'joinHerald']); // Stricter for file uploads
 Route::middleware('throttle:10,1')->post('/contact/subscribe', [ContactController::class, 'subscribe']);
 
 // Download Parental Consent Form
@@ -92,6 +88,16 @@ Route::get('/tags/{tag}', [TagController::class, 'show'])->middleware('cache.hea
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/logs', [LogController::class, 'index']);
     Route::get('/logs/{log}', [LogController::class, 'show']);
+    
+    // Admin-only log management
+    Route::middleware(['role:admin'])->group(function () {
+        // Legacy health endpoints (moved to admin-only for security)
+        Route::get('/config-check', [HealthController::class, 'checkConfig']);
+        Route::get('/cloudinary-test', [HealthController::class, 'testCloudinary']);
+        
+        Route::delete('/logs/clear/old', [LogController::class, 'clearOld']);
+        Route::delete('/logs/clear/all', [LogController::class, 'clearAll']);
+    });
 });
 
 // Protected Article Routes

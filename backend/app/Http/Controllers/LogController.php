@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Log;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class LogController extends Controller
@@ -13,48 +13,35 @@ class LogController extends Controller
     {
         $logs = Log::with(['user'])->paginate(20);
         
+        // Pre-fetch articles to prevent N+1 queries
+        $articleIds = collect($logs->items())->where('model_type', 'App\\Models\\Article')->pluck('model_id')->filter()->unique();
+        $articles = \App\Models\Article::whereIn('id', $articleIds)->pluck('title', 'id');
+
         // Enhance logs with article titles and user roles
-        $logs->getCollection()->transform(function ($log) {
+        $logs->getCollection()->transform(function ($log) use ($articles) {
             // Add user role
             if ($log->user) {
                 $log->user_role = $log->user->role;
             }
             
             // Add article title if the log is related to an article
-            if ($log->model_type === 'App\\Models\\Article' && $log->model_id) {
-                // First, try to get the article if it still exists
-                $article = \App\Models\Article::find($log->model_id);
-                
-                if ($article) {
-                    // Article still exists
-                    $log->article_title = $article->title;
+            if ($log->model_type === 'App\\Models\\Article') {
+                if ($log->model_id && $articles->has($log->model_id)) {
+                    $title = $articles[$log->model_id];
                 } else {
-                    // Article was deleted or doesn't exist
-                    // Try to get title from old_values or new_values
                     $oldValues = is_string($log->old_values) ? json_decode($log->old_values, true) : $log->old_values;
                     $newValues = is_string($log->new_values) ? json_decode($log->new_values, true) : $log->new_values;
                     
-                    // Try old_values first (for delete/update), then new_values (for create/publish)
                     if (is_array($oldValues) && isset($oldValues['title'])) {
-                        $log->article_title = $oldValues['title'];
+                        $title = $oldValues['title'];
                     } elseif (is_array($newValues) && isset($newValues['title'])) {
-                        $log->article_title = $newValues['title'];
+                        $title = $newValues['title'];
                     } else {
-                        $log->article_title = 'Unknown Article';
+                        $title = 'Unknown Article';
                     }
                 }
-            } elseif ($log->model_type === 'App\\Models\\Article') {
-                // If there's no model_id but it's an article action, try to get title from values
-                $oldValues = is_string($log->old_values) ? json_decode($log->old_values, true) : $log->old_values;
-                $newValues = is_string($log->new_values) ? json_decode($log->new_values, true) : $log->new_values;
                 
-                if (is_array($oldValues) && isset($oldValues['title'])) {
-                    $log->article_title = $oldValues['title'];
-                } elseif (is_array($newValues) && isset($newValues['title'])) {
-                    $log->article_title = $newValues['title'];
-                } else {
-                    $log->article_title = 'Unknown Article';
-                }
+                $log->article_title = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
             }
             
             return $log;
@@ -76,5 +63,57 @@ class LogController extends Controller
         }
 
         return view('logs.show', compact('log'));
+    }
+
+    /**
+     * Clear old logs (Admin only)
+     */
+    public function clearOld(Request $request): JsonResponse
+    {
+        $days = (int) $request->get('days', 30);
+        
+        if ($days < 1) {
+            return response()->json(['message' => 'Days must be at least 1'], 400);
+        }
+
+        $cutoffDate = now()->subDays($days);
+        $count = Log::where('created_at', '<', $cutoffDate)->count();
+
+        if ($count === 0) {
+            return response()->json([
+                'message' => "No logs older than {$days} days found.",
+                'deleted' => 0
+            ]);
+        }
+
+        Log::where('created_at', '<', $cutoffDate)->delete();
+
+        return response()->json([
+            'message' => "Successfully deleted {$count} old audit logs.",
+            'deleted' => $count,
+            'kept_days' => $days
+        ]);
+    }
+
+    /**
+     * Clear all logs (Admin only - use with caution)
+     */
+    public function clearAll(): JsonResponse
+    {
+        $count = Log::count();
+
+        if ($count === 0) {
+            return response()->json([
+                'message' => 'No logs to clear.',
+                'deleted' => 0
+            ]);
+        }
+
+        Log::truncate();
+
+        return response()->json([
+            'message' => "Successfully cleared all {$count} audit logs.",
+            'deleted' => $count
+        ]);
     }
 }
