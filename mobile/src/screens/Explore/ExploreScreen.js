@@ -215,7 +215,7 @@ export default function ExploreScreen({ navigation }) {
   }, [navigation]);
 
   // Debounce search to avoid too many API calls
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   useEffect(() => {
     const checkAdmin = async () => {

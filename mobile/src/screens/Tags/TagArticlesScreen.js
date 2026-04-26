@@ -133,7 +133,7 @@ export default function TagArticlesScreen({ route, navigation }) {
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -224,6 +224,7 @@ export default function TagArticlesScreen({ route, navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onSearch={debouncedSearch}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
           navigation={navigation}
         />
       </View>

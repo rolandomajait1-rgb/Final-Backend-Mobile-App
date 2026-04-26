@@ -39,6 +39,7 @@ const ArticlesListContent = ({
   loadingMore,
   hasMore,
   onLoadMore,
+  initialLoadComplete,
   onArticlePress,
   handleMenuPress,
   onTagPress,
@@ -157,13 +158,13 @@ const ArticlesListContent = ({
             </TouchableOpacity>
           )}
         </>
-      ) : (
+      ) : initialLoadComplete ? (
         <EmptyState 
           icon="document-text-outline" 
           title="No recent articles" 
           message="More news and updates coming soon." 
         />
-      );
+      ) : null;
       })()}
     </View>
     
@@ -197,6 +198,7 @@ export default function HomeScreen({ navigation }) {
   const [recentHasMore, setRecentHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
     checkUserRole();
@@ -235,13 +237,22 @@ export default function HomeScreen({ navigation }) {
       setRecentArticles(prev => replace ? newArticles : [...prev, ...newArticles]);
       setRecentHasMore(page < lastPage);
       setRecentPage(page);
+      
+      // Mark initial load as complete after minimum delay
+      if (page === 1 && !initialLoadComplete) {
+        setTimeout(() => setInitialLoadComplete(true), 5000);
+      }
     } catch (err) {
       console.error('Error fetching recent articles:', err);
+      // Still mark as complete even on error after delay
+      if (page === 1 && !initialLoadComplete) {
+        setTimeout(() => setInitialLoadComplete(true), 5000);
+      }
     } finally {
       setLoadingMore(false);
       loadingMoreRef.current = false;
     }
-  }, []);
+  }, [initialLoadComplete]);
   
   const handleLoadMore = () => {
     if (!loadingMore && recentHasMore) {
@@ -270,7 +281,7 @@ export default function HomeScreen({ navigation }) {
 
   // Bug #2 Fix: Debounce created with useMemo — stable across renders
   const debouncedSearch = useMemo(
-    () => debounce(handleSearch, 500),
+    () => debounce(handleSearch, 100),
     [handleSearch]
   );
 
@@ -336,6 +347,7 @@ export default function HomeScreen({ navigation }) {
       
       // Remove from local state immediately
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      setRecentArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       
       setShowDeleteModal(false);
       showAuditToast("success", "Article deleted successfully");
@@ -354,6 +366,7 @@ export default function HomeScreen({ navigation }) {
       if (error.response?.status === 404) {
         // Remove from local state since it doesn't exist anymore
         setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+        setRecentArticles(prev => prev.filter(a => a.id !== menuArticle.id));
         setShowDeleteModal(false);
         showAuditToast("info", "Article was already deleted");
       } else {
@@ -456,6 +469,7 @@ export default function HomeScreen({ navigation }) {
             loadingMore={loadingMore}
             hasMore={recentHasMore}
             onLoadMore={handleLoadMore}
+            initialLoadComplete={initialLoadComplete}
             onArticlePress={(article) =>
               navigation.navigate("ArticleStack", {
                 screen: "ArticleDetail",

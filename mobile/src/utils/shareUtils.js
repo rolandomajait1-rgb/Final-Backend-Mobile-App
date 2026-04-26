@@ -66,18 +66,15 @@ export const handleArticleShare = async (article, onShareSuccess) => {
       return false;
     }
     
-    const gist = extractGist(article.content);
     const title = String(article.title || 'Article').substring(0, 100); // Limit title length
     
-    const shareMessage = gist 
-      ? `Check out: ${title}\n\n"${gist}"\n\n${url}`
-      : `Check out: ${title}\n\n${url}`;
-    
+    // Share only the URL so that social media platforms (Messenger, Facebook, WhatsApp)
+    // will fetch and display the Open Graph meta tags from the backend
     console.log('Share message prepared, opening share dialog...');
     
     const result = await Share.share({
       title: title,
-      message: shareMessage,
+      message: url, // Only share the URL for proper meta tag preview
     });
 
     console.log('Share result:', result);

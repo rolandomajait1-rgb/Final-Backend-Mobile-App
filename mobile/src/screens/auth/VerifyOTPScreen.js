@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   Platform, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,12 +36,6 @@ export default function VerifyOTPScreen({ navigation, route }) {
     }
     return () => clearInterval(interval);
   }, [isTimerActive, timer]);
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => {});
-    const hide = Keyboard.addListener('keyboardDidHide', () => {});
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   const handleVerifyOTP = async () => {
     if (!otp || otp.length !== 6) {
@@ -81,7 +75,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
     setLoading(true);
     setError('');
     try {
-      await client.post('/api/forgot-password', { email: email.trim() });
+      await client.post('/api/forgot-password', { email: email.trim().toLowerCase() });
       setOtp('');
       setError('');
       setTimer(60);
@@ -178,10 +172,9 @@ export default function VerifyOTPScreen({ navigation, route }) {
                     style={{ color: '#1f2937', letterSpacing: 8, borderColor: error ? '#f87171' : '#d1d5db' }}
                     value={otp}
                     onChangeText={(v) => {
-                      if (/^\d{0,6}$/.test(v)) {
-                        setOtp(v);
-                        setError('');
-                      }
+                  const cleanValue = v.replace(/[^0-9]/g, '');
+                  setOtp(cleanValue.slice(0, 6));
+                  if (error) setError('');
                     }}
                     placeholder="000000"
                     placeholderTextColor="#d1d5db"

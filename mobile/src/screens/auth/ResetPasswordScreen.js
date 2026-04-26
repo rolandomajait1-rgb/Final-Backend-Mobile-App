@@ -29,6 +29,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const scrollRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   // Sync params when they arrive via deep link
   useEffect(() => {
@@ -40,6 +41,12 @@ export default function ResetPasswordScreen({ navigation, route }) {
       }));
     }
   }, [route.params?.token, route.params?.email]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -78,7 +85,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
         password_confirmation: formData.password_confirmation,
       });
       setSuccessMessage(response.data.message);
-      setTimeout(() => navigation.replace('Login'), 2000);
+      timeoutRef.current = setTimeout(() => navigation.replace('Login'), 2000);
     } catch (error) {
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);

@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Platform, ActivityIndicator,
-  ImageBackground, Image, StatusBar,
+  ActivityIndicator, ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,9 +26,10 @@ export default function ForgotPasswordScreen({ navigation }) {
     setLoading(true);
     setError('');
     try {
-      await client.post('/api/forgot-password', { email: email.trim() });
+      const normalizedEmail = email.trim().toLowerCase();
+      await client.post('/api/forgot-password', { email: normalizedEmail });
       // Navigate to OTP verification screen
-      navigation.navigate('VerifyOTP', { email: email.trim() });
+      navigation.navigate('VerifyOTP', { email: normalizedEmail });
     } catch (err) {
       let msg = 'Failed to send OTP. Please try again.';
       if (err.response?.data?.message) {
@@ -119,7 +119,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 <TextInput
                   className="w-full rounded-md border border-gray-300 px-4 py-2 mb-2 bg-white/80 text-black"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(v) => setEmail(v.trim())}
                   placeholder="Enter your email"
                   placeholderTextColor="#9ca3af"
                   keyboardType="email-address"

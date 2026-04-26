@@ -143,7 +143,7 @@ export default function CategoryScreen({
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   useEffect(() => {
     const checkAdminStatus = async () => {

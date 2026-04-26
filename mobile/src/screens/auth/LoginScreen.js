@@ -32,8 +32,9 @@ export default function LoginScreen({ navigation }) {
     const e = {};
     // Accept both @student.laverdad.edu.ph and @laverdad.edu.ph
     const emailRegex = /^[^\s@]+@(student\.)?laverdad\.edu\.ph$/;
-    if (!email) e.email = 'Email is required';
-    else if (!emailRegex.test(email))
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) e.email = 'Email is required';
+    else if (!emailRegex.test(trimmedEmail))
       e.email = 'Please enter a valid @laverdad.edu.ph or @student.laverdad.edu.ph email';
     if (!password) e.password = 'Password is required';
     else if (password.length < 8) e.password = 'Password must be at least 8 characters';
@@ -49,14 +50,15 @@ export default function LoginScreen({ navigation }) {
     setIsLoading(true);
     setErrors({});
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const response = await client.post('/api/login', { 
-        email: email.trim(), 
+        email: normalizedEmail, 
         password 
       });
       const { token, user } = response.data;
       await AsyncStorage.multiSet([
         ['auth_token', token],
-        ['user_email', email.trim()],
+        ['user_email', normalizedEmail],
         ['user_name', user.name],
         ['user_role', user?.role || 'user'],
         ['user_data', JSON.stringify(user)],
@@ -110,7 +112,7 @@ export default function LoginScreen({ navigation }) {
   const handleResend = async () => {
     setIsResending(true);
     try {
-      await client.post('/api/email/resend-verification', { email: email.trim() });
+      await client.post('/api/email/resend-verification', { email: email.trim().toLowerCase() });
       setSuccessMessage('Verification email sent! Please check your inbox.');
       setShowResend(false);
       setErrors({});
@@ -210,11 +212,11 @@ export default function LoginScreen({ navigation }) {
 
                 {/* Email */}
                 <View className={`mb-${width < 375 ? '4' : '6'}`}>
-                  <Text className={`${width < 375 ? 'text-base' : 'text-lg'} mb-1 font-medium text-black gap-`}>Email Address</Text>
+                  <Text className={`${width < 375 ? 'text-base' : 'text-lg'} mb-1 font-medium text-black`}>Email Address</Text>
                   <TextInput
                     className={`w-full rounded-md border ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                     value={email}
-                    onChangeText={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: null, general: null })); }}
+                  onChangeText={(v) => { setEmail(v.trim()); setErrors((p) => ({ ...p, email: null, general: null })); }}
                     placeholder="Enter your email"
                     placeholderTextColor="#9ca3af"
                     keyboardType="email-address"

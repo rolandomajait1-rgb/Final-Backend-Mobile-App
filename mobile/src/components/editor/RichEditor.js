@@ -1,130 +1,62 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { RichEditor } from 'react-native-pell-rich-editor';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import colors from '../../styles/colors';
 
 const RichTextEditor = ({ value, onChange, height = 300 }) => {
   const richText = useRef();
-  const [activeFormat, setActiveFormat] = useState('Body');
-  const [activeStyles, setActiveStyles] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    strikethrough: false,
-  });
-
-  const formats = ['Title', 'Heading', 'Subheading', 'Body', 'Monospaced'];
-
-  const handleFormatChange = (format) => {
-    setActiveFormat(format);
-    if (format === 'Title') {
-      richText.current?.commandDOM("document.execCommand('formatBlock', false, '<h1>')");
-    } else if (format === 'Heading') {
-      richText.current?.commandDOM("document.execCommand('formatBlock', false, '<h2>')");
-    } else if (format === 'Subheading') {
-      richText.current?.commandDOM("document.execCommand('formatBlock', false, '<h3>')");
-    } else if (format === 'Body') {
-      richText.current?.commandDOM("document.execCommand('formatBlock', false, '<p>')");
-    } else if (format === 'Monospaced') {
-      richText.current?.commandDOM("document.execCommand('formatBlock', false, '<pre>')");
-    }
-  };
-
-  const applyStyle = (command, styleKey) => {
-    richText.current?.commandDOM(`document.execCommand('${command}', false, null)`);
-    // Toggle the state to reflect the action
-    setActiveStyles(prev => ({
-      ...prev,
-      [styleKey]: !prev[styleKey]
-    }));
-  };
-
-  const applyAlignment = (command) => {
-    richText.current?.commandDOM(`document.execCommand('${command}', false, null)`);
-  };
-
-  const ToolButton = ({ onPress, isActive, children, style }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      className="items-center justify-center h-10 rounded-md"
-      style={[{
-        flex: 1,
-        backgroundColor: isActive ? '#fef3c7' : 'transparent', // Light gold bg for active
-      }, style]}
-    >
-      {children}
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Custom Toolbar */}
+      {/* Toolbar */}
       <View style={[styles.toolbarContainer, { backgroundColor: colors.primary }]}>
-        {/* Format Tabs - First Row */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-3 py-2.5">
-          <View className="flex-row gap-2 pr-6">
-            {formats.map((format) => (
-              <TouchableOpacity
-                key={format}
-                onPress={() => handleFormatChange(format)}
-                className="px-4 py-2 rounded-full"
-                style={{
-                  backgroundColor: activeFormat === format ? '#ffffff' : 'rgba(255,255,255,0.15)',
-                }}
-              >
-                <Text
-                  className={`font-medium text-sm ${
-                    activeFormat === format ? 'text-gray-900' : 'text-white'
-                  }`}
-                >
-                  {format}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+        {/* Format Tabs - FIRST ROW (TAAS) */}
+        <RichToolbar
+          editor={richText}
+          actions={[
+            actions.heading1,
+            actions.heading2,
+            actions.heading3,
+            actions.setParagraph,
+            actions.code,
+          ]}
+          iconTint="#ffffff"
+          selectedIconTint="#0e7490"
+          selectedButtonStyle={{ backgroundColor: '#fbbf24' }}
+          style={styles.richToolbar}
+          iconMap={{
+            [actions.heading1]: ({ tintColor }) => <Text style={{ color: tintColor, fontWeight: 'bold', fontSize: 16 }}>H1</Text>,
+            [actions.heading2]: ({ tintColor }) => <Text style={{ color: tintColor, fontWeight: 'bold', fontSize: 16 }}>H2</Text>,
+            [actions.heading3]: ({ tintColor }) => <Text style={{ color: tintColor, fontWeight: 'bold', fontSize: 16 }}>H3</Text>,
+            [actions.setParagraph]: ({ tintColor }) => <Text style={{ color: tintColor, fontWeight: 'bold', fontSize: 14 }}>Body</Text>,
+            [actions.code]: ({ tintColor }) => <Text style={{ color: tintColor, fontWeight: 'bold', fontSize: 14 }}>Mono</Text>,
+          }}
+        />
 
         {/* Divider */}
-        <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
 
-        {/* Style and Alignment Buttons - Second Row */}
-        <View className="px-3 py-3">
-          <View className="flex-row bg-white rounded-lg p-1 shadow-sm items-center w-full">
-            
-            {/* Text Styles */}
-            <ToolButton onPress={() => applyStyle('bold', 'bold')} isActive={activeStyles.bold} style={{marginRight: 2}}>
-              <Text className="font-bold text-base text-gray-800">B</Text>
-            </ToolButton>
-            <ToolButton onPress={() => applyStyle('italic', 'italic')} isActive={activeStyles.italic} style={{marginRight: 2}}>
-              <Text className="italic font-bold text-base text-gray-800">I</Text>
-            </ToolButton>
-            <ToolButton onPress={() => applyStyle('underline', 'underline')} isActive={activeStyles.underline} style={{marginRight: 2}}>
-              <Text className="underline font-bold text-base text-gray-800">U</Text>
-            </ToolButton>
-            <ToolButton onPress={() => applyStyle('strikeThrough', 'strikethrough')} isActive={activeStyles.strikethrough} style={{marginRight: 2}}>
-              <Text className="line-through font-bold text-base text-gray-800">S</Text>
-            </ToolButton>
-
-            {/* Vertical Separator */}
-            <View style={{ width: 1, height: 24, backgroundColor: '#E5E7EB', marginHorizontal: 2 }} />
-
-            {/* Alignment Buttons */}
-            <ToolButton onPress={() => applyAlignment('justifyLeft')} style={{marginLeft: 2, marginRight: 2}}>
-              <MaterialCommunityIcons name="format-align-left" size={20} color={colors.primary} />
-            </ToolButton>
-            <ToolButton onPress={() => applyAlignment('justifyCenter')} style={{marginRight: 2}}>
-              <MaterialCommunityIcons name="format-align-center" size={20} color={colors.primary} />
-            </ToolButton>
-            <ToolButton onPress={() => applyAlignment('justifyRight')} style={{marginRight: 2}}>
-              <MaterialCommunityIcons name="format-align-right" size={20} color={colors.primary} />
-            </ToolButton>
-            <ToolButton onPress={() => applyAlignment('justifyFull')}>
-              <MaterialCommunityIcons name="format-align-justify" size={20} color={colors.primary} />
-            </ToolButton>
-
-          </View>
-        </View>
+        {/* Main Formatting - SECOND ROW (BABA) */}
+        <RichToolbar
+          editor={richText}
+          actions={[
+            actions.setBold,
+            actions.setItalic,
+            actions.setUnderline,
+            actions.setStrikethrough,
+            'separator',
+            actions.alignLeft,
+            actions.alignCenter,
+            actions.alignRight,
+            'separator',
+            actions.insertBulletsList,
+            actions.insertOrderedList,
+          ]}
+          iconTint="#ffffff"
+          selectedIconTint="#0e7490"
+          selectedButtonStyle={{ backgroundColor: '#fbbf24' }}
+          style={styles.richToolbarBottom}
+        />
       </View>
 
       {/* Rich Text Editor */}
@@ -160,26 +92,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toolbarContainer: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  richToolbar: {
+    backgroundColor: colors.primary,
+    borderTopWidth: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 20, // Increased from 16 to 24 for gap-4 effect
+    minHeight: 40,
+  },
+  richToolbarBottom: {
+    backgroundColor: colors.primary,
+    borderTopWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 4, // Minimal side padding for bottom row
+    minHeight: 40,
   },
   editorContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#D1D5DB',
     overflow: 'hidden',
-    marginTop: 16,
+    marginTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   editor: {
     backgroundColor: '#FFFFFF',

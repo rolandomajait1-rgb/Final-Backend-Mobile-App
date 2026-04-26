@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { View, Text, FlatList, TouchableOpacity, Image } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Image, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { Loader } from "../../components/common";
@@ -9,6 +9,7 @@ import { searchArticles } from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
 import { colors } from "../../styles";
 import { handleAuthorPress } from "../../utils/authorNavigation";
+import { useResponsive, getResponsiveFontSize, getResponsiveSpacing, getResponsiveIconSize } from "../../utils/responsiveUtils";
 
 
 const MIN_QUERY_LENGTH = 3;
@@ -42,13 +43,22 @@ const SummaryCard = ({
   value,
   borderColor = BRAND_BLUE,
   valueColor = BRAND_BLUE,
+  width,
 }) => (
   <View
-    className="flex-1 rounded-[18px] bg-white px-4 py-4"
-    style={[CARD_SHADOW, { borderWidth: 2, borderColor }]}
+    className="flex-1 rounded-[18px] bg-white"
+    style={[
+      CARD_SHADOW, 
+      { 
+        borderWidth: 2, 
+        borderColor,
+        paddingHorizontal: getResponsiveSpacing(16, width),
+        paddingVertical: getResponsiveSpacing(16, width)
+      }
+    ]}
   >
-    <Text className="text-[13px] font-semibold text-slate-500">{label}</Text>
-    <Text className="mt-5 text-[20px] font-bold" style={{ color: valueColor }}>
+    <Text style={{ fontSize: getResponsiveFontSize(13, width), fontWeight: '600', color: '#64748b' }}>{label}</Text>
+    <Text style={{ marginTop: getResponsiveSpacing(20, width), fontSize: getResponsiveFontSize(20, width), fontWeight: 'bold', color: valueColor }}>
       {value}
     </Text>
   </View>
@@ -68,22 +78,43 @@ const StatePanel = ({
   description,
   borderColor = BRAND_BLUE,
   iconColor = BRAND_BLUE,
+  width,
 }) => (
   <View
-    className="rounded-[18px] bg-white px-5 py-8 items-center"
-    style={[CARD_SHADOW, { borderWidth: 2, borderColor }]}
+    className="rounded-[18px] bg-white items-center"
+    style={[
+      CARD_SHADOW, 
+      { 
+        borderWidth: 2, 
+        borderColor,
+        paddingHorizontal: getResponsiveSpacing(20, width),
+        paddingVertical: getResponsiveSpacing(32, width)
+      }
+    ]}
   >
-    <Ionicons name={icon} size={40} color={iconColor} />
-    <Text className="mt-4 text-center text-[20px] font-bold text-[#1f3b4d]">
+    <Ionicons name={icon} size={getResponsiveIconSize(40, width)} color={iconColor} />
+    <Text style={{ 
+      marginTop: getResponsiveSpacing(16, width), 
+      textAlign: 'center', 
+      fontSize: getResponsiveFontSize(20, width), 
+      fontWeight: 'bold', 
+      color: '#1f3b4d' 
+    }}>
       {title}
     </Text>
-    <Text className="mt-2 text-center text-[14px] text-slate-500 leading-6">
+    <Text style={{ 
+      marginTop: getResponsiveSpacing(8, width), 
+      textAlign: 'center', 
+      fontSize: getResponsiveFontSize(14, width), 
+      color: '#64748b', 
+      lineHeight: getResponsiveFontSize(24, width) 
+    }}>
       {description}
     </Text>
   </View>
 );
 
-const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
+const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag, width }) => {
   const imageSource =
     item.featured_image_url || item.featured_image || FALLBACK_IMAGE;
   const category = item.categories?.[0]?.name || "Article";
@@ -94,15 +125,26 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
     item.author_name ||
     "Unknown Author";
   const quickTag = item.tags?.[0]?.name;
+  const imageSize = width < 380 ? 80 : 96;
 
   return (
     <View
-      className="rounded-[18px] border border-slate-200 bg-white p-3"
-      style={CARD_SHADOW}
+      className="rounded-[18px] border border-slate-200 bg-white"
+      style={[
+        CARD_SHADOW,
+        { padding: getResponsiveSpacing(12, width) }
+      ]}
     >
       <TouchableOpacity onPress={onOpenArticle} activeOpacity={0.85}>
         <View className="flex-row">
-          <View className="w-24 h-24 rounded-[14px] overflow-hidden bg-slate-100 mr-3">
+          <View style={{ 
+            width: imageSize, 
+            height: imageSize, 
+            borderRadius: 14, 
+            overflow: 'hidden', 
+            backgroundColor: '#f1f5f9', 
+            marginRight: getResponsiveSpacing(12, width) 
+          }}>
             <Image
               source={{ uri: imageSource }}
               style={{ width: "100%", height: "100%" }}
@@ -113,18 +155,32 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
           <View className="flex-1 justify-between">
             <View>
               <View
-                className="self-start rounded-full px-2.5 py-1 mb-2"
-                style={{ backgroundColor: "#edf6ff" }}
+                className="self-start rounded-full"
+                style={{ 
+                  backgroundColor: "#edf6ff",
+                  paddingHorizontal: getResponsiveSpacing(10, width),
+                  paddingVertical: getResponsiveSpacing(4, width),
+                  marginBottom: getResponsiveSpacing(8, width)
+                }}
               >
                 <Text
-                  className="text-[10px] font-bold uppercase"
-                  style={{ color: BRAND_BLUE }}
+                  style={{ 
+                    fontSize: getResponsiveFontSize(10, width), 
+                    fontWeight: 'bold', 
+                    textTransform: 'uppercase',
+                    color: BRAND_BLUE 
+                  }}
                 >
                   {category}
                 </Text>
               </View>
               <Text
-                className="text-[16px] font-bold text-[#1b3346] leading-5"
+                style={{ 
+                  fontSize: getResponsiveFontSize(16, width), 
+                  fontWeight: 'bold', 
+                  color: '#1b3346', 
+                  lineHeight: getResponsiveFontSize(20, width) 
+                }}
                 numberOfLines={2}
               >
                 {item.title}
@@ -137,11 +193,20 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
                 disabled={!authorId}
                 activeOpacity={0.7}
               >
-                <Text className="text-[13px] font-semibold text-[#075985] underline">
+                <Text style={{ 
+                  fontSize: getResponsiveFontSize(13, width), 
+                  fontWeight: '600', 
+                  color: '#075985', 
+                  textDecorationLine: 'underline' 
+                }}>
                   {authorName}
                 </Text>
               </TouchableOpacity>
-              <Text className="mt-1 text-[12px] text-slate-500">
+              <Text style={{ 
+                marginTop: getResponsiveSpacing(4, width), 
+                fontSize: getResponsiveFontSize(12, width), 
+                color: '#64748b' 
+              }}>
                 {formatSearchDate(item.created_at || item.published_at)}
               </Text>
             </View>
@@ -149,15 +214,31 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
         </View>
       </TouchableOpacity>
 
-      <View className="mt-3 flex-row items-center justify-between border-t border-slate-100 pt-3">
+      <View style={{ 
+        marginTop: getResponsiveSpacing(12, width), 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        borderTopWidth: 1, 
+        borderTopColor: '#f1f5f9', 
+        paddingTop: getResponsiveSpacing(12, width) 
+      }}>
         <TouchableOpacity
           onPress={onOpenAuthor}
           disabled={!authorId}
-          className="rounded-full px-3 py-2 bg-[#f6f8fb]"
+          style={{ 
+            borderRadius: 999, 
+            paddingHorizontal: getResponsiveSpacing(12, width), 
+            paddingVertical: getResponsiveSpacing(8, width), 
+            backgroundColor: '#f6f8fb' 
+          }}
         >
           <Text
-            className="text-[12px] font-semibold"
-            style={{ color: authorId ? BRAND_BLUE : "#9ca3af" }}
+            style={{ 
+              fontSize: getResponsiveFontSize(12, width), 
+              fontWeight: '600',
+              color: authorId ? BRAND_BLUE : "#9ca3af" 
+            }}
           >
             View author
           </Text>
@@ -166,15 +247,25 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
         {quickTag ? (
           <TouchableOpacity
             onPress={() => onOpenTag(quickTag)}
-            className="rounded-full px-3 py-2 bg-[#fff4da]"
+            style={{ 
+              borderRadius: 999, 
+              paddingHorizontal: getResponsiveSpacing(12, width), 
+              paddingVertical: getResponsiveSpacing(8, width), 
+              backgroundColor: '#fff4da' 
+            }}
           >
-            <Text className="text-[12px] font-semibold text-[#c48900]">
+            <Text style={{ fontSize: getResponsiveFontSize(12, width), fontWeight: '600', color: '#c48900' }}>
               #{quickTag}
             </Text>
           </TouchableOpacity>
         ) : (
-          <View className="rounded-full px-3 py-2 bg-[#edf6ff]">
-            <Text className="text-[12px] font-semibold text-[#075985]">
+          <View style={{ 
+            borderRadius: 999, 
+            paddingHorizontal: getResponsiveSpacing(12, width), 
+            paddingVertical: getResponsiveSpacing(8, width), 
+            backgroundColor: '#edf6ff' 
+          }}>
+            <Text style={{ fontSize: getResponsiveFontSize(12, width), fontWeight: '600', color: '#075985' }}>
               Open article
             </Text>
           </View>
@@ -185,6 +276,7 @@ const SearchResultCard = ({ item, onOpenArticle, onOpenAuthor, onOpenTag }) => {
 };
 
 export default function SearchScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -357,14 +449,21 @@ export default function SearchScreen({ navigation }) {
       </View>
 
       <View
-        className="px-6 py-4"
         style={{
+          paddingHorizontal: getResponsiveSpacing(24, width),
+          paddingVertical: getResponsiveSpacing(16, width),
           backgroundColor: BAND_BLUE,
           borderBottomWidth: 1,
           borderBottomColor: "#2469d0",
         }}
       >
-        <Text className="text-center text-[26px] font-bold text-white tracking-tight">
+        <Text style={{ 
+          textAlign: 'center', 
+          fontSize: getResponsiveFontSize(26, width), 
+          fontWeight: 'bold', 
+          color: 'white', 
+          letterSpacing: -0.5 
+        }}>
           Search Articles
         </Text>
       </View>
@@ -373,7 +472,7 @@ export default function SearchScreen({ navigation }) {
         data={results}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <View className="px-5 mb-4">
+          <View style={{ paddingHorizontal: getResponsiveSpacing(20, width), marginBottom: getResponsiveSpacing(16, width) }}>
             <SearchResultCard
               item={item}
               onOpenArticle={() => handleArticlePress(item)}
@@ -381,11 +480,12 @@ export default function SearchScreen({ navigation }) {
               onOpenTag={(tagName) =>
                 navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName } })
               }
+              width={width}
             />
           </View>
         )}
         contentContainerStyle={{
-          paddingTop: 20,
+          paddingTop: getResponsiveSpacing(20, width),
           paddingBottom: 120,
           flexGrow: 1,
         }}
@@ -393,39 +493,53 @@ export default function SearchScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View>
-            <View className="flex-row gap-3 px-5">
+            <View style={{ flexDirection: 'row', gap: getResponsiveSpacing(12, width), paddingHorizontal: getResponsiveSpacing(20, width) }}>
               <SummaryCard
                 label="Search Status"
                 value={statusValue}
                 valueColor={statusColor}
+                width={width}
               />
               <SummaryCard
                 label="Current Query"
                 value={trimmedQuery || "Waiting"}
                 borderColor={BRAND_YELLOW}
                 valueColor={trimmedQuery ? "#111827" : "#94a3b8"}
+                width={width}
               />
             </View>
 
             <SectionIndicator />
 
             <View
-              className="mx-5 mb-5 rounded-[18px] bg-white px-4 py-4"
+              className="rounded-[18px] bg-white"
               style={[
                 CARD_SHADOW,
                 {
+                  marginHorizontal: getResponsiveSpacing(20, width),
+                  marginBottom: getResponsiveSpacing(20, width),
+                  paddingHorizontal: getResponsiveSpacing(16, width),
+                  paddingVertical: getResponsiveSpacing(16, width),
                   borderWidth: 2,
                   borderColor: loading || searched ? BRAND_BLUE : BRAND_YELLOW,
                 },
               ]}
             >
               <Text
-                className="text-[18px] font-bold"
-                style={{ color: loading || searched ? BRAND_BLUE : "#c48900" }}
+                style={{ 
+                  fontSize: getResponsiveFontSize(18, width), 
+                  fontWeight: 'bold',
+                  color: loading || searched ? BRAND_BLUE : "#c48900" 
+                }}
               >
                 Article Search
               </Text>
-              <Text className="mt-2 text-[13px] leading-5 text-slate-500">
+              <Text style={{ 
+                marginTop: getResponsiveSpacing(8, width), 
+                fontSize: getResponsiveFontSize(13, width), 
+                lineHeight: getResponsiveFontSize(20, width), 
+                color: '#64748b' 
+              }}>
                 {loading
                   ? `Looking for matches for "${trimmedQuery}"...`
                   : isTypingBelowMinimum
@@ -438,17 +552,24 @@ export default function SearchScreen({ navigation }) {
 
             {results.length > 0 ? (
               <View
-                className="mx-5 mb-4 rounded-[18px] bg-white px-4 py-4"
+                className="rounded-[18px] bg-white"
                 style={[
                   CARD_SHADOW,
-                  { borderWidth: 2, borderColor: BRAND_BLUE },
+                  {
+                    marginHorizontal: getResponsiveSpacing(20, width),
+                    marginBottom: getResponsiveSpacing(16, width),
+                    paddingHorizontal: getResponsiveSpacing(16, width),
+                    paddingVertical: getResponsiveSpacing(16, width),
+                    borderWidth: 2,
+                    borderColor: BRAND_BLUE,
+                  },
                 ]}
               >
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-[18px] font-bold text-[#1f3b4d]">
+                  <Text style={{ fontSize: getResponsiveFontSize(18, width), fontWeight: 'bold', color: '#1f3b4d' }}>
                     Results
                   </Text>
-                  <Text className="text-[13px] font-semibold text-slate-500">
+                  <Text style={{ fontSize: getResponsiveFontSize(13, width), fontWeight: '600', color: '#64748b' }}>
                     {results.length} item{results.length === 1 ? "" : "s"}
                   </Text>
                 </View>
@@ -457,17 +578,22 @@ export default function SearchScreen({ navigation }) {
           </View>
         }
         ListEmptyComponent={
-          <View className="px-5">
+          <View style={{ paddingHorizontal: getResponsiveSpacing(20, width) }}>
             {loading ? (
               <View
-                className="rounded-[18px] bg-white px-5 py-10 items-center"
+                className="rounded-[18px] bg-white items-center"
                 style={[
                   CARD_SHADOW,
-                  { borderWidth: 2, borderColor: BRAND_BLUE },
+                  {
+                    paddingHorizontal: getResponsiveSpacing(20, width),
+                    paddingVertical: getResponsiveSpacing(40, width),
+                    borderWidth: 2,
+                    borderColor: BRAND_BLUE,
+                  },
                 ]}
               >
                 <Loader />
-                <Text className="mt-4 text-[14px] text-slate-500">
+                <Text style={{ marginTop: getResponsiveSpacing(16, width), fontSize: getResponsiveFontSize(14, width), color: '#64748b' }}>
                   Searching articles...
                 </Text>
               </View>
@@ -478,18 +604,21 @@ export default function SearchScreen({ navigation }) {
                 description="The search waits for a slightly longer keyword so the results stay useful and relevant."
                 borderColor={BRAND_YELLOW}
                 iconColor={BRAND_YELLOW}
+                width={width}
               />
             ) : searched ? (
               <StatePanel
                 icon="document-text-outline"
                 title={`No results for "${trimmedQuery}"`}
                 description="Try a different keyword, author name, category, or tag to widen the search."
+                width={width}
               />
             ) : (
               <StatePanel
                 icon="sparkles-outline"
                 title="Search The Herald"
                 description="Start typing to find articles, topics, categories, and authors from the archive."
+                width={width}
               />
             )}
           </View>

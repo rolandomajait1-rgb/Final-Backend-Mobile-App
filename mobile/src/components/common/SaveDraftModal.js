@@ -21,6 +21,7 @@ export default function SaveDraftModal({
   publishText = "Publish",
   saveText = "Save as draft",
   discardText = "Discard",
+  isPublishing = false, // NEW: separate state for publish button
 }) {
   return (
     <Modal
@@ -43,11 +44,11 @@ export default function SaveDraftModal({
           <View style={styles.buttonContainer}>
             {onPublish && (
               <TouchableOpacity
-                style={[styles.publishButton, isSaving && styles.disabledButton]}
+                style={[styles.publishButton, (isSaving || isPublishing) && styles.disabledButton]}
                 onPress={onPublish}
-                disabled={isSaving}
+                disabled={isSaving || isPublishing}
               >
-                {isSaving && !onSave && !onDiscard ? (
+                {isPublishing ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.publishButtonText}>{publishText}</Text>
@@ -59,17 +60,21 @@ export default function SaveDraftModal({
               <TouchableOpacity
                 style={[styles.saveButton, isSaving && styles.disabledButton]}
                 onPress={onSave}
-                disabled={isSaving}
+                disabled={isSaving || isPublishing}
               >
-                <Text style={styles.saveButtonText}>{saveText}</Text>
+                {isSaving && !isPublishing ? (
+                  <ActivityIndicator color="#0ea5e9" />
+                ) : (
+                  <Text style={styles.saveButtonText}>{saveText}</Text>
+                )}
               </TouchableOpacity>
             )}
 
             {onDiscard && (
               <TouchableOpacity
-                style={[styles.discardButton, isSaving && styles.disabledButton]}
+                style={[styles.discardButton, (isSaving || isPublishing) && styles.disabledButton]}
                 onPress={onDiscard}
-                disabled={isSaving}
+                disabled={isSaving || isPublishing}
               >
                 <Text style={styles.discardButtonText}>{discardText}</Text>
               </TouchableOpacity>

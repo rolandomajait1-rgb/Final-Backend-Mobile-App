@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react';
 import {
   View, Text, ImageBackground, Image,
-  TouchableOpacity, StatusBar, useWindowDimensions, Animated,
+  TouchableOpacity, StatusBar, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useResponsive, getResponsiveDimensions } from '../../utils/responsiveUtils';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
 const textlogo = require('../../../assets/la verdad herald.png');
 
 export default function WelcomeScreen({ navigation }) {
-  const { width } = useWindowDimensions();
+  const { width, isSmallPhone } = useResponsive();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -30,6 +31,10 @@ export default function WelcomeScreen({ navigation }) {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
+  // Dynamic scaling for both logos depending on the screen width
+  const { width: logoWidth, height: logoHeight } = getResponsiveDimensions(260, 150, width);
+  const { width: textLogoWidth, height: textLogoHeight } = getResponsiveDimensions(340, 51, width);
+
   return (
     <View className="flex-1">
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
@@ -38,7 +43,7 @@ export default function WelcomeScreen({ navigation }) {
         {/* Dark overlay */}
         <View className="absolute inset-0" style={{ backgroundColor: '#2C5F7F' }} />
 
-        <SafeAreaView className="flex-1 items-center justify-between px-4 py-16">
+        <SafeAreaView className={`flex-1 items-center justify-between px-4 ${isSmallPhone ? 'py-8' : 'py-16'}`}>
 
           {/* Logo + title block */}
           <Animated.View 
@@ -51,15 +56,15 @@ export default function WelcomeScreen({ navigation }) {
             {/* Static logo without animation */}
             <Image
               source={logo}
-              style={{ width: width < 375 ? 220 : 260, height: width < 375 ? 130 : 150, marginBottom: 14 }}
+              style={{ width: logoWidth, height: logoHeight, marginBottom: isSmallPhone ? 10 : 14 }}
               resizeMode="contain"
             />
             <Image
               source={textlogo}
-              style={{ width: 360, height: 54 }}
+              style={{ width: textLogoWidth, height: textLogoHeight }}
               resizeMode="contain"
             />
-            <Text className="text-gray-300 text-lg text-center px-2 mt-2">
+            <Text className={`text-gray-300 text-center px-2 mt-4 ${isSmallPhone ? 'text-sm' : 'text-base'}`}>
               The Official Higher Education Student Publication of{'\n'}
               La Verdad Christian College, Inc.
             </Text>
@@ -75,20 +80,20 @@ export default function WelcomeScreen({ navigation }) {
           >
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
-              className="w-2/3 rounded-full items-center"
-              style={{ backgroundColor: '#0686f6ff', paddingVertical: 20 }}
+              className={`${isSmallPhone ? 'w-4/5' : 'w-2/3'} rounded-full items-center`}
+              style={{ backgroundColor: '#0686f6ff', paddingVertical: isSmallPhone ? 16 : 20 }}
               activeOpacity={0.85}
             >
-              <Text className="text-white font-bold text-lg">Log In</Text>
+              <Text className={`text-white font-bold ${isSmallPhone ? 'text-base' : 'text-lg'}`}>Log In</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => navigation.navigate('Register')}
-              className="w-2/3 rounded-full items-center"
-              style={{ backgroundColor: '#f8b200', paddingVertical: 20 }}
+              className={`${isSmallPhone ? 'w-4/5' : 'w-2/3'} rounded-full items-center`}
+              style={{ backgroundColor: '#f8b200', paddingVertical: isSmallPhone ? 16 : 20 }}
               activeOpacity={0.85}
             >
-              <Text className="text-white font-bold text-lg">Sign Up</Text>
+              <Text className={`text-white font-bold ${isSmallPhone ? 'text-base' : 'text-lg'}`}>Sign Up</Text>
             </TouchableOpacity>
           </Animated.View>
 

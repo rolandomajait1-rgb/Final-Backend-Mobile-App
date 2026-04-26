@@ -131,7 +131,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   const checkAdminStatus = async () => {
     const userJson = await AsyncStorage.getItem('user_data');
@@ -249,7 +249,11 @@ export default function AuthorProfileScreen({ route, navigation }) {
     return (
       <View className="flex-1 bg-white">
         <View className="flex-shrink-0 bg-white">
-          <HomeHeader categories={categories} navigation={navigation} />
+          <HomeHeader 
+            categories={categories} 
+            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
+            navigation={navigation} 
+          />
         </View>
         {renderLoadingState()}
       </View>
@@ -263,6 +267,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onSearch={debouncedSearch}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
           navigation={navigation}
         />
       </View>

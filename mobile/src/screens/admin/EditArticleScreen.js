@@ -52,6 +52,7 @@ export default function EditArticleScreen({ navigation, route }) {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false); // Track publish button specifically
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [articleLoading, setArticleLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
@@ -212,7 +213,12 @@ export default function EditArticleScreen({ navigation, route }) {
 
   // ─── Update Article ────────────────────────────────────────────
   const updateArticle = async (status, retryCount = 0) => {
+    // Set loading states immediately
     setLoading(true);
+    if (status === 'published') {
+      setIsPublishing(true);
+    }
+    
     try {
       // Issue #6 Fix: Use centralized auth check instead of manual token fetch
       const hasAuth = await isAuthenticated();
@@ -250,6 +256,7 @@ export default function EditArticleScreen({ navigation, route }) {
           });
           if (!shouldContinue) {
             setLoading(false);
+            setIsPublishing(false);
             return;
           }
         }
@@ -261,6 +268,7 @@ export default function EditArticleScreen({ navigation, route }) {
       if (!categoryName) {
         Alert.alert('Error', 'Please select a valid category');
         setLoading(false);
+        setIsPublishing(false);
         return;
       }
 
@@ -327,7 +335,7 @@ export default function EditArticleScreen({ navigation, route }) {
           'Server Waking Up',
           `The backend is starting from sleep.\nRetrying in 15 s… (${retryCount + 1}/3)`,
           [
-            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) },
+            { text: 'Cancel', style: 'cancel', onPress: () => { setLoading(false); setIsPublishing(false); } },
             { text: 'Retry Now', onPress: () => updateArticle(status, retryCount + 1) },
           ]
         );
@@ -353,6 +361,7 @@ export default function EditArticleScreen({ navigation, route }) {
       Alert.alert('Error', friendlyMessage);
     } finally {
       setLoading(false);
+      setIsPublishing(false);
     }
   };
 
@@ -558,7 +567,8 @@ export default function EditArticleScreen({ navigation, route }) {
         onPublish={userRole === 'admin' ? handlePublish : null}
         onSave={handleSave}
         onDiscard={handleDiscard}
-        isSaving={loading}
+        isSaving={loading && !isPublishing} // Save button loading
+        isPublishing={isPublishing} // Publish button loading
         title="Save Edit"
         saveText="Save as Draft"
         description={userRole === 'moderator' 

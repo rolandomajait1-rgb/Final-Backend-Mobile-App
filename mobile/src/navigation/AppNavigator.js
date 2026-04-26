@@ -57,6 +57,33 @@ import AuthorProfileScreen from '../screens/AuthorProfile/AuthorProfileScreen';
 
 const Stack = createStackNavigator();
 
+// Fade transition configuration for auth screens
+const fadeTransitionConfig = {
+  headerShown: false,
+  cardStyleInterpolator: ({ current }) => {
+    return {
+      cardStyle: {
+        opacity: current.progress,
+      },
+    };
+  },
+  transitionSpec: {
+    open: {
+      animation: 'timing',
+      config: {
+        duration: 300,
+      },
+    },
+    close: {
+      animation: 'timing',
+      config: {
+        duration: 250,
+      },
+    },
+  },
+  gestureEnabled: false,
+};
+
 // Smooth transition configuration for all navigators
 const smoothTransitionConfig = {
   headerShown: false,
@@ -202,9 +229,9 @@ const linking = {
   },
 };
 
-// 1. Auth Stack
+// 1. Auth Stack (with fade transition)
 const AuthStack = () => (
-  <Stack.Navigator screenOptions={smoothTransitionConfig}>
+  <Stack.Navigator screenOptions={fadeTransitionConfig}>
     <Stack.Screen name="Welcome" component={WelcomeScreen} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />

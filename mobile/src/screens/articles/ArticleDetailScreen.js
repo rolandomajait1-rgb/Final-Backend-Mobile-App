@@ -9,6 +9,7 @@ import {
   Alert,
   Share,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import { getImageUri } from "../../utils/imageUtils";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,6 +30,7 @@ import { handleCategoryPress } from "../../utils/categoryNavigation";
 import { getCategoryColor } from "../../utils/categoryColors";
 import { handleArticleShare, getArticleUrl, extractGist } from "../../utils/shareUtils";
 import { getArticleLikedState, saveArticleLikedState } from "../../hooks/useLikedArticles";
+import { useResponsive, getResponsiveFontSize, getResponsiveSpacing, getResponsiveIconSize } from "../../utils/responsiveUtils";
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 function ArticleHero({
@@ -38,10 +40,16 @@ function ArticleHero({
   isAdmin,
   onEdit,
   onDelete,
+  width,
 }) {
   const menuBtnRef = useRef(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const isSmallPhone = width < 380;
+  const heroHeight = isSmallPhone ? 280 : 320;
+  const backButtonSize = isSmallPhone ? 40 : 44;
+  const iconSize = getResponsiveIconSize(24, width);
+  
   const formattedDate =
     article.created_at || article.published_at
       ? new Date(article.created_at || article.published_at)
@@ -57,7 +65,7 @@ function ArticleHero({
       : "";
 
   return (
-    <View style={{ height: 320, backgroundColor: "#e2e8f0" }}>
+    <View style={{ height: heroHeight, backgroundColor: "#e2e8f0" }}>
       <Image
         source={{
           uri: getImageUri(
@@ -77,19 +85,24 @@ function ArticleHero({
       />
 
       <SafeAreaView style={{ position: "absolute", top: 0, left: 0, right: 0 }}>
-        <View className="flex-row justify-between items-center px-4">
+        <View style={{ 
+          flexDirection: 'row', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          paddingHorizontal: getResponsiveSpacing(14, width) 
+        }}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             className="rounded-full p-2"
             style={{
               backgroundColor: "rgba(14, 116, 144, 0.6)",
-              width: 44,
-              height: 44,
+              width: backButtonSize,
+              height: backButtonSize,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={iconSize} color="#fff" />
           </TouchableOpacity>
           {/* 3-dots admin menu button */}
           {isAdminUser && (
@@ -104,13 +117,13 @@ function ArticleHero({
               className="rounded-full p-2"
               style={{
                 backgroundColor: "rgba(14, 116, 144, 0.6)",
-                width: 44,
-                height: 44,
+                width: backButtonSize,
+                height: backButtonSize,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+              <Ionicons name="ellipsis-vertical" size={iconSize} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
@@ -145,13 +158,13 @@ function ArticleHero({
           bottom: 0,
           left: 0,
           right: 0,
-          paddingHorizontal: 20,
-          paddingBottom: 24,
+          paddingHorizontal: getResponsiveSpacing(14, width),
+          paddingBottom: getResponsiveSpacing(16, width),
           zIndex: 10,
         }}
       >
         {article.categories?.length > 0 && (
-          <View className="mb-2 flex-row flex-wrap gap-2">
+          <View style={{ marginBottom: getResponsiveSpacing(5, width), flexDirection: 'row', flexWrap: 'wrap', gap: getResponsiveSpacing(8, width) }}>
             {article.categories.map((cat, index) => (
               <TouchableOpacity
                 key={index}
@@ -159,10 +172,20 @@ function ArticleHero({
                 activeOpacity={0.7}
               >
                 <View 
-                  className="rounded-md px-4 py-2"
-                  style={{ backgroundColor: getCategoryColor(cat.name) + 'CC' }} // CC = 80% opacity
+                  style={{ 
+                    borderRadius: 6, 
+                    paddingHorizontal: getResponsiveSpacing(14, width), 
+                    paddingVertical: getResponsiveSpacing(8, width),
+                    backgroundColor: getCategoryColor(cat.name) + 'CC'
+                  }}
                 >
-                  <Text className="text-white font-bold text-xs uppercase tracking-widest">
+                  <Text style={{ 
+                    color: 'white', 
+                    fontWeight: 'bold', 
+                    fontSize: getResponsiveFontSize(8, width), 
+                    textTransform: 'uppercase', 
+                    letterSpacing: 1.5 
+                  }}>
                     {cat.name || 'Uncategorized'}
                   </Text>
                 </View>
@@ -176,9 +199,9 @@ function ArticleHero({
           style={{
             color: "white",
             fontWeight: "bold",
-            fontSize: 32,
-            marginBottom: 8,
-            lineHeight: 38,
+            fontSize: getResponsiveFontSize(isSmallPhone ? 24 : 28, width),
+            marginBottom: getResponsiveSpacing(8, width),
+            lineHeight: getResponsiveFontSize(isSmallPhone ? 24 : 28, width),
           }}
         >
           {article.title}
@@ -191,8 +214,8 @@ function ArticleHero({
               style={{
                 color: "white",
                 fontWeight: "500",
-                fontSize: 16,
-                marginBottom: 4,
+                fontSize: getResponsiveFontSize(14, width),
+                marginBottom: getResponsiveSpacing(4, width),
               }}
             >
               by{" "}
@@ -210,7 +233,7 @@ function ArticleHero({
             </Text>
           </TouchableOpacity>
           {formattedDate && (
-            <Text style={{ color: "#d1d5db", fontSize: 14 }}>
+            <Text style={{ color: "#d1d5db", fontSize: getResponsiveFontSize(14, width) }}>
               {formattedDate}
             </Text>
           )}
@@ -220,8 +243,10 @@ function ArticleHero({
   );
 }
 
-function ArticleActions({ likes, liked, shares, onLike, onShare }) {
+function ArticleActions({ likes, liked, shares, onLike, onShare, width }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const iconSize = 18; // Fixed smaller size
+  const shareIconSize = 18; // Fixed smaller size
 
   const handleLikePress = () => {
     Animated.sequence([
@@ -240,29 +265,38 @@ function ArticleActions({ likes, liked, shares, onLike, onShare }) {
   };
 
   return (
-    <View className="flex-row items-center justify-end gap-4 py-4 border-b px-4 border-gray-200">
+    <View style={{ 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      justifyContent: 'flex-end', 
+      gap: 16, 
+      paddingVertical: 8, 
+      borderBottomWidth: 1,
+      paddingHorizontal: 16, 
+      borderBottomColor: '#e5e7eb'
+    }}>
       <TouchableOpacity
-        className="flex-row items-center gap-2"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
         onPress={handleLikePress}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
       >
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
           <Ionicons
             name={liked ? "thumbs-up" : "thumbs-up-outline"}
-            size={22}
+            size={iconSize}
             color={liked ? "#3b82f6" : "#666"}
           />
         </Animated.View>
-        <Text className="font-medium text-sm" style={{ color: liked ? "#3b82f6" : "#666" }}>{likes}</Text>
+        <Text style={{ fontWeight: '500', fontSize: 14, color: liked ? "#3b82f6" : "#666" }}>{likes}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        className="flex-row items-center gap-2"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
         onPress={onShare}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
       >
-        <Ionicons name="arrow-redo-outline" size={20} color="#666" />
-        <Text className="text-gray-600 font-medium text-sm">
+        <Ionicons name="arrow-redo-outline" size={shareIconSize} color="#666" />
+        <Text style={{ color: '#4b5563', fontWeight: '500', fontSize: 14 }}>
           {shares > 0 ? shares : "Share"}
         </Text>
       </TouchableOpacity>
@@ -270,19 +304,35 @@ function ArticleActions({ likes, liked, shares, onLike, onShare }) {
   );
 }
 
-function ArticleTags({ tags, navigation }) {
+function ArticleTags({ tags, navigation, width }) {
   if (!tags?.length) return null;
 
   return (
-    <View className="flex-row flex-wrap gap-2 mb-4 px-4 pt-3">
+    <View style={{ 
+      flexDirection: 'row', 
+      flexWrap: 'wrap', 
+      gap: 8, 
+      marginBottom: 8, 
+      paddingHorizontal: 16, 
+      paddingTop: 8,
+      paddingBottom: 8,
+      backgroundColor: '#ffffff'
+    }}>
       {tags.map((tag, index) => (
         <TouchableOpacity
           key={index}
           onPress={() => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName: tag.name } })}
           activeOpacity={0.7}
         >
-          <View className="border border-gray-300 rounded-full px-3 py-1">
-            <Text className="text-gray-600 text-xs font-medium">#{tag.name}</Text>
+          <View style={{ 
+            borderWidth: 1, 
+            borderColor: '#d1d5db', 
+            borderRadius: 999, 
+            paddingHorizontal: 12, 
+            paddingVertical: 6,
+            backgroundColor: '#ffffffff'
+          }}>
+            <Text style={{ color: '#4b5563', fontSize: 13, fontWeight: '600' }}>#{tag.name}</Text>
           </View>
         </TouchableOpacity>
       ))}
@@ -292,6 +342,7 @@ function ArticleTags({ tags, navigation }) {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function ArticleDetailScreen({ navigation, route }) {
+  const { width } = useWindowDimensions();
   const { id, slug, article: passedArticle } = route.params ?? {};
   const [article, setArticle] = useState(passedArticle || null);
   const [loading, setLoading] = useState(!passedArticle);
@@ -309,7 +360,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
   // Bug #6 Fix: Add mounted ref to prevent state updates after unmount
   const mountedRef = useRef(true);
   
-  const { updateArticleLocally } = useArticles();
+  const { updateArticleLocally, forceRefreshArticles } = useArticles();
 
   const checkAdminStatus = useCallback(async () => {
     const adminStatus = await isAdminOrModerator();
@@ -477,6 +528,9 @@ export default function ArticleDetailScreen({ navigation, route }) {
 
   const handleShare = async () => {
     const success = await handleArticleShare(article, async () => {
+      // Only increment if share was successful
+      console.log('Share success callback triggered');
+      
       // Increment share count locally for immediate UI feedback
       const newShares = shares + 1;
       setShares(newShares);
@@ -499,11 +553,14 @@ export default function ArticleDetailScreen({ navigation, route }) {
         if (updateArticleLocally) {
           updateArticleLocally(article.id, { shares_count: shares });
         }
-        
-        // Don't show error toast - share still worked locally
-        // The backend sync failure is not critical for user experience
       }
     });
+    
+    if (success) {
+      console.log('Article shared successfully');
+    } else {
+      console.log('Share was cancelled or failed');
+    }
   };
 
   const handleEdit = () => {
@@ -531,7 +588,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
       
       // Refresh articles list
       try { 
-        await articleContext?.forceRefreshArticles?.(); 
+        await forceRefreshArticles?.(); 
       } catch { /* non-critical */ }
       
       setShowDeleteModal(false);
@@ -616,16 +673,18 @@ export default function ArticleDetailScreen({ navigation, route }) {
             isAdmin={isAdmin}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            width={width}
           />
-          <ArticleTags tags={article.tags} navigation={navigation} />
+          <ArticleTags tags={article.tags} navigation={navigation} width={width} />
           <ArticleActions
             likes={likes}
             liked={liked}
             shares={shares}
             onLike={handleLike}
             onShare={handleShare}
+            width={width}
           />
-          <View className="px-2 py-4">
+          <View style={{ paddingHorizontal: getResponsiveSpacing(4, width), paddingVertical: getResponsiveSpacing(12, width) }}>
             <HTMLRenderer html={article.content} />
           </View>
         </ScrollView>

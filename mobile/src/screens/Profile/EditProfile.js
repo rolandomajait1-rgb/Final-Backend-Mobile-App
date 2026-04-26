@@ -81,7 +81,7 @@ export default function EditProfile({ navigation, route }) {
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   const handleMenuPress = (article, pos) => {
     setMenuArticle(article);

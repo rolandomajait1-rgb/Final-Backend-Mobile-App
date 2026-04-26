@@ -74,9 +74,10 @@ export default function RegisterScreen({ navigation }) {
       // Quick health check with short timeout
       try { await client.get('/api/health', { timeout: 5000 }); } catch { /* cold start */ }
       // Register with extended timeout for slow servers
+      const normalizedEmail = formData.email.trim().toLowerCase();
       await client.post('/api/register', {
         name: formData.name.trim(),
-        email: formData.email.trim(),
+        email: normalizedEmail,
         password: formData.password,
         password_confirmation: formData.password_confirmation,
       }, { timeout: 180000 });
@@ -84,7 +85,7 @@ export default function RegisterScreen({ navigation }) {
       showToast('Check your email for verification link!', 'success');
       // Navigate to OTP verification screen for registration
       setTimeout(() => {
-        navigation.replace('VerifyRegistrationOTP', { email: formData.email });
+        navigation.replace('VerifyRegistrationOTP', { email: normalizedEmail });
       }, 300);
     } catch (error) {
       if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
@@ -205,7 +206,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   className={`w-full rounded-md border ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                   value={formData.email}
-                  onChangeText={(v) => handleChange('email', v)}
+                  onChangeText={(v) => handleChange('email', v.trim())}
                   placeholder="Enter your email"
                   placeholderTextColor="#9ca3af"
                   keyboardType="email-address"

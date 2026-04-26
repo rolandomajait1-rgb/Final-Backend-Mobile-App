@@ -11,10 +11,12 @@ export default function ArticleLargeCard({
   author, 
   date, 
   image,
+  hashtags = [], // Add hashtags prop
   onPress, 
   onMenuPress,
   onAuthorPress,
-  onCategoryPress
+  onCategoryPress,
+  onTagPress // Add onTagPress prop
 }) {
   const { width } = useWindowDimensions();
   const badgeColor = getCategoryColor(category);
@@ -74,10 +76,10 @@ export default function ArticleLargeCard({
         activeOpacity={1}
       >
       {/* Large Image - Rounded Top and Bottom */}
-      <View className="relative bg-[#d1dce6] overflow-hidden mb-4 rounded-lg">
+      <View className="relative bg-[#d1dce6] overflow-hidden rounded-lg">
         <Image
           source={{ uri: getImageUri(image) }}
-          className={`w-full ${width < 375 ? 'h-44' : 'h-72'}`}
+          className={`w-full ${width < 375 ? 'h-60' : 'h-72'}`}
           resizeMode="cover"
         />
 
@@ -99,7 +101,7 @@ export default function ArticleLargeCard({
       </View>
 
       {/* Content Section */}
-      <View className={`${width < 375 ? 'px-3 pb-3' : 'px-4 pb-5'}`} pointerEvents="box-none">
+      <View className={`${width < 375 ? 'px-3 pt-4' : 'px-4 pt-4'}`} pointerEvents="box-none">
         {/* Title and Category Badge - Side by side vertically centered */}
         <View className="flex-row items-center justify-between mb-3">
           <Text 
@@ -132,8 +134,28 @@ export default function ArticleLargeCard({
           )}
         </View>
         
-        {/* Author and Date */}
-        <View className="flex-row items-center gap-2 mt-2" pointerEvents="box-none">
+        {/* Tags - Right after title */}
+        {hashtags?.length > 0 && (
+          <View className="flex-row flex-wrap gap-2 mb-3" pointerEvents="box-none">
+            {hashtags.slice(0, 5).map((tag, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (onTagPress) onTagPress(tag);
+                }}
+                activeOpacity={0.6}
+              >
+                <View className="border border-gray-300 rounded-full px-3 py-1 bg-gray-50">
+                  <Text className="text-xs text-gray-600 font-medium">#{tag}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        
+        {/* Author and Date - At the bottom */}
+        <View className={`flex-row items-center gap-2 ${width < 375 ? 'pb-3' : 'pb-4'}`} pointerEvents="box-none">
           <TouchableOpacity 
             onPress={(e) => {
               e.stopPropagation();

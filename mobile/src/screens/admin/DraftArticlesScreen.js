@@ -60,7 +60,7 @@ export default function DraftArticlesScreen({ navigation }) {
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   useEffect(() => {
     checkUserRole();

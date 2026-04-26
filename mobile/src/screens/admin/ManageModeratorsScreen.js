@@ -31,6 +31,7 @@ export default function ManageModeratorsScreen({ navigation }) {
   const [addLoading, setAddLoading] = useState(false);
   const [newModEmail, setNewModEmail] = useState('');
   const [categories, setCategories] = useState([]);
+  const [adminEmail, setAdminEmail] = useState('');
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedModerator, setSelectedModerator] = useState(null);
@@ -53,6 +54,8 @@ export default function ManageModeratorsScreen({ navigation }) {
           navigation.replace('Admin');
           return;
         }
+        // Store admin email normalized to lowercase for reliable comparison
+        setAdminEmail(user.email?.toLowerCase());
       } else {
         navigation.replace('Login');
         return;
@@ -97,7 +100,7 @@ export default function ManageModeratorsScreen({ navigation }) {
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   const fetchCategories = async () => {
     try {
@@ -151,6 +154,12 @@ export default function ManageModeratorsScreen({ navigation }) {
       return;
     }
     
+    // Prevent admin from adding themselves (both already lowercase)
+    if (email === adminEmail) {
+      Alert.alert('Invalid Action', 'You cannot add your own admin account as a moderator.');
+      return;
+    }
+
     try {
       setAddLoading(true);
       await client.post('/api/admin/moderators', { email: newModEmail.trim() });
@@ -161,7 +170,21 @@ export default function ManageModeratorsScreen({ navigation }) {
     } catch (err) {
       console.error('Error adding moderator:', err);
       showModeratorErrorToast('added');
+      
+      const status = err.response?.status;
       const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to add moderator';
+      
+      if (status === 404 || errorMsg.toLowerCase().includes('not found') || errorMsg.toLowerCase().includes('registered')) {
+        Alert.alert(
+          'User Not Found',
+          'This email is not registered in the app. The user must create an account first before they can be made a moderator.'
+        );
+      } else if (status === 400 || errorMsg.toLowerCase().includes('already')) {
+        Alert.alert('Cannot Add Moderator', errorMsg);
+      } else {
+        Alert.alert('Error', errorMsg);
+      }
+
       showAuditToast('error', errorMsg);
     } finally {
       setAddLoading(false);

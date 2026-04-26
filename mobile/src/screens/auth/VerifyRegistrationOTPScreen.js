@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   Platform, ActivityIndicator,
-  ImageBackground, Image, StatusBar, Keyboard,
+  ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +21,6 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [timer, setTimer] = useState(60); 
   const [isTimerActive, setIsTimerActive] = useState(true);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef(null);
   const successTimeoutRef = useRef(null);
 
@@ -180,10 +179,9 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
                   style={{ color: '#1f2937', letterSpacing: 8 }}
                   value={otp}
                   onChangeText={(v) => {
-                    if (/^\d{0,6}$/.test(v)) {
-                      setOtp(v);
-                      setError('');
-                    }
+                    const cleanValue = v.replace(/[^0-9]/g, '');
+                    setOtp(cleanValue.slice(0, 6));
+                    if (error) setError('');
                   }}
                   placeholder="000000"
                   placeholderTextColor="#d1d5db"

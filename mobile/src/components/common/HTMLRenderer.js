@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const HTMLRenderer = ({ html, className }) => {
   const [height, setHeight] = useState(500);
 
-  const htmlContent = `
+  // Reset height when html content changes so shorter content doesn't retain old, larger heights
+  useEffect(() => {
+    setHeight(500);
+  }, [html]);
+
+  const htmlContent = useMemo(() => `
     <!DOCTYPE html>
     <html>
       <head>
@@ -18,8 +23,8 @@ const HTMLRenderer = ({ html, className }) => {
           }
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.75;
+            font-size: 15px;
+            line-height: 1.6;
             color: #374151;
             padding: 16px;
             margin: 0;
@@ -38,12 +43,12 @@ const HTMLRenderer = ({ html, className }) => {
             line-height: 1.3;
             color: #111827;
           }
-          h1 { font-size: 2em; }
-          h2 { font-size: 1.5em; }
-          h3 { font-size: 1.25em; }
-          h4 { font-size: 1.1em; }
-          h5 { font-size: 1em; }
-          h6 { font-size: 0.9em; }
+          h1 { font-size: 1.75em; }
+          h2 { font-size: 1.4em; }
+          h3 { font-size: 1.2em; }
+          h4 { font-size: 1.05em; }
+          h5 { font-size: 0.95em; }
+          h6 { font-size: 0.85em; }
           ul, ol {
             margin-bottom: 1em;
             padding-left: 1.5em;
@@ -99,6 +104,8 @@ const HTMLRenderer = ({ html, className }) => {
           }
           strong, b { font-weight: 700; }
           em, i { font-style: italic; }
+          u { text-decoration: underline; }
+          s, strike, del { text-decoration: line-through; }
           hr {
             border: none;
             border-top: 1px solid #e5e7eb;
@@ -163,7 +170,7 @@ const HTMLRenderer = ({ html, className }) => {
         </script>
       </body>
     </html>
-  `;
+  `, [html]);
 
   const onWebViewMessage = (event) => {
     try {
@@ -195,6 +202,7 @@ const HTMLRenderer = ({ html, className }) => {
         onMessage={onWebViewMessage}
         onError={onWebViewError}
         javaScriptEnabled={true}
+        bounces={false}
         scrollEnabled={false}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}

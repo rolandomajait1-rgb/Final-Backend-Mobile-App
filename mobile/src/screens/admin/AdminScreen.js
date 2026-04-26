@@ -267,7 +267,7 @@ export default function AdminScreen({ navigation }) {
     }
   }, []);
 
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
 
   const handleMenuPress = (article, pos) => {
     setMenuArticle(article);
