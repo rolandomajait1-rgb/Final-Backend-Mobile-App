@@ -8,6 +8,7 @@ export { default as SaveDraftModal } from "./SaveDraftModal";
 export { default as HTMLRenderer } from "./HTMLRenderer";
 export { default as Toast } from "./Toast";
 export { default as ToastContainer } from "./ToastContainer";
+export { default as InvalidEmailModal } from "./InvalidEmailModal";
 
 // Skeleton loaders
 export { default as Skeleton } from "./Skeleton";

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +33,7 @@ import { handleCategoryPress } from "../../utils/categoryNavigation";
 // ─── ARTICLES LIST ────────────────────────────────────────────────────────────
 const ArticlesListContent = ({
   latestArticles,
+  recentArticles,
   refreshing,
   onRefresh,
   loadingMore,
@@ -90,36 +92,64 @@ const ArticlesListContent = ({
       <Text className="text-2xl font-bold text-gray-900 mb-4 mt-2">
         Recent Articles
       </Text>
-      {latestArticles?.length > 1 ? (
-        <View className="gap-1">
-          {latestArticles.slice(1).map((article) => (
-            <ArticleMediumCard
-              key={article.id}
-              title={article.title}
-              category={article.categories?.[0]?.name}
-              author={
-                article.author_name || article.author?.name || "Unknown Author"
-              }
-              date={formatArticleDate(article.created_at || article.published_at)}
-              image={article.featured_image_url || article.featured_image}
-              hashtags={article.tags}
-              onPress={() => onArticlePress(article)}
-              onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
-              onAuthorPress={() => onAuthorPress(article)}
-              onTagPress={onTagPress}
-              onCategoryPress={(category) => handleCategoryPress(category, navigation)}
-              navigation={navigation}
-            />
-          ))}
-        </View>
+      {/* Filter out articles already shown in Latest section */}
+      {(() => {
+        const latestIds = latestArticles.slice(0, 1).map(a => a.id);
+        const filteredRecent = recentArticles?.filter(article => !latestIds.includes(article.id)) || [];
+        return filteredRecent.length > 0 ? (
+        <>
+          <View className="gap-1">
+            {filteredRecent.map((article) => (
+              <ArticleMediumCard
+                key={article.id}
+                title={article.title}
+                category={article.categories?.[0]?.name}
+                author={
+                  article.author_name || article.author?.name || "Unknown Author"
+                }
+                date={formatArticleDate(article.created_at || article.published_at)}
+                image={article.featured_image_url || article.featured_image}
+                hashtags={article.tags}
+                onPress={() => onArticlePress(article)}
+                onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
+                onAuthorPress={() => onAuthorPress(article)}
+                onTagPress={onTagPress}
+                onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                navigation={navigation}
+              />
+            ))}
+          </View>
+          
+          {/* Load More Button */}
+          {hasMore && (
+            <TouchableOpacity
+              onPress={onLoadMore}
+              disabled={loadingMore}
+              className="items-center justify-center py-4 mt-2"
+            >
+              {loadingMore ? (
+                <View className="flex-row items-center justify-center">
+                  <Loader />
+                </View>
+              ) : (
+                <Text className="text-base text-blue-500 font-semibold text-center">
+                  Load More
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </>
       ) : (
         <EmptyState 
           icon="document-text-outline" 
           title="No recent articles" 
           message="More news and updates coming soon." 
         />
-      )}
+      );
+      })()}
     </View>
+    
+    <View className="h-24" />
   </ScrollView>
 );
 
@@ -141,6 +171,13 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  
+  // Pagination state for recent articles
+  const [recentArticles, setRecentArticles] = useState([]);
+  const [recentPage, setRecentPage] = useState(1);
+  const [recentHasMore, setRecentHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
     checkUserRole();
@@ -161,6 +198,35 @@ export default function HomeScreen({ navigation }) {
     } catch (_) {
     } finally {
       setCategoriesLoading(false);
+    }
+  };
+  
+  // Fetch recent articles with pagination
+  const fetchRecentArticles = useCallback(async (page = 1, replace = false) => {
+    if (loadingMoreRef.current) return;
+    
+    setLoadingMore(true);
+    loadingMoreRef.current = true;
+    
+    try {
+      const res = await getArticles({ page, per_page: 10 });
+      const newArticles = res.data?.data ?? [];
+      const lastPage = res.data?.last_page ?? 1;
+      
+      setRecentArticles(prev => replace ? newArticles : [...prev, ...newArticles]);
+      setRecentHasMore(page < lastPage);
+      setRecentPage(page);
+    } catch (err) {
+      console.error('Error fetching recent articles:', err);
+    } finally {
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  }, []);
+  
+  const handleLoadMore = () => {
+    if (!loadingMore && recentHasMore) {
+      fetchRecentArticles(recentPage + 1, false);
     }
   };
 
@@ -191,22 +257,30 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+    fetchRecentArticles(1, true); // Initial load
+  }, [fetchRecentArticles]);
 
   useFocusEffect(
     useCallback(() => {
       // Only refresh on subsequent focuses (not on initial mount — ArticleContext handles that)
       if (hasMountedRef.current) {
         refreshArticles();
+        fetchRecentArticles(1, true); // Refresh recent articles too
       } else {
         hasMountedRef.current = true;
       }
-    }, [refreshArticles]),
+      
+      // Clear search when screen comes into focus
+      setSearchQuery('');
+      setSearchResults([]);
+      setSearching(false);
+    }, [refreshArticles, fetchRecentArticles]),
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshArticles();
+    await fetchRecentArticles(1, true); // Refresh recent articles
     setRefreshing(false);
   };
 
@@ -357,11 +431,12 @@ export default function HomeScreen({ navigation }) {
         ) : (
           <ArticlesListContent
             latestArticles={latestArticles}
+            recentArticles={recentArticles}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            loadingMore={false}
-            hasMore={false}
-            onLoadMore={() => {}}
+            loadingMore={loadingMore}
+            hasMore={recentHasMore}
+            onLoadMore={handleLoadMore}
             onArticlePress={(article) =>
               navigation.navigate("ArticleStack", {
                 screen: "ArticleDetail",

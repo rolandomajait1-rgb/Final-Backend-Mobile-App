@@ -1,5 +1,5 @@
 import React, { memo, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, useWindowDimensions, Animated } from 'react-native';
 import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { getCategoryColor } from '../../utils/categoryColors';
@@ -11,17 +11,17 @@ function ArticleMediumCard({
   author, 
   date, 
   image,
-  hashtags = [],
   onPress, 
   onMenuPress,
   onAuthorPress,
-  onTagPress,
-  onCategoryPress,
-  navigation
+  onCategoryPress
 }) {
   const { width } = useWindowDimensions();
   const badgeColor = getCategoryColor(category);
   const menuBtnRef = useRef(null);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pressStartY = useRef(0);
+  const hasScrolled = useRef(false);
 
   const handleCategoryPress = () => {
     if (onCategoryPress) {
@@ -29,12 +29,44 @@ function ArticleMediumCard({
     }
   };
 
+  const handlePressIn = (event) => {
+    pressStartY.current = event.nativeEvent.pageY;
+    hasScrolled.current = false;
+    
+    Animated.timing(scaleAnim, {
+      toValue: 0.97,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = (event) => {
+    // Check if user scrolled
+    const moveDistance = Math.abs(event.nativeEvent.pageY - pressStartY.current);
+    if (moveDistance > 10) {
+      hasScrolled.current = true;
+    }
+
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+    
+    // Navigate immediately without waiting for animation
+    if (onPress && !hasScrolled.current) {
+      onPress();
+    }
+  };
+
   return (
-    <TouchableOpacity 
-      className={`flex-row bg-white items-center mb-3 ${width < 375 ? 'p-2' : 'p-3'} rounded-lg shadow-md`}
-      onPress={onPress} 
-      activeOpacity={0.8}
-    >
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity 
+        className={`flex-row bg-white items-center mb-3 ${width < 375 ? 'p-2' : 'p-3'} rounded-lg shadow-md`}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+      >
       {/* Image - Left Side */}
       <View className="rounded-xl overflow-hidden bg-gray-100">
         <Image
@@ -55,42 +87,43 @@ function ArticleMediumCard({
               {title}
             </Text>
             
-            {/* Category Badge */}
+            {/* Category Badge - Clickable, exact text size only */}
             {category && (
-              <View className="mb-1">
-                <TouchableOpacity
-                  onPress={handleCategoryPress}
-                  activeOpacity={0.6}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleCategoryPress();
+                }}
+                activeOpacity={0.6}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                <View 
+                  className={`${width < 375 ? 'px-1.5 py-0.5' : 'px-2 py-1'} mb-1`}
+                  style={{ backgroundColor: badgeColor + '15' }}
                 >
-                  <View 
-                    className={` ${width < 375 ? 'px-1.5 py-0.5' : 'px-2 py-1'} self-start`}
-                    style={{ backgroundColor: badgeColor + '15' }}
+                  <Text 
+                    className={`${width < 375 ? 'text-[8px]' : 'text-[9px]'} font-bold uppercase tracking-widest`}
+                    style={{ color: badgeColor }}
                   >
-                    <Text 
-                      className={`${width < 375 ? 'text-[8px]' : 'text-[9px]'} font-bold uppercase tracking-widest`}
-                      style={{ color: badgeColor }}
-                    >
-                      {category}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
+                    {category}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             )}
  
             {/* Meta Info */}
             <View className="flex-row items-center mt-0.5 flex-wrap">
               <TouchableOpacity 
-                onPress={() => {
+                onPress={(e) => {
+                  e.stopPropagation();
                   if (onAuthorPress) {
                     onAuthorPress();
                   }
                 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-gray-800 font-bold underline`}>{author}</Text>
+                <Text className={`${width < 375 ? 'text-xs' : 'text-s'} text-gray-800 font-bold underline`}>{author}</Text>
               </TouchableOpacity>
-              {date ? <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-gray-500 ml-1`}> • {date}</Text> : null}
+              {date ? <Text className={`${width < 375 ? 'text-xs' : 'text-s'} text-gray-500 ml-1`}> • {date}</Text> : null}
             </View>
           </View>
 
@@ -112,6 +145,7 @@ function ArticleMediumCard({
         </View>
       </View>
     </TouchableOpacity>
+    </Animated.View>
   );
 }
 

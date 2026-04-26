@@ -452,7 +452,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
 
     try {
       await client.post(`/api/articles/${article.id}/like`);
-      showAuditToast("success", newLiked ? "Article liked!" : "Like removed");
+      // No toast - visual feedback (heart animation + color) is enough
     } catch (err) {
       console.error("Error liking article:", err);
       // Rollback on error
@@ -470,7 +470,8 @@ export default function ArticleDetailScreen({ navigation, route }) {
       // Rollback AsyncStorage
       await saveArticleLikedState(article.id, !newLiked, newLiked ? likes - 1 : likes + 1);
       
-      showAuditToast("error", "Failed to like article. Please log in.");
+      // Only show error toast if there's an actual error
+      showAuditToast("error", "Failed to update like. Please try again.");
     }
   };
 
@@ -486,15 +487,21 @@ export default function ArticleDetailScreen({ navigation, route }) {
       // Record share in backend
       try {
         const { shareArticle } = await import("../../api/services/articleService");
-        await shareArticle(article.id);
+        const response = await shareArticle(article.id);
+        console.log('Share recorded successfully:', response.data);
       } catch (shareErr) {
         console.error("Error recording share:", shareErr);
+        console.error("Error response:", shareErr.response?.data);
+        console.error("Error status:", shareErr.response?.status);
+        
         // Rollback share count on error
         setShares(shares);
         if (updateArticleLocally) {
           updateArticleLocally(article.id, { shares_count: shares });
         }
-        showAuditToast("error", "Share recorded locally but failed to sync.");
+        
+        // Don't show error toast - share still worked locally
+        // The backend sync failure is not critical for user experience
       }
     });
   };

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { colors } from '../../styles';
 import SidebarMenu from '../../components/homeheaderpart/SidebarMenu';
 import { isAdminOrModerator } from '../../utils/authUtils';
@@ -31,6 +32,16 @@ const HomeHeader = ({
   const [showAdminIcon, setShowAdminIcon] = useState(false);
   const [internalCategories, setInternalCategories] = useState([]);
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
+
+  // Clear search when screen loses focus
+  useEffect(() => {
+    if (!isFocused) {
+      setSearchQuery('');
+      setIsSearchActive(isSearchScreen);
+      onSearch(''); // Notify parent to clear search
+    }
+  }, [isFocused, isSearchScreen, onSearch]);
 
   useEffect(() => {
     checkAdminStatus();
@@ -56,7 +67,11 @@ const HomeHeader = ({
   // Update search query when external query changes
   useEffect(() => {
     setSearchQuery(externalSearchQuery);
-  }, [externalSearchQuery]);
+    // If external query is empty, also close the search bar
+    if (!externalSearchQuery) {
+      setIsSearchActive(isSearchScreen);
+    }
+  }, [externalSearchQuery, isSearchScreen]);
 
   const checkAdminStatus = async () => {
     const isAdminUser = await isAdminOrModerator();

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import RemoveModeratorModal from '../../components/common/RemoveModeratorModal';
+import { InvalidEmailModal } from '../../components/common';
 import { showAuditToast, showModeratorSuccessToast, showModeratorErrorToast } from '../../utils/toastNotification';
 import client from '../../api/client';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
@@ -40,6 +42,7 @@ export default function ManageModeratorsScreen({ navigation }) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuX, setMenuX] = useState(0);
   const [menuY, setMenuY] = useState(0);
+  const [showInvalidEmailModal, setShowInvalidEmailModal] = useState(false);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -60,6 +63,15 @@ export default function ManageModeratorsScreen({ navigation }) {
     };
     checkRole();
   }, [navigation]);
+
+  // Clear search when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setHeaderSearchQuery('');
+      setSearchResults([]);
+      setModeratorSearchQuery('');
+    }, [])
+  );
 
   const checkAdminStatus = async () => {
     const adminStatus = await isAdminOrModerator();
@@ -104,7 +116,21 @@ export default function ManageModeratorsScreen({ navigation }) {
       setModerators(res.data || []);
     } catch (err) {
       console.error('Error fetching moderators:', err);
-      Alert.alert('Error', 'Failed to load moderators');
+      
+      if (err.response?.status === 403) {
+        Alert.alert(
+          'Access Denied',
+          'You do not have permission to manage moderators. Only admin users can access this feature.',
+          [
+            {
+              text: 'Go Back',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to load moderators');
+      }
     } finally {
       setLoading(false);
     }
@@ -113,6 +139,15 @@ export default function ManageModeratorsScreen({ navigation }) {
   const handleAddModerator = async () => {
     if (!newModEmail.trim()) {
       Alert.alert('Error', 'Please enter an email address');
+      return;
+    }
+
+    // Validate La Verdad email domain - same as login/register
+    const email = newModEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@(student\.)?laverdad\.edu\.ph$/;
+    
+    if (!emailRegex.test(email)) {
+      setShowInvalidEmailModal(true);
       return;
     }
     
@@ -334,7 +369,10 @@ export default function ManageModeratorsScreen({ navigation }) {
                   Add Moderator
                 </Text>
                 <Text style={{ fontSize: 16, color: '#475569', textAlign: 'center' }}>
-                  Add another account as moderator?
+                  Add a La Verdad account as moderator
+                </Text>
+                <Text style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>
+                  Only @laverdad.edu.ph or @student.laverdad.edu.ph
                 </Text>
               </View>
 
@@ -354,7 +392,7 @@ export default function ManageModeratorsScreen({ navigation }) {
                   }}
                 >
                   <TextInput
-                    placeholder="Enter email address"
+                    placeholder="e.g., student@laverdad.edu.ph"
                     value={newModEmail}
                     onChangeText={setNewModEmail}
                     placeholderTextColor="#94a3b8"
@@ -527,6 +565,12 @@ export default function ManageModeratorsScreen({ navigation }) {
             onPress: handleDeleteArticle,
           },
         ]}
+      />
+
+      {/* Invalid Email Modal */}
+      <InvalidEmailModal
+        visible={showInvalidEmailModal}
+        onClose={() => setShowInvalidEmailModal(false)}
       />
     </View>
   );

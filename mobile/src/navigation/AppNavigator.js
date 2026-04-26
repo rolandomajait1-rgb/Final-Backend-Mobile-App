@@ -57,8 +57,54 @@ import AuthorProfileScreen from '../screens/AuthorProfile/AuthorProfileScreen';
 
 const Stack = createStackNavigator();
 
+// Smooth transition configuration for all navigators
+const smoothTransitionConfig = {
+  headerShown: false,
+  cardStyleInterpolator: ({ current, layouts }) => {
+    return {
+      cardStyle: {
+        transform: [
+          {
+            translateX: current.progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [layouts.screen.width, 0],
+            }),
+          },
+        ],
+        opacity: current.progress.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, 0.5, 1],
+        }),
+      },
+    };
+  },
+  transitionSpec: {
+    open: {
+      animation: 'timing',
+      config: {
+        duration: 300,
+        easing: (t) => 1 - Math.pow(1 - t, 3), // Ease out cubic
+      },
+    },
+    close: {
+      animation: 'timing',
+      config: {
+        duration: 250,
+        easing: (t) => t * t * t, // Ease in cubic
+      },
+    },
+  },
+  gestureEnabled: true,
+  gestureDirection: 'horizontal',
+};
+
 const linking = {
-  prefixes: [Linking.createURL('/'), 'laverdadherald://', 'exp://'],
+  prefixes: [
+    Linking.createURL('/'), 
+    'laverdadherald://', 
+    'exp://',
+    'https://final-backend-mobile-app-2-4sfz.onrender.com',  // Production backend
+  ],
   config: {
     screens: {
       VerifyEmail: {
@@ -84,7 +130,17 @@ const linking = {
       ForgotPassword: 'forgot-password',
       VerifyOTP: 'verify-otp',
       Main: 'main',
-      ArticleDetail: 'article/:id',
+      ArticleStack: {
+        screens: {
+          ArticleDetail: {
+            path: 'articles/:slug',
+            parse: {
+              slug: (slug) => slug,
+            },
+          },
+        },
+      },
+      ArticleDetail: 'article/:slug',  // Fallback for old format
     },
   },
   async getInitialURL() {
@@ -92,11 +148,48 @@ const linking = {
     const url = await Linking.getInitialURL();
     if (url != null) {
       console.log('🔗 Deep link detected on cold start:', url);
+      
+      // Security: Validate URL format to prevent malicious links
+      if (!this.isValidDeepLink(url)) {
+        console.warn('⚠️ Invalid deep link format, ignoring:', url);
+        return undefined;
+      }
+      
       return url;
     }
     // Default to Welcome screen
     return undefined;
   },
+  
+  // Security: Validate deep link format
+  isValidDeepLink(url) {
+    try {
+      const validPrefixes = [
+        'laverdadherald://',
+        'https://final-backend-mobile-app-2-4sfz.onrender.com',
+      ];
+      
+      // Check if URL starts with valid prefix
+      const isValidPrefix = validPrefixes.some(prefix => url.startsWith(prefix));
+      if (!isValidPrefix) {
+        return false;
+      }
+      
+      // Additional validation: Check URL structure
+      const urlObj = new URL(url.replace('laverdadherald://', 'https://'));
+      
+      // Prevent path traversal attacks
+      if (urlObj.pathname.includes('..') || urlObj.pathname.includes('//')) {
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating deep link:', error);
+      return false;
+    }
+  },
+  
   subscribe(listener) {
     // Listen to incoming links from deep linking
     const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
@@ -111,32 +204,7 @@ const linking = {
 
 // 1. Auth Stack
 const AuthStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
-      headerShown: false,
-      cardStyleInterpolator: ({ current, layouts }) => {
-        return {
-          cardStyle: {
-            opacity: current.progress,
-          },
-        };
-      },
-      transitionSpec: {
-        open: {
-          animation: 'timing',
-          config: {
-            duration: 250,
-          },
-        },
-        close: {
-          animation: 'timing',
-          config: {
-            duration: 200,
-          },
-        },
-      },
-    }}
-  >
+  <Stack.Navigator screenOptions={smoothTransitionConfig}>
     <Stack.Screen name="Welcome" component={WelcomeScreen} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
@@ -150,50 +218,7 @@ const AuthStack = () => (
 
 // 2. Admin & PressHub Stack
 const ManagementStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
-      headerShown: false,
-      cardStyleInterpolator: ({ current, next, layouts }) => {
-        return {
-          cardStyle: {
-            transform: [
-              {
-                translateX: current.progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [layouts.screen.width, 0],
-                }),
-              },
-            ],
-          },
-          overlayStyle: {
-            opacity: current.progress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.5],
-            }),
-          },
-        };
-      },
-      transitionSpec: {
-        open: {
-          animation: 'spring',
-          config: {
-            stiffness: 1000,
-            damping: 500,
-            mass: 3,
-            overshootClamping: true,
-            restDisplacementThreshold: 0.01,
-            restSpeedThreshold: 0.01,
-          },
-        },
-        close: {
-          animation: 'timing',
-          config: {
-            duration: 200,
-          },
-        },
-      },
-    }}
-  >
+  <Stack.Navigator screenOptions={smoothTransitionConfig}>
     <Stack.Screen name="Admin" component={AdminScreen} />
     <Stack.Screen name="Statistics" component={StatisticsScreen} />
     <Stack.Screen name="DraftArticles" component={DraftArticlesScreen} />
@@ -211,50 +236,7 @@ const ManagementStack = () => (
 
 // 3. Article Detail Stack
 const ArticleDetailStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
-      headerShown: false,
-      cardStyleInterpolator: ({ current, next, layouts }) => {
-        return {
-          cardStyle: {
-            transform: [
-              {
-                translateX: current.progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [layouts.screen.width, 0],
-                }),
-              },
-            ],
-          },
-          overlayStyle: {
-            opacity: current.progress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.5],
-            }),
-          },
-        };
-      },
-      transitionSpec: {
-        open: {
-          animation: 'spring',
-          config: {
-            stiffness: 1000,
-            damping: 500,
-            mass: 3,
-            overshootClamping: true,
-            restDisplacementThreshold: 0.01,
-            restSpeedThreshold: 0.01,
-          },
-        },
-        close: {
-          animation: 'timing',
-          config: {
-            duration: 200,
-          },
-        },
-      },
-    }}
-  >
+  <Stack.Navigator screenOptions={smoothTransitionConfig}>
     <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
     <Stack.Screen name="TagArticles" component={TagArticlesScreen} />
     <Stack.Screen name="AuthorProfile" component={AuthorProfileScreen} />
@@ -368,10 +350,10 @@ export default function AppNavigator() {
           </View>
         }
       >
-        <Stack.Navigator 
-          screenOptions={{ 
+        <Stack.Navigator
+          screenOptions={{
             headerShown: false,
-            cardStyleInterpolator: ({ current, layouts }) => {
+            cardStyleInterpolator: ({ current }) => {
               return {
                 cardStyle: {
                   opacity: current.progress,
@@ -392,7 +374,7 @@ export default function AppNavigator() {
                 },
               },
             },
-          }} 
+          }}
           initialRouteName={initialRoute}
         >
           <Stack.Screen name="Auth" component={AuthStack} />
@@ -404,7 +386,7 @@ export default function AppNavigator() {
             component={SearchScreen}
             options={{
               animationEnabled: true,
-              cardStyleInterpolator: ({ current, layouts }) => {
+              cardStyleInterpolator: ({ current }) => {
                 return {
                   cardStyle: {
                     opacity: current.progress,

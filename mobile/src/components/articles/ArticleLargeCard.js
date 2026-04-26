@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, useWindowDimensions, Animated } from 'react-native';
 import { getImageUri } from '../../utils/imageUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { getCategoryColor } from '../../utils/categoryColors';
@@ -11,26 +11,21 @@ export default function ArticleLargeCard({
   author, 
   date, 
   image,
-  hashtags = [],
   onPress, 
   onMenuPress,
-  onTagPress,
   onAuthorPress,
   onCategoryPress
 }) {
   const { width } = useWindowDimensions();
   const badgeColor = getCategoryColor(category);
   const menuBtnRef = useRef(null);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pressStartY = useRef(0);
+  const hasScrolled = useRef(false);
 
   const handleCategoryPress = () => {
     if (onCategoryPress) {
       onCategoryPress(category);
-    }
-  };
-
-  const handleTagPress = (tagName) => {
-    if (onTagPress) {
-      onTagPress(tagName);
     }
   };
 
@@ -40,12 +35,44 @@ export default function ArticleLargeCard({
     }
   };
 
+  const handlePressIn = (event) => {
+    pressStartY.current = event.nativeEvent.pageY;
+    hasScrolled.current = false;
+    
+    Animated.timing(scaleAnim, {
+      toValue: 0.97,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = (event) => {
+    // Check if user scrolled
+    const moveDistance = Math.abs(event.nativeEvent.pageY - pressStartY.current);
+    if (moveDistance > 10) {
+      hasScrolled.current = true;
+    }
+
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+    
+    // Navigate immediately without waiting for animation
+    if (onPress && !hasScrolled.current) {
+      onPress();
+    }
+  };
+
   return (
-    <TouchableOpacity 
-      className="mb-6 bg-white rounded-xl overflow-hidden shadow-lg"
-      onPress={onPress} 
-      activeOpacity={0.85}
-    >
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity 
+        className="mb-6 bg-white rounded-xl overflow-hidden shadow-lg"
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+      >
       {/* Large Image - Rounded Top and Bottom */}
       <View className="relative bg-[#d1dce6] overflow-hidden mb-4 rounded-lg">
         <Image
@@ -74,7 +101,7 @@ export default function ArticleLargeCard({
       {/* Content Section */}
       <View className={`${width < 375 ? 'px-3 pb-3' : 'px-4 pb-5'}`} pointerEvents="box-none">
         {/* Title and Category Badge - Side by side vertically centered */}
-        <View className="flex-row items-center justify-between mb-3" pointerEvents="box-none">
+        <View className="flex-row items-center justify-between mb-3">
           <Text 
             className={`${width < 375 ? 'text-lg' : 'text-2xl'} text-gray-900 font-bold flex-1 mr-4 tracking-tight`}
             numberOfLines={2}
@@ -82,59 +109,37 @@ export default function ArticleLargeCard({
             {title}
           </Text>
           {category && (
-            <View className="ml-2" pointerEvents="box-none">
-              <TouchableOpacity
-                onPress={handleCategoryPress}
-                activeOpacity={0.6}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleCategoryPress();
+              }}
+              activeOpacity={0.6}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <View 
+                className={`rounded-md ${width < 375 ? 'px-2 py-1' : 'px-3 py-1.5'}`}
+                style={{ backgroundColor: badgeColor + '15' }}
               >
-                <View 
-                  className={`rounded-md ${width < 375 ? 'px-2 py-1' : 'px-3 py-1.5'} self-start`}
-                  style={{ backgroundColor: badgeColor + '15' }}
+                <Text 
+                  className={`${width < 375 ? 'text-[10px]' : 'text-[11px]'} font-bold uppercase tracking-widest`}
+                  style={{ color: badgeColor }}
                 >
-                  <Text 
-                    className={`${width < 375 ? 'text-[10px]' : 'text-[11px]'} font-bold uppercase tracking-widest`}
-                    style={{ color: badgeColor }} 
-                  >
-                    {category}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+                  {category}
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
         </View>
         
-        {/* Hashtags - Pill style */}
-        {hashtags && hashtags.length > 0 && (
-          <View className={`flex-row flex-wrap ${width < 375 ? 'gap-1' : 'gap-2'} mb-4`} pointerEvents="box-none">
-            {hashtags.map((tag, index) => {
-              const tagName = typeof tag === 'string' ? tag : tag.name;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => handleTagPress(tagName)}
-                  activeOpacity={0.6}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <View 
-                    className={`bg-gray-50 border border-gray-200 rounded-full ${width < 375 ? 'px-3 py-0.5' : 'px-4 py-1'}`}
-                  >
-                    <Text className={`${width < 375 ? 'text-xs' : 'text-xs'} text-gray-500 font-semibold`}>
-                      #{tagName}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
         {/* Author and Date */}
         <View className="flex-row items-center gap-2 mt-2" pointerEvents="box-none">
           <TouchableOpacity 
-            onPress={handleAuthorPress}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleAuthorPress();
+            }}
             activeOpacity={0.6}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text className={`${width < 375 ? 'text-xs' : 'text-s'} text-gray-700 font-semibold`}>
               {author}
@@ -147,5 +152,6 @@ export default function ArticleLargeCard({
         </View>
       </View>
     </TouchableOpacity>
+    </Animated.View>
   );
 }

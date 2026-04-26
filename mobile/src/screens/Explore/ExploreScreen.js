@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, FlatList,
-  RefreshControl, TouchableOpacity, ActivityIndicator,
+  RefreshControl, TouchableOpacity, ActivityIndicator, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
@@ -27,9 +27,7 @@ export default function ExploreScreen({ navigation }) {
   const [topCategories, setTopCategories] = useState([]); // Top 10 categories by engagement
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState(null); // 'author', 'tag', 'category'
-  const [selectedFilterItem, setSelectedFilterItem] = useState(null); // The selected author/tag/category object
-  const [filteredArticles, setFilteredArticles] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState(null); // 'article', 'author', 'tag', 'category'
   const [authors, setAuthors] = useState([]);
   const [tags, setTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +41,29 @@ export default function ExploreScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const filterExpandAnim = useRef(new Animated.Value(0)).current;
+  
+  // Animate filter expansion
+  useEffect(() => {
+    if (selectedFilter) {
+      Animated.spring(filterExpandAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(filterExpandAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [selectedFilter, filterExpandAnim]);
 
   // Bug #7 Fix: Use centralized client (has auth interceptors) instead of raw axios
   const fetchCategories = async () => {
@@ -171,27 +192,27 @@ export default function ExploreScreen({ navigation }) {
   }, []);
 
   const handleFilterItemClick = useCallback((filterType, item) => {
-    setSelectedFilterItem(item);
-    
-    // Filter articles based on the selected filter type
-    let filtered = [];
+    // Navigate directly based on filter type
     if (filterType === 'author') {
-      filtered = trendingArticles.filter(article => 
-        article.author?.id === item.id || article.author_id === item.id
-      );
+      // Navigate to Author Profile
+      navigation.navigate('ArticleStack', { 
+        screen: 'AuthorProfile', 
+        params: { 
+          authorId: item.id,
+          authorName: item.name 
+        } 
+      });
     } else if (filterType === 'tag') {
-      filtered = trendingArticles.filter(article =>
-        article.tags?.some(tag => tag.name === item.name)
-      );
+      // Navigate to Tag Articles
+      navigation.navigate('ArticleStack', { 
+        screen: 'TagArticles', 
+        params: { tagName: item.name } 
+      });
     } else if (filterType === 'category') {
-      filtered = trendingArticles.filter(article =>
-        article.categories?.some(cat => cat.id === item.id)
-      );
+      // Navigate to Category Screen
+      handleCategoryPress(item.name, navigation);
     }
-    
-    setFilteredArticles(filtered);
-    setSelectedFilter(null); // Close the filter pills
-  }, [trendingArticles]);
+  }, [navigation]);
 
   // Debounce search to avoid too many API calls
   const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [handleSearch]);
@@ -210,9 +231,23 @@ export default function ExploreScreen({ navigation }) {
       await fetchCategories();
       await fetchTrendingArticles();
       setLoading(false);
+      
+      // Trigger entrance animation
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
     };
     loadData();
-  }, [fetchTrendingArticles]);
+  }, [fetchTrendingArticles, fadeAnim, slideAnim]);
 
   // Reset filter when screen loses focus
   useFocusEffect(
@@ -220,8 +255,6 @@ export default function ExploreScreen({ navigation }) {
       return () => {
         // Cleanup: Reset filter state when leaving the screen
         setSelectedFilter(null);
-        setSelectedFilterItem(null);
-        setFilteredArticles([]);
       };
     }, [])
   );
@@ -292,6 +325,7 @@ export default function ExploreScreen({ navigation }) {
           onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
           onSearch={debouncedSearch}
           navigation={navigation}
+          searchQuery={searchQuery}
         />
       </View>
 
@@ -302,7 +336,7 @@ export default function ExploreScreen({ navigation }) {
           ListHeaderComponent={
             <View className="px-4 py-4 border-b border-gray-200 bg-white">
               <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-              Articles Results for {searchQuery}
+              Article Results for "{searchQuery}"
               </Text>
             </View>
           }
@@ -337,13 +371,20 @@ export default function ExploreScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 100 }}
         />
       ) : (
-        <FlatList
+        <Animated.View 
+          style={{ 
+            flex: 1,
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          <FlatList
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
           <>
             {/* Filter Section */}
             <View className="px-4 py-4 bg-white border-b border-gray-200">
-              <Text className="text-gray-500 text-xl font-bold mb-3 ml-3 tracing-widest">Trending</Text>
+              <Text className="text-gray-500 text-xl font-bold mb-3 ml-3 tracking-widest">Trending</Text>
               <View className="flex-row gap-3 justify-center">
                 <TouchableOpacity
                   className={`px-6 py-2 rounded-full border ${
@@ -359,7 +400,7 @@ export default function ExploreScreen({ navigation }) {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className={`px-10 py-2 rounded-full border ${
+                  className={`px-6 py-2 rounded-full border ${
                     selectedFilter === 'author' ? 'border-cyan-700 bg-gray-50' : 'border-gray-300 bg-white'
                   }`}
                   onPress={() => setSelectedFilter(selectedFilter === 'author' ? null : 'author')}
@@ -368,11 +409,11 @@ export default function ExploreScreen({ navigation }) {
                     className={selectedFilter === 'author' ? 'text-cyan-700' : 'text-gray-600'}
                     style={{ letterSpacing: 1 }}
                   >
-                    Author
+                    Authors
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className={`px-10 py-2 rounded-full border ${
+                  className={`px-6 py-2 rounded-full border ${
                     selectedFilter === 'tag' ? 'border-cyan-700 bg-gray-50' : 'border-gray-300 bg-white'
                   }`}
                   onPress={() => setSelectedFilter(selectedFilter === 'tag' ? null : 'tag')}
@@ -381,14 +422,25 @@ export default function ExploreScreen({ navigation }) {
                     className={selectedFilter === 'tag' ? 'text-cyan-700' : 'text-gray-600'}
                     style={{ letterSpacing: 1 }}
                   >
-                    Tag
+                    Tags
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {/* Show selected filter items as pills */}
               {selectedFilter && (
-                <View className="mt-6">
+                <Animated.View 
+                  className="mt-6"
+                  style={{
+                    opacity: filterExpandAnim,
+                    transform: [{
+                      translateY: filterExpandAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-20, 0],
+                      }),
+                    }],
+                  }}
+                >
                   {selectedFilter === 'article' && (
                     <Text className="text-xl font-bold text-gray-900 mb-4 px-1">
                       Top 10 Articles
@@ -402,6 +454,11 @@ export default function ExploreScreen({ navigation }) {
                   {selectedFilter === 'tag' && (
                     <Text className="text-xl font-bold text-gray-900 mb-4 px-1">
                       Top 10 Tags
+                    </Text>
+                  )}
+                  {selectedFilter === 'category' && (
+                    <Text className="text-xl font-bold text-gray-900 mb-4 px-1">
+                      Top 10 Categories
                     </Text>
                   )}
                   <View className="gap-3">
@@ -456,28 +513,30 @@ export default function ExploreScreen({ navigation }) {
                         {index === 2 && <Ionicons name="trophy" size={24} color="#CD7F32" />}
                       </TouchableOpacity>
                     ))}
+                    {selectedFilter === 'category' && topCategories.map((category, index) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        className="flex-row items-center bg-white p-4 rounded-lg border border-gray-200"
+                        onPress={() => handleFilterItemClick('category', category)}
+                      >
+                        <View className="w-8 h-8 rounded-full bg-cyan-700 items-center justify-center mr-3">
+                          <Text className="text-white font-bold">{index + 1}</Text>
+                        </View>
+                        <Text className="flex-1 text-gray-800 font-medium">
+                          {category.name}
+                        </Text>
+                        {index === 0 && <Ionicons name="trophy" size={24} color="#FFD700" />}
+                        {index === 1 && <Ionicons name="trophy" size={24} color="#C0C0C0" />}
+                        {index === 2 && <Ionicons name="trophy" size={24} color="#CD7F32" />}
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                </View>
+                </Animated.View>
               )}
             </View>
 
-            {/* Trending Articles Header or Filter Results Header */}
-            {selectedFilterItem ? (
-              <View className="px-4 py-4 border-b border-gray-200 bg-white">
-                <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-                  Search result for: {selectedFilterItem.name}
-                </Text>
-                <TouchableOpacity 
-                  onPress={() => {
-                    setSelectedFilterItem(null);
-                    setFilteredArticles([]);
-                  }}
-                  className="mt-2"
-                >
-                  <Text className="text-cyan-700 font-semibold">Clear filter</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (selectedFilter === 'article' || selectedFilter === 'author' || selectedFilter === 'tag') ? null : (
+            {/* Trending Articles Header */}
+            {(selectedFilter === 'article' || selectedFilter === 'author' || selectedFilter === 'tag' || selectedFilter === 'category') ? null : (
               <View className="px-4 py-4 border-b border-gray-200 bg-white">
                 <Text className="text-2xl font-bold" style={{ color: colors.text }}>
                   Trending Articles
@@ -486,7 +545,7 @@ export default function ExploreScreen({ navigation }) {
             )}
           </>
         }
-        data={selectedFilterItem ? filteredArticles : ((selectedFilter === 'article' || selectedFilter === 'author' || selectedFilter === 'tag') ? [] : trendingArticles)}
+        data={(selectedFilter === 'article' || selectedFilter === 'author' || selectedFilter === 'tag' || selectedFilter === 'category') ? [] : trendingArticles}
         renderItem={({ item }) => (
           <View className="px-4">
             <ArticleLargeCard
@@ -518,6 +577,7 @@ export default function ExploreScreen({ navigation }) {
           />
         }
       />
+        </Animated.View>
       )}
 
       <ArticleActionMenu
