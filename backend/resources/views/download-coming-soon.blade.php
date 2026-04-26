@@ -153,7 +153,7 @@
 <body>
     <div class="container">
         <div class="logo">
-            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald Logo" onerror="this.style.display='none'" />
+            <img src="{{ asset('images/logo.png') }}" alt="La Verdad Herald Logo" onerror="this.style.display='none'" />
         </div>
         
         

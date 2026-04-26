@@ -140,7 +140,7 @@
 <body>
     <div class="banner">
         <div style="width: 60px; height: 60px; margin: 0 auto 15px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald Logo" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'" />
+            <img src="{{ asset('images/logo.png') }}" alt="La Verdad Herald Logo" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'" />
         </div>
         <h3 style="margin-top: 0; color: #0369a1; font-size: 20px;">Read on La Verdad Herald App</h3>
         <p style="color: #0c4a6e; margin-bottom: 15px;">Experience fast, offline-ready reading on your Android phone.</p>
