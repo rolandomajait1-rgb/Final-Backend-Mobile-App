@@ -16,19 +16,25 @@
     <!-- Open Graph Meta Tags for Social Sharing -->
     <meta property="og:site_name" content="La Verdad Herald" />
     <meta property="og:title" content="{{ $article->title }}" />
-    <meta property="og:description" content="Read this article on La Verdad Herald app - {{ Str::limit(strip_tags($article->content), 100) }}" />
+    <meta property="og:description" content="{{ Str::limit(strip_tags($article->content), 150) }}" />
+    <meta property="og:url" content="{{ url('/articles/' . $article->slug) }}" />
     <meta property="og:image" content="{{ $article->featured_image_url }}" />
+    <meta property="og:image:secure_url" content="{{ str_replace('http://', 'https://', $article->featured_image_url) }}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="{{ $article->title }}" />
     <meta property="og:type" content="article" />
     <meta property="og:locale" content="en_US" />
+    <meta property="article:published_time" content="{{ $article->published_at?->toIso8601String() }}" />
+    <meta property="article:author" content="{{ $article->display_author_name }}" />
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@laverdadherald" />
     <meta name="twitter:title" content="{{ $article->title }}" />
-    <meta name="twitter:description" content="Read this article on La Verdad Herald app" />
+    <meta name="twitter:description" content="{{ Str::limit(strip_tags($article->content), 150) }}" />
     <meta name="twitter:image" content="{{ $article->featured_image_url }}" />
+    <meta name="twitter:image:alt" content="{{ $article->title }}" />
     
     <style>
         * {
