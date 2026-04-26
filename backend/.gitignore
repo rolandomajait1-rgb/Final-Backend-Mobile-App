@@ -8,6 +8,11 @@
 .env.render
 .phpactor.json
 .phpunit.result.cache
+
+# Database files - should never be committed
+/database/database.sqlite
+/database/*.sqlite
+/database/*.sqlite-journal
 /.fleet
 /.idea
 /.nova

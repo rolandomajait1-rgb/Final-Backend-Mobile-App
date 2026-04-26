@@ -403,7 +403,7 @@ class ArticleController extends Controller
                         'action'     => $status === 'published' ? 'publish' : 'create_draft',
                         'model_type' => 'App\\Models\\Article',
                         'model_id'   => $article->id,
-                        'new_values' => json_encode(['title' => $article->title, 'status' => $status]),
+                        'new_values' => ['title' => $article->title, 'status' => $status],
                     ]);
                 } catch (\Exception $e) {
                     Log::warning('Failed to write audit log: ' . $e->getMessage());
@@ -548,7 +548,7 @@ class ArticleController extends Controller
                 'action'     => 'create_draft',
                 'model_type' => 'App\\Models\\Article',
                 'model_id'   => $draft->id,
-                'new_values' => json_encode(['title' => $draft->title, 'status' => 'draft']),
+                'new_values' => ['title' => $draft->title, 'status' => 'draft'],
             ]);
         } catch (\Exception $e) {
             // silent catch
@@ -635,8 +635,8 @@ class ArticleController extends Controller
                 'action'     => $action,
                 'model_type' => 'App\\Models\\Article',
                 'model_id'   => $article->id,
-                'old_values' => json_encode(['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null]),
-                'new_values' => json_encode(['title' => $article->title, 'status' => $article->status]),
+                'old_values' => ['title' => $oldValues['title'] ?? null, 'status' => $oldValues['status'] ?? null],
+                'new_values' => ['title' => $article->title, 'status' => $article->status],
             ]);
         } catch (\Exception $e) {}
 
@@ -756,7 +756,7 @@ class ArticleController extends Controller
                 'action'     => 'delete',
                 'model_type' => 'App\\Models\\Article',
                 'model_id'   => $articleId,
-                'old_values' => json_encode(['id' => $articleId, 'title' => $articleTitle]),
+                'old_values' => ['id' => $articleId, 'title' => $articleTitle],
             ]);
 
             return response()->json(['message' => 'Article deleted successfully', 'id' => $articleId]);
