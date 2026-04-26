@@ -11,20 +11,24 @@
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     
-    <title>{{ e($article->title) }} - La Verdad Herald</title>
+    <title>{{ $article->title }} - La Verdad Herald</title>
     
     <!-- Open Graph Meta Tags for Social Sharing -->
-    <meta property="og:title" content="{{ e($article->title) }}" />
-    <meta property="og:description" content="{{ e(Str::limit(strip_tags($article->content), 150)) }}" />
-    <meta property="og:image" content="{{ e($article->featured_image_url ?? asset('images/default-article.jpg')) }}" />
-    <meta property="og:url" content="{{ e(url()->current()) }}" />
+    <meta property="og:site_name" content="La Verdad Herald" />
+    <meta property="og:title" content="{{ $article->title }}" />
+    <meta property="og:description" content="Read this article on La Verdad Herald app - {{ Str::limit(strip_tags($article->content), 100) }}" />
+    <meta property="og:image" content="{{ $article->featured_image_url ?? asset('images/default-article.jpg') }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:type" content="article" />
+    <meta property="og:locale" content="en_US" />
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="{{ e($article->title) }}" />
-    <meta name="twitter:description" content="{{ e(Str::limit(strip_tags($article->content), 150)) }}" />
-    <meta name="twitter:image" content="{{ e($article->featured_image_url ?? asset('images/default-article.jpg')) }}" />
+    <meta name="twitter:site" content="@laverdadherald" />
+    <meta name="twitter:title" content="{{ $article->title }}" />
+    <meta name="twitter:description" content="Read this article on La Verdad Herald app" />
+    <meta name="twitter:image" content="{{ $article->featured_image_url ?? asset('images/default-article.jpg') }}" />
     
     <style>
         * {
@@ -34,8 +38,8 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #2C5F7F 0%, #1e3a52 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -43,25 +47,26 @@
             padding: 20px;
         }
         
-        .container {
-            max-width: 500px;
+        .card {
+            max-width: 480px;
             width: 100%;
             background: white;
-            border-radius: 24px;
-            padding: 40px 30px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 48px 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             text-align: center;
         }
         
         .logo {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 24px;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #f0f9ff;
             border-radius: 50%;
-            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
         
         .logo img {
@@ -71,55 +76,56 @@
         }
         
         h1 {
-            font-size: 28px;
-            color: #1e293b;
-            margin-bottom: 12px;
-            font-weight: 800;
+            font-size: 24px;
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        
+        .tagline {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 24px;
+            font-weight: 500;
         }
         
         .article-title {
-            font-size: 18px;
-            color: #475569;
-            margin-bottom: 24px;
-            line-height: 1.6;
+            font-size: 17px;
+            color: #334155;
+            margin-bottom: 12px;
+            line-height: 1.5;
             font-weight: 600;
         }
         
         .description {
-            font-size: 16px;
+            font-size: 15px;
             color: #64748b;
             margin-bottom: 32px;
-            line-height: 1.6;
-        }
-        
-        .buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            line-height: 1.5;
         }
         
         .btn {
-            padding: 16px 32px;
-            border-radius: 50px;
-            font-size: 17px;
-            font-weight: 700;
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
             text-decoration: none;
-            display: inline-block;
-            transition: all 0.3s ease;
+            display: block;
+            transition: all 0.2s ease;
             border: none;
             cursor: pointer;
+            margin-bottom: 12px;
         }
         
         .btn-primary {
             background: #0ea5e9;
             color: white;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
         }
         
         .btn-primary:hover {
             background: #0284c7;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+            transform: translateY(-1px);
         }
         
         .btn-secondary {
@@ -131,19 +137,13 @@
             background: #e2e8f0;
         }
         
-        .footer {
-            margin-top: 24px;
-            font-size: 14px;
-            color: #94a3b8;
-        }
-        
         @media (max-width: 480px) {
-            .container {
-                padding: 32px 24px;
+            .card {
+                padding: 40px 24px;
             }
             
             h1 {
-                font-size: 24px;
+                font-size: 22px;
             }
             
             .article-title {
@@ -153,68 +153,39 @@
     </style>
     
     <script>
-        // Security: Prevent XSS and injection attacks
-        (function() {
-            'use strict';
+        window.openInApp = function() {
+            const slug = '{{ $article->slug }}';
+            const deepLink = 'laverdadherald://article/' + encodeURIComponent(slug);
+            window.location.href = deepLink;
             
-            // Sanitize slug to prevent XSS
-            const articleSlug = '{{ e($article->slug) }}';
+            setTimeout(function() {
+                if (/Android/.test(navigator.userAgent)) {
+                    window.location.href = 'https://play.google.com/store/apps/details?id=com.landzki.laverdadherald';
+                }
+            }, 1500);
             
-            // Validate slug format
-            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(articleSlug)) {
-                console.error('Invalid article slug');
-                return;
-            }
-            
-            // Try to open the app using deep link
-            window.openInApp = function() {
-                const deepLink = 'laverdadherald://article/' + encodeURIComponent(articleSlug);
-                const appStoreLink = 'https://apps.apple.com/app/laverdad-herald'; // Replace with actual link
-                const playStoreLink = 'https://play.google.com/store/apps/details?id=com.landzki.laverdadherald';
-                
-                // Try to open the app
-                window.location.href = deepLink;
-                
-                // If app is not installed, redirect to store after a delay
-                setTimeout(function() {
-                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                    const isAndroid = /Android/.test(navigator.userAgent);
-                    
-                    if (isIOS) {
-                        window.location.href = appStoreLink;
-                    } else if (isAndroid) {
-                        window.location.href = playStoreLink;
-                    }
-                }, 2000);
-                
-                return false;
-            };
-        })();
+            return false;
+        };
     </script>
 </head>
 <body>
-    <div class="container">
+    <div class="card">
         <div class="logo">
-            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald Logo" />
+            <img src="{{ asset('images/logo.svg') }}" alt="La Verdad Herald" onerror="this.style.display='none'" />
         </div>
+        
         <h1>La Verdad Herald</h1>
-        <p class="article-title">{{ e($article->title) }}</p>
-        <p class="description">
-            Get the full experience by opening this article in the La Verdad Herald app.
-        </p>
+        <p class="tagline">Truth in Every Story</p>
         
-        <div class="buttons">
-            <a href="#" onclick="return openInApp();" class="btn btn-primary">
-                Open in App
-            </a>
-            <a href="{{ e(route('download.apk')) }}" class="btn btn-secondary">
-                Download APK
-            </a>
-        </div>
+        <p class="article-title">{{ $article->title }}</p>
+        <p class="description">Open this article in the La Verdad Herald app for the best reading experience.</p>
         
-        <p class="footer">
-            Truth in Every Story
-        </p>
+        <a href="#" onclick="return openInApp();" class="btn btn-primary">
+            📱 Open in App
+        </a>
+        <a href="{{ route('download.apk') }}" class="btn btn-secondary">
+            ⬇️ Download APK
+        </a>
     </div>
 </body>
 </html>
