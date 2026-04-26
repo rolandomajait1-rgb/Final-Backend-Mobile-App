@@ -64,9 +64,14 @@ class DashboardController extends Controller
         $usersBeforeThisYear = \App\Models\User::whereYear('created_at', '<', now()->year)->count();
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
-        // Single query with grouping instead of loop
+        // Single query with grouping instead of loop (database-agnostic)
+        $driver = DB::connection()->getDriverName();
+        $monthExpression = $driver === 'pgsql' 
+            ? 'EXTRACT(MONTH FROM created_at)' 
+            : 'MONTH(created_at)';
+        
         $monthlyUsers = \App\Models\User::whereYear('created_at', now()->year)
-            ->selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+            ->selectRaw("{$monthExpression} as month, COUNT(*) as count")
             ->groupBy('month')
             ->pluck('count', 'month');
 
