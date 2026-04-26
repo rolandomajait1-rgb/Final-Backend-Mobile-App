@@ -157,7 +157,11 @@
         <p style="color: #64748b; font-size: 14px;">By {{ $article->author_name ?? $article->author->user->name ?? 'La Verdad Herald' }} • {{ $article->published_at ? $article->published_at->format('M d, Y') : '' }}</p>
         
         @if($article->featured_image)
-        <img src="{{ $article->featured_image }}" alt="{{ $article->title }}" class="article-img">
+        <img src="{{ $article->featured_image }}" 
+             alt="{{ $article->title }}" 
+             class="article-img"
+             loading="lazy"
+             onerror="this.src='https://placehold.co/800x600/0891b2/ffffff?text=La+Verdad+Herald'">
         @endif
         
         <!-- Content Preview (Limited to ~300 characters) -->

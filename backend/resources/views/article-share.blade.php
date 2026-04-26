@@ -17,7 +17,7 @@
     <meta property="og:site_name" content="La Verdad Herald" />
     <meta property="og:title" content="{{ $article->title }}" />
     <meta property="og:description" content="Read this article on La Verdad Herald app - {{ Str::limit(strip_tags($article->content), 100) }}" />
-    <meta property="og:image" content="{{ $article->featured_image_url ?? asset('images/default-article.jpg') }}" />
+    <meta property="og:image" content="{{ $article->featured_image_url }}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:type" content="article" />
@@ -28,7 +28,7 @@
     <meta name="twitter:site" content="@laverdadherald" />
     <meta name="twitter:title" content="{{ $article->title }}" />
     <meta name="twitter:description" content="Read this article on La Verdad Herald app" />
-    <meta name="twitter:image" content="{{ $article->featured_image_url ?? asset('images/default-article.jpg') }}" />
+    <meta name="twitter:image" content="{{ $article->featured_image_url }}" />
     
     <style>
         * {
