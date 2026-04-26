@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Platform, ActivityIndicator,
+  ActivityIndicator,
   ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -22,7 +23,38 @@ export default function VerifyOTPScreen({ navigation, route }) {
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [error, setError] = useState('');
   const scrollRef = useRef(null);
+  const expirationTimeoutRef = useRef(null);
   const { showToast } = useToast();
+
+  // Save pending password reset to AsyncStorage with timestamp
+  useEffect(() => {
+    if (email) {
+      const resetData = {
+        email: email,
+        timestamp: Date.now(),
+      };
+      AsyncStorage.setItem('pending_password_reset', JSON.stringify(resetData));
+    }
+  }, [email]);
+
+  // Auto-close after 10 minutes
+  useEffect(() => {
+    // Set timeout for 10 minutes (600 seconds)
+    expirationTimeoutRef.current = setTimeout(async () => {
+      // Clear pending password reset
+      await AsyncStorage.removeItem('pending_password_reset');
+      // Show toast
+      showToast('Verification code expired. Please request a new one.', 'error');
+      // Navigate back to Welcome screen
+      navigation.replace('Welcome');
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => {
+      if (expirationTimeoutRef.current) {
+        clearTimeout(expirationTimeoutRef.current);
+      }
+    };
+  }, [email, navigation, showToast]);
 
   useEffect(() => {
     let interval = null;
@@ -46,6 +78,10 @@ export default function VerifyOTPScreen({ navigation, route }) {
     setError('');
     try {
       const response = await client.post('/api/verify-otp', { email, otp });
+      
+      // Clear pending password reset
+      await AsyncStorage.removeItem('pending_password_reset');
+      
       // Show success toast
       showToast('OTP verified successfully!', 'success');
       // If OTP is valid, navigate to ResetPasswordScreen with token
@@ -80,6 +116,24 @@ export default function VerifyOTPScreen({ navigation, route }) {
       setError('');
       setTimer(60);
       setIsTimerActive(true);
+      
+      // Update pending_password_reset timestamp since we generated a new OTP
+      const resetData = {
+        email: email,
+        timestamp: Date.now(), // Reset to current time
+      };
+      await AsyncStorage.setItem('pending_password_reset', JSON.stringify(resetData));
+      
+      // Reset the 10-minute expiration timer
+      if (expirationTimeoutRef.current) {
+        clearTimeout(expirationTimeoutRef.current);
+      }
+      expirationTimeoutRef.current = setTimeout(async () => {
+        await AsyncStorage.removeItem('pending_password_reset');
+        showToast('Verification code expired. Please request a new one.', 'error');
+        navigation.replace('Welcome');
+      }, 10 * 60 * 1000); // 10 minutes
+      
       showToast('OTP resent successfully! Check your email.', 'success');
     } catch (err) {
       let msg = 'Failed to resend OTP. Please try again.';
@@ -91,6 +145,12 @@ export default function VerifyOTPScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClose = async () => {
+    // Clear pending password reset when user manually closes
+    await AsyncStorage.removeItem('pending_password_reset');
+    navigation.navigate('Welcome');
   };
 
   return (
@@ -143,7 +203,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
                 {/* X close */}
                 <TouchableOpacity
-                  onPress={() => navigation.goBack()}
+                  onPress={handleClose}
                   className="absolute top-4 right-4 z-10"
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >

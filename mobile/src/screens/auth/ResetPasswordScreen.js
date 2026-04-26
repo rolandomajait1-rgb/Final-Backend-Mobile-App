@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Platform, ActivityIndicator,
+  ActivityIndicator,
   ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -84,10 +85,20 @@ export default function ResetPasswordScreen({ navigation, route }) {
         password: formData.password,
         password_confirmation: formData.password_confirmation,
       });
+      
+      // Clear pending password reset
+      await AsyncStorage.removeItem('pending_password_reset');
+      
       setSuccessMessage(response.data.message);
       timeoutRef.current = setTimeout(() => navigation.replace('Login'), 2000);
     } catch (error) {
-      if (error.response?.data?.errors) {
+      // Check if it's a server error (5xx) or network error
+      const isServerError = !error.response || error.response?.status >= 500;
+      const isNetworkError = error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.message === 'Network Error';
+      
+      if (isServerError || isNetworkError) {
+        setErrors({ general: 'Server error. Please try again later.' });
+      } else if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       } else {
         setErrors({ general: error.response?.data?.message || 'Failed to reset password. Please try again.' });

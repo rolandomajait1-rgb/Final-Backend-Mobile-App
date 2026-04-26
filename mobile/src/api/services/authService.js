@@ -32,7 +32,20 @@ export const logout = async () => {
     // Continue to clear local storage even if API fails
   } finally {
     // Bug #1 Fix: Also remove refresh_token on logout
-    await AsyncStorage.multiRemove(['auth_token', 'refresh_token', 'user_data', 'user_email', 'user_name', 'user_role', 'remember_me']);
+    // Clear pending_verification to prevent auto-redirect to OTP screen after logout
+    // Clear user interactions (liked/shared articles)
+    await AsyncStorage.multiRemove([
+      'auth_token', 
+      'refresh_token', 
+      'user_data', 
+      'user_email', 
+      'user_name', 
+      'user_role', 
+      'remember_me', 
+      'pending_verification',
+      'liked_articles',
+      'shared_articles',
+    ]);
   }
 };
 

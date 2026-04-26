@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ToastProvider } from "./src/context/ToastContext";
 import { NetworkProvider } from "./src/context/NetworkContext";
+import { UserInteractionsProvider } from "./src/context/UserInteractionsContext";
 import { ToastContainer } from "./src/components/common";
 import OfflineBanner from "./src/components/common/OfflineBanner";
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -85,14 +86,16 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NetworkProvider>
-          <ToastProvider>
-            <>
-              <StatusBar style="dark" translucent={true} />
-              <OfflineBanner />
-              <AppNavigator />
-              <ToastContainer />
-            </>
-          </ToastProvider>
+          <UserInteractionsProvider>
+            <ToastProvider>
+              <>
+                <StatusBar style="dark" translucent={true} />
+                <OfflineBanner />
+                <AppNavigator />
+                <ToastContainer />
+              </>
+            </ToastProvider>
+          </UserInteractionsProvider>
         </NetworkProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

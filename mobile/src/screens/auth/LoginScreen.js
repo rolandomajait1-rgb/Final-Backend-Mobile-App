@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Platform, ActivityIndicator,
+  ActivityIndicator,
   ImageBackground, Image, StatusBar, useWindowDimensions,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -49,6 +49,7 @@ export default function LoginScreen({ navigation }) {
     }
     setIsLoading(true);
     setErrors({});
+    setShowResend(false); // Reset on every new attempt
     try {
       const normalizedEmail = email.trim().toLowerCase();
       const response = await client.post('/api/login', { 
@@ -56,6 +57,10 @@ export default function LoginScreen({ navigation }) {
         password 
       });
       const { token, user } = response.data;
+      
+      // Clear any pending verification data since user successfully logged in
+      await AsyncStorage.removeItem('pending_verification');
+      
       await AsyncStorage.multiSet([
         ['auth_token', token],
         ['user_email', normalizedEmail],
@@ -85,23 +90,40 @@ export default function LoginScreen({ navigation }) {
       const generalMsg = error.response?.data?.message || '';
       const msg = String(emailError || passwordError || generalMsg || '');
       
-      const needsVerification = msg.toLowerCase().includes('verify');
-      if (needsVerification || (error.response?.status === 403 && error.response?.data?.requires_verification)) {
-        setErrors({ general: msg || 'Please verify your email before logging in.' });
-        setShowResend(true);
-      } else if (error.response?.status === 401) {
-        setErrors({ general: 'Invalid email or password. Please try again.' });
-      } else if (error.response?.data?.errors) {
-        // Flatten all field errors
-        const flat = {};
-        Object.entries(error.response.data.errors).forEach(([k, v]) => { 
-          flat[k] = Array.isArray(v) ? v[0] : v; 
-        });
-        setErrors(flat);
-      } else if (msg) {
-        setErrors({ general: msg });
+      // Check if it's a server error (5xx) or network error
+      const isServerError = !error.response || error.response?.status >= 500;
+      const isNetworkError = error.message === 'Network Error' || error.code === 'ECONNABORTED';
+      
+      if (isServerError || isNetworkError) {
+        // Server or network errors
+        setErrors({ general: 'Server error. Please try again later.' });
       } else {
-        setErrors({ general: 'An error occurred. Please try again later.' });
+        // Client errors (4xx)
+        const needsVerification = msg.toLowerCase().includes('verify') || error.response?.status === 403;
+        const otpSent = error.response?.data?.otp_sent;
+        
+        if (needsVerification) {
+          // Show appropriate message based on whether OTP was sent
+          if (otpSent) {
+            setErrors({ general: 'Account not verified. We sent you a verification code. Please check your email.' });
+          } else {
+            setErrors({ general: 'Account not verified. Please enter your 6-digit code.' });
+          }
+          setShowResend(true); // Show OTP shortcut UI
+        } else if (error.response?.status === 401) {
+          setErrors({ general: 'Invalid email or password. Please try again.' });
+        } else if (error.response?.data?.errors) {
+          // Flatten all field errors
+          const flat = {};
+          Object.entries(error.response.data.errors).forEach(([k, v]) => { 
+            flat[k] = Array.isArray(v) ? v[0] : v; 
+          });
+          setErrors(flat);
+        } else if (msg) {
+          setErrors({ general: msg });
+        } else {
+          setErrors({ general: 'An error occurred. Please try again later.' });
+        }
       }
     } finally {
       setIsLoading(false);
@@ -113,6 +135,14 @@ export default function LoginScreen({ navigation }) {
     setIsResending(true);
     try {
       await client.post('/api/email/resend-verification', { email: email.trim().toLowerCase() });
+      
+      // Update pending_verification timestamp since we generated a new OTP
+      const verificationData = {
+        email: email.trim().toLowerCase(),
+        timestamp: Date.now(), // Reset to current time
+      };
+      await AsyncStorage.setItem('pending_verification', JSON.stringify(verificationData));
+      
       setSuccessMessage('Verification email sent! Please check your inbox.');
       setShowResend(false);
       setErrors({});
@@ -190,15 +220,24 @@ export default function LoginScreen({ navigation }) {
                   </View>
                 ) : null}
 
-                {/* Resend verification */}
+                {/* Verification Shortcut UI */}
                 {showResend ? (
-                  <View className={`mb-4 rounded-md border border-yellow-400 bg-yellow-300/40 ${width < 375 ? 'p-2' : 'p-3'}`}>
-                    <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} mb-2 text-center text-yellow-900`}>Need a new verification link?</Text>
-                    <TouchableOpacity onPress={handleResend} disabled={isResending} className={`rounded-md bg-yellow-600 ${width < 375 ? 'py-1' : 'py-2'}`}>
-                      {isResending
-                        ? <ActivityIndicator color="white" size="small" />
-                        : <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} text-center text-white`}>Resend Verification Email</Text>
-                      }
+                  <View className={`mb-4 rounded-md border border-blue-400 bg-blue-50 ${width < 375 ? 'p-2' : 'p-3'}`}>
+                    <Text className={`${width < 375 ? 'text-xs' : 'text-sm'} mb-3 text-center text-blue-900 font-medium`}>
+                      Need to verify your email?
+                    </Text>
+                    
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('VerifyRegistrationOTP', { email: email.trim().toLowerCase() })}
+                      className="bg-blue-600 py-3 rounded-md mb-2 shadow-sm"
+                    >
+                      <Text className="text-center text-white font-bold text-sm">Enter 6-Digit OTP Code</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={handleResend} disabled={isResending}>
+                      <Text className="text-center text-gray-500 text-xs underline mt-1">
+                        {isResending ? "Sending..." : "Didn't get a code? Resend Email"}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}

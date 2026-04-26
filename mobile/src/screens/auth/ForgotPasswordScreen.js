@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, ImageBackground, Image, StatusBar,
@@ -28,18 +29,28 @@ export default function ForgotPasswordScreen({ navigation }) {
     try {
       const normalizedEmail = email.trim().toLowerCase();
       await client.post('/api/forgot-password', { email: normalizedEmail });
+      
+      // Save pending password reset to AsyncStorage with timestamp
+      const resetData = {
+        email: normalizedEmail,
+        timestamp: Date.now(),
+      };
+      await AsyncStorage.setItem('pending_password_reset', JSON.stringify(resetData));
+      
       // Navigate to OTP verification screen
       navigation.navigate('VerifyOTP', { email: normalizedEmail });
     } catch (err) {
-      let msg = 'Failed to send OTP. Please try again.';
-      if (err.response?.data?.message) {
-        msg = err.response.data.message;
-      } else if (err.code === 'ECONNABORTED' || err.message === 'timeout of 180000ms exceeded') {
-        msg = 'Request timed out. Server may be starting up. Please try again in a moment.';
-      } else if (err.message === 'Network Error') {
-        msg = 'Network error. Please check your connection.';
+      // Check if it's a server error (5xx) or network error
+      const isServerError = !err.response || err.response?.status >= 500;
+      const isNetworkError = err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK' || err.message === 'Network Error';
+      
+      if (isServerError || isNetworkError) {
+        setError('Server error. Please try again later.');
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Failed to send OTP. Please try again.');
       }
-      setError(msg);
     } finally {
       setLoading(false);
     }

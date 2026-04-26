@@ -31,3 +31,13 @@ export const deleteArticle = (id) =>
 
 export const shareArticle = (id) =>
   client.post(ENDPOINTS.ARTICLE_SHARE(id));
+
+// User interaction methods
+export const getLikedArticles = (params = {}) =>
+  client.get('/api/user/liked-articles', { params });
+
+export const getSharedArticles = (params = {}) =>
+  client.get('/api/user/shared-articles', { params });
+
+export const getUserInteractions = (articleIds) =>
+  client.post('/api/user/interactions', { article_ids: articleIds });

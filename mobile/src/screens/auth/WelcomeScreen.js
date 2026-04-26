@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, ImageBackground, Image,
   TouchableOpacity, StatusBar, Animated,
@@ -16,6 +17,51 @@ export default function WelcomeScreen({ navigation }) {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
+    // Check for pending verification or password reset first
+    const checkPendingActions = async () => {
+      try {
+        // Check for pending registration verification
+        const pendingVerification = await AsyncStorage.getItem('pending_verification');
+        if (pendingVerification) {
+          const { email, timestamp } = JSON.parse(pendingVerification);
+          const now = Date.now();
+          const tenMinutesInMs = 10 * 60 * 1000; // 10 minutes
+          
+          // Check if verification is still valid (within 10 minutes)
+          if (now - timestamp < tenMinutesInMs) {
+            // Still valid, navigate to OTP screen
+            navigation.replace('VerifyRegistrationOTP', { email });
+            return; // Exit early
+          } else {
+            // Expired, clear the pending verification
+            await AsyncStorage.removeItem('pending_verification');
+          }
+        }
+
+        // Check for pending password reset
+        const pendingReset = await AsyncStorage.getItem('pending_password_reset');
+        if (pendingReset) {
+          const { email, timestamp } = JSON.parse(pendingReset);
+          const now = Date.now();
+          const tenMinutesInMs = 10 * 60 * 1000; // 10 minutes
+          
+          // Check if reset is still valid (within 10 minutes)
+          if (now - timestamp < tenMinutesInMs) {
+            // Still valid, navigate to password reset OTP screen
+            navigation.replace('VerifyOTP', { email });
+            return; // Exit early
+          } else {
+            // Expired, clear the pending reset
+            await AsyncStorage.removeItem('pending_password_reset');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking pending actions:', error);
+      }
+    };
+    
+    checkPendingActions();
+    
     // Smooth fade-in and slide-up animation when screen loads
     Animated.parallel([
       Animated.timing(fadeAnim, {

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Platform, ActivityIndicator,
+  ActivityIndicator,
   ImageBackground, Image, StatusBar, useWindowDimensions,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -88,8 +88,13 @@ export default function RegisterScreen({ navigation }) {
         navigation.replace('VerifyRegistrationOTP', { email: normalizedEmail });
       }, 300);
     } catch (error) {
-      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-        setErrors({ general: 'Server is starting up. Please wait a moment and try again.' });
+      // Check if it's a server error (5xx) or network error
+      const isServerError = !error.response || error.response?.status >= 500;
+      const isNetworkError = error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK';
+      
+      if (isServerError || isNetworkError) {
+        // Server or network errors
+        setErrors({ general: 'Server error. Please try again later.' });
       } else if (error.response?.data?.errors) {
         // Laravel validation returns errors as object with array values
         // Flatten them to ensure consistent format
@@ -106,7 +111,7 @@ export default function RegisterScreen({ navigation }) {
       } else {
         // Security #1 Fix: Use sanitized logging
         logError('Registration error:', error);
-        setErrors({ general: error.message || 'Registration failed. Please try again.' });
+        setErrors({ general: 'Registration failed. Please try again.' });
       }
     } finally {
       setIsSubmitting(false);

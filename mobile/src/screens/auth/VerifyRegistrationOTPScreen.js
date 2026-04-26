@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Platform, ActivityIndicator,
+  ActivityIndicator,
   ImageBackground, Image, StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import { useToast } from '../../context/ToastContext';
 
 const bg = require('../../../assets/bg.jpg');
 const logo = require('../../../assets/logo.png');
@@ -23,6 +25,38 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
   const [isTimerActive, setIsTimerActive] = useState(true);
   const scrollRef = useRef(null);
   const successTimeoutRef = useRef(null);
+  const expirationTimeoutRef = useRef(null);
+  const { showToast } = useToast();
+
+  // Save pending verification email to AsyncStorage with timestamp
+  useEffect(() => {
+    if (email) {
+      const verificationData = {
+        email: email,
+        timestamp: Date.now(),
+      };
+      AsyncStorage.setItem('pending_verification', JSON.stringify(verificationData));
+    }
+  }, [email]);
+
+  // Auto-close after 10 minutes
+  useEffect(() => {
+    // Set timeout for 10 minutes (600 seconds)
+    expirationTimeoutRef.current = setTimeout(async () => {
+      // Clear pending verification
+      await AsyncStorage.removeItem('pending_verification');
+      // Show toast
+      showToast('Verification code expired. Please request a new one.', 'error');
+      // Navigate back to Welcome screen
+      navigation.replace('Welcome');
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => {
+      if (expirationTimeoutRef.current) {
+        clearTimeout(expirationTimeoutRef.current);
+      }
+    };
+  }, [email, navigation, showToast]);
 
   useEffect(() => {
     let interval = null;
@@ -54,8 +88,14 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
     setError('');
     try {
       await client.post('/api/verify-registration-otp', { email, otp });
-      // Verification successful, redirect to login
-      navigation.replace('Login');
+      // Clear pending verification
+      await AsyncStorage.removeItem('pending_verification');
+      // Show success toast
+      showToast('Email verified successfully! You can now login.', 'success');
+      // Verification successful, redirect to login after short delay
+      setTimeout(() => {
+        navigation.replace('Login');
+      }, 500);
     } catch (err) {
       let msg = 'Invalid OTP. Please try again.';
       if (err.response?.data?.message) {
@@ -81,6 +121,24 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
       setSuccessMsg('New OTP sent! Please check your email.');
       setTimer(60);
       setIsTimerActive(true);
+      
+      // Update pending_verification timestamp since we generated a new OTP
+      const verificationData = {
+        email: email,
+        timestamp: Date.now(), // Reset to current time
+      };
+      await AsyncStorage.setItem('pending_verification', JSON.stringify(verificationData));
+      
+      // Reset the 10-minute expiration timer
+      if (expirationTimeoutRef.current) {
+        clearTimeout(expirationTimeoutRef.current);
+      }
+      expirationTimeoutRef.current = setTimeout(async () => {
+        await AsyncStorage.removeItem('pending_verification');
+        showToast('Verification code expired. Please request a new one.', 'error');
+        navigation.replace('Welcome');
+      }, 10 * 60 * 1000); // 10 minutes
+      
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
@@ -92,6 +150,12 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClose = async () => {
+    // Clear pending verification when user manually closes
+    await AsyncStorage.removeItem('pending_verification');
+    navigation.navigate('Welcome');
   };
 
   return (
@@ -144,7 +208,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
 
               {/* X close button */}
               <TouchableOpacity
-                onPress={() => navigation.navigate('Welcome')}
+                onPress={handleClose}
                 className="absolute top-4 right-4 z-10"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
