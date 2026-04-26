@@ -41,11 +41,37 @@ export const UserInteractionsProvider = ({ children }) => {
       ]);
 
       if (liked) {
-        setLikedArticles(new Set(JSON.parse(liked)));
+        try {
+          const parsedLiked = JSON.parse(liked);
+          // Ensure it's an array before creating Set
+          if (Array.isArray(parsedLiked)) {
+            setLikedArticles(new Set(parsedLiked));
+          } else {
+            console.warn('Invalid liked_articles format, resetting...');
+            await AsyncStorage.removeItem('liked_articles');
+          }
+        } catch (e) {
+          console.error('Error parsing liked_articles:', e);
+          await AsyncStorage.removeItem('liked_articles');
+        }
       }
+      
       if (shared) {
-        setSharedArticles(new Set(JSON.parse(shared)));
+        try {
+          const parsedShared = JSON.parse(shared);
+          // Ensure it's an array before creating Set
+          if (Array.isArray(parsedShared)) {
+            setSharedArticles(new Set(parsedShared));
+          } else {
+            console.warn('Invalid shared_articles format, resetting...');
+            await AsyncStorage.removeItem('shared_articles');
+          }
+        } catch (e) {
+          console.error('Error parsing shared_articles:', e);
+          await AsyncStorage.removeItem('shared_articles');
+        }
       }
+      
       if (syncTime) {
         lastSyncTime.current = parseInt(syncTime, 10);
       }
