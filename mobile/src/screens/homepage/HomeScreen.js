@@ -143,17 +143,19 @@ const ArticlesListContent = ({
           )}
 
           {/* Back to Top Button - Below Load More */}
-          {recentArticles.length > 5 && (
+          {filteredRecent.length > 5 && (
             <TouchableOpacity
               onPress={() => {
                 if (scrollViewRef && scrollViewRef.current) {
                   scrollViewRef.current.scrollTo({ y: 0, animated: true });
                 }
               }}
-              className="items-center justify-center "
+              className="items-center justify-center py-4 mt-2 mb-4"
+              style={{ backgroundColor: '#f0f9ff', borderRadius: 12, marginHorizontal: 4 }}
             >
-              <View className="flex-row items-center justify-center">
-                <Ionicons name="arrow-up-circle-outline" size={32} color="#1a85baff" />
+              <View className="flex-row items-center justify-center gap-2">
+                <Ionicons name="arrow-up-circle" size={24} color="#0891b2" />
+                <Text className="text-base text-cyan-600 font-semibold">Back to Top</Text>
               </View>
             </TouchableOpacity>
           )}
