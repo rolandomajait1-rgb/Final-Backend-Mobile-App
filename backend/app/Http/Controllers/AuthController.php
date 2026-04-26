@@ -69,20 +69,32 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
+        // Check email verification status BEFORE password check
+        // This ensures unverified users get the correct message even with wrong password
+        if (is_null($user->email_verified_at)) {
+            // Still check password to prevent timing attacks
+            Hash::check($request->password, $user->password);
+            
+            // Automatically send OTP for verification
+            try {
+                $this->authService->sendRegistrationOTP($request->email);
+            } catch (\Exception $e) {
+                \Log::error('Failed to send OTP on login attempt:', ['error' => $e->getMessage()]);
+                // Don't fail the response if OTP sending fails
+            }
+            
+            return response()->json([
+                'message' => 'Please verify your email before logging in. We sent you a verification code.',
+                'requires_verification' => true,
+                'otp_sent' => true,
+            ], 403);
+        }
+
         if (! Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
         Auth::login($user);
-
-        if (is_null($user->email_verified_at)) {
-            Auth::logout();
-
-            return response()->json([
-                'message' => 'Please verify your email before logging in. Check your inbox for verification link.',
-                'requires_verification' => true,
-            ], 403);
-        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

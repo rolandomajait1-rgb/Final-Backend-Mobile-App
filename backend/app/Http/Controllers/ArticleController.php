@@ -954,6 +954,37 @@ class ArticleController extends Controller
         return response()->json($articles);
     }
 
+    /**
+     * Get user's interaction status for multiple articles
+     * Returns which articles the user has liked/shared
+     */
+    public function getUserInteractions(Request $request): JsonResponse
+    {
+        if (!Auth::check()) {
+            return response()->json(['interactions' => []]);
+        }
+
+        $articleIds = $request->input('article_ids', []);
+        
+        if (empty($articleIds) || !is_array($articleIds)) {
+            return response()->json(['interactions' => []]);
+        }
+
+        // Get all interactions for these articles by this user
+        $interactions = ArticleInteraction::where('user_id', Auth::id())
+            ->whereIn('article_id', $articleIds)
+            ->get()
+            ->groupBy('article_id')
+            ->map(function ($interactions) {
+                return [
+                    'liked' => $interactions->where('type', 'liked')->isNotEmpty(),
+                    'shared' => $interactions->where('type', 'shared')->isNotEmpty(),
+                ];
+            });
+
+        return response()->json(['interactions' => $interactions]);
+    }
+
     public function getArticlesByAuthor(Request $request, $authorId): JsonResponse
     {
         $author = Author::find($authorId);

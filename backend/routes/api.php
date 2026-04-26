@@ -111,6 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/user/liked-articles', [ArticleController::class, 'getLikedArticles']);
     Route::get('/user/shared-articles', [ArticleController::class, 'getSharedArticles']);
+    Route::post('/user/interactions', [ArticleController::class, 'getUserInteractions']);
 
     Route::get('/articles', [ArticleController::class, 'index']);
     Route::post('/articles', [ArticleController::class, 'store']);
