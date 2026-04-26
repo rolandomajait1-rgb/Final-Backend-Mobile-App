@@ -45,8 +45,10 @@ const ArticlesListContent = ({
   onAuthorPress,
   isAdminUser,
   navigation,
+  scrollViewRef,
 }) => (
   <ScrollView
+    ref={scrollViewRef}
     showsVerticalScrollIndicator={false}
     refreshControl={
       <RefreshControl
@@ -138,6 +140,22 @@ const ArticlesListContent = ({
               )}
             </TouchableOpacity>
           )}
+
+          {/* Back to Top Button - Below Load More */}
+          {recentArticles.length > 5 && (
+            <TouchableOpacity
+              onPress={() => {
+                if (scrollViewRef && scrollViewRef.current) {
+                  scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                }
+              }}
+              className="items-center justify-center "
+            >
+              <View className="flex-row items-center justify-center">
+                <Ionicons name="arrow-up-circle-outline" size={32} color="#1a85baff" />
+              </View>
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         <EmptyState 
@@ -157,6 +175,7 @@ const ArticlesListContent = ({
 export default function HomeScreen({ navigation }) {
   const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles } = useArticles();
   const hasMountedRef = useRef(false);
+  const scrollViewRef = useRef(null);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -453,6 +472,7 @@ export default function HomeScreen({ navigation }) {
             }
             onAuthorPress={(article) => handleAuthorPress(article, navigation)}
             navigation={navigation}
+            scrollViewRef={scrollViewRef}
           />
         )}
       </View>
