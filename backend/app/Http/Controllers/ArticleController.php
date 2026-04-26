@@ -470,6 +470,31 @@ class ArticleController extends Controller
         return view('articles.show', compact('article', 'related'));
     }
 
+    // Share landing page - for deep linking
+    public function shareLanding(string $slug): View
+    {
+        // Validate slug format to prevent injection attacks
+        if (!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
+            abort(404, 'Invalid article slug format');
+        }
+
+        // Sanitize slug
+        $slug = strip_tags($slug);
+        $slug = htmlspecialchars($slug, ENT_QUOTES, 'UTF-8');
+
+        $article = Article::published()
+            ->with('author.user', 'categories', 'tags')
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        // Additional security: Check if article is actually published
+        if ($article->status !== 'published') {
+            abort(404, 'Article not found');
+        }
+
+        return view('article-share', compact('article'));
+    }
+
     public function edit(Article $article): View
     {
         $categories = Category::all();

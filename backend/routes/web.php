@@ -18,7 +18,12 @@ Route::get('/verification-pending', function () {
 })->name('verification.pending');
 
 // Article pages with Open Graph meta tags for social sharing
-Route::get('/articles/{slug}', [ArticleController::class, 'publicShow'])->name('articles.show');
+Route::get('/articles/{slug}', [ArticleController::class, 'shareLanding'])
+    ->name('articles.share')
+    ->middleware('throttle:60,1'); // Limit to 60 requests per minute per IP
+Route::get('/articles/{slug}/web', [ArticleController::class, 'publicShow'])
+    ->name('article.web')
+    ->middleware('throttle:60,1');
 
 // Fallback login route for unauthenticated browser requests
 Route::get('/login', function () {
