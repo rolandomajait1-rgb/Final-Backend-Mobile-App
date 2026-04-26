@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Constants\UserRole;
 use App\Models\Log;
 use App\Models\User;
+use App\Support\EmailNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -157,16 +158,18 @@ class UserController extends Controller
     public function addModerator(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email',
+            'email' => 'required|email|regex:/^[^\s@]+@(student\.)?laverdad\.edu\.ph$/',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $normalizedEmail = EmailNormalizer::normalize($request->email);
+
+        $user = User::where('email', $normalizedEmail)->first();
 
         if (! $user) {
             $tempPassword = Str::password(12);
             $user = User::create([
-                'name'              => explode('@', $request->email)[0],
-                'email'             => $request->email,
+                'name'              => explode('@', $normalizedEmail)[0],
+                'email'             => $normalizedEmail,
                 'password'          => Hash::make($tempPassword),
                 'role'              => UserRole::MODERATOR,
                 'email_verified_at' => now(), // auto-verify so they can log in
@@ -207,7 +210,18 @@ class UserController extends Controller
 
     public function removeModerator($id): JsonResponse
     {
+        $currentUser = Auth::user();
         $user = User::findOrFail($id);
+
+        // Prevent self-demotion
+        if ($user->id === $currentUser->id) {
+            return response()->json(['message' => 'Cannot remove your own moderator role'], 403);
+        }
+
+        // Prevent demoting admins
+        if ($user->role === UserRole::ADMIN) {
+            return response()->json(['message' => 'Cannot demote admin users'], 403);
+        }
 
         if ($user->role !== UserRole::MODERATOR) {
             return response()->json(['message' => 'User is not a moderator'], 400);

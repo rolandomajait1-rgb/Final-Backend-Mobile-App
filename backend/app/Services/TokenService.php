@@ -13,7 +13,24 @@ class TokenService
      */
     public function generateToken(): string
     {
-        return bin2hex(random_bytes(32));
+        try {
+            $token = bin2hex(random_bytes(32));
+            
+            // Verify token has sufficient entropy
+            if (strlen($token) !== 64) {
+                throw new \Exception('Token generation failed: insufficient length');
+            }
+            
+            // Additional entropy check
+            if (substr_count($token, $token[0]) > 32) {
+                throw new \Exception('Token generation failed: insufficient randomness');
+            }
+            
+            return $token;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::critical('Token generation failed', ['error' => $e->getMessage()]);
+            throw new \RuntimeException('Unable to generate secure token. Please try again.');
+        }
     }
 
     /**

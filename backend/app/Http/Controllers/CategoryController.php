@@ -17,7 +17,9 @@ class CategoryController extends Controller
     public function index(): JsonResponse
     {
         // Always return a flat array for API consumers regardless of auth state
-        $categories = Category::orderBy('name')->get();
+        $categories = \Illuminate\Support\Facades\Cache::remember('categories_all', 3600, function () {
+            return Category::orderBy('name')->get();
+        });
         return response()->json($categories);
     }
 

@@ -12,6 +12,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class AuthorController extends Controller
@@ -43,26 +44,28 @@ class AuthorController extends Controller
             'social_links' => 'nullable|array',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        DB::transaction(function () use ($request) {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        $author = Author::create([
-            'user_id' => $user->id,
-            'bio' => $request->bio,
-            'website' => $request->website,
-            'social_links' => $request->social_links,
-        ]);
+            $author = Author::create([
+                'user_id' => $user->id,
+                'bio' => $request->bio,
+                'website' => $request->website,
+                'social_links' => $request->social_links,
+            ]);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'created',
-            'model_type' => 'Author',
-            'model_id' => $author->id,
-            'new_values' => $request->all(),
-        ]);
+            Log::create([
+                'user_id' => Auth::id(),
+                'action' => 'created',
+                'model_type' => 'Author',
+                'model_id' => $author->id,
+                'new_values' => $request->all(),
+            ]);
+        });
 
         return redirect()->route('authors.index')->with('success', 'Author created successfully.');
     }
@@ -141,16 +144,18 @@ class AuthorController extends Controller
             'social_links' => $author->social_links,
         ];
 
-        $author->user->delete();
-        $author->delete();
+        DB::transaction(function () use ($author, $oldValues) {
+            $author->user->delete();
+            $author->delete();
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'deleted',
-            'model_type' => 'Author',
-            'model_id' => $author->user_id,
-            'old_values' => $oldValues,
-        ]);
+            Log::create([
+                'user_id' => Auth::id(),
+                'action' => 'deleted',
+                'model_type' => 'Author',
+                'model_id' => $author->user_id,
+                'old_values' => $oldValues,
+            ]);
+        });
 
         return redirect()->route('authors.index')->with('success', 'Author deleted successfully.');
     }

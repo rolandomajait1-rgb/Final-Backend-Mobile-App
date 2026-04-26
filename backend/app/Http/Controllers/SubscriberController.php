@@ -82,7 +82,7 @@ class SubscriberController extends Controller
 
         $oldValues = $subscriber->toArray();
 
-        $subscriber->update($request->all());
+        $subscriber->update($request->only(['email', 'name', 'status']));
 
         Log::create([
             'user_id' => Auth::id(),

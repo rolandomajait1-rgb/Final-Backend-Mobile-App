@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -29,6 +30,7 @@ class DashboardController extends Controller
 
     public function apiAdminFullStats(Request $request): JsonResponse
     {
+        $data = Cache::remember('admin_full_stats', now()->addMinutes(5), function () {
         $totalViews    = (int) \App\Models\Article::sum('view_count');
         $totalUsers    = \App\Models\User::count();
         $totalArticles = \App\Models\Article::count();
@@ -61,12 +63,18 @@ class DashboardController extends Controller
         // Monthly cumulative data for current year (up to current month)
         $usersBeforeThisYear = \App\Models\User::whereYear('created_at', '<', now()->year)->count();
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Single query with grouping instead of loop
+        $monthlyUsers = \App\Models\User::whereYear('created_at', now()->year)
+            ->selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+            ->groupBy('month')
+            ->pluck('count', 'month');
+
+        $cumulative = $usersBeforeThisYear;
         for ($i = 1; $i <= now()->month; $i++) {
-            $usersThisYearSoFar = \App\Models\User::whereYear('created_at', now()->year)
-                                                  ->whereMonth('created_at', '<=', $i)
-                                                  ->count();
+            $cumulative += $monthlyUsers[$i] ?? 0;
             $chart['monthly']['labels'][] = $months[$i - 1];
-            $chart['monthly']['data'][] = $usersBeforeThisYear + $usersThisYearSoFar;
+            $chart['monthly']['data'][] = $cumulative;
         }
 
         // Yearly cumulative data (Last 4 years)
@@ -76,7 +84,7 @@ class DashboardController extends Controller
             $chart['yearly']['data'][] = \App\Models\User::whereYear('created_at', '<=', $y)->count();
         }
 
-        return response()->json([
+        return [
             // Engagement
             'totalViews'      => $totalViews,
             'totalLikes'      => $totalLikes,
@@ -109,7 +117,10 @@ class DashboardController extends Controller
                     'status'       => $a->status,
                     'published_at' => $a->published_at,
                 ]),
-        ]);
+        ];
+        });
+
+        return response()->json($data);
     }
 
 
@@ -118,12 +129,19 @@ class DashboardController extends Controller
         $logs = \App\Models\Log::with('user')
             ->orderBy('created_at', 'desc')
             ->take(20)
-            ->get()
-            ->map(function ($log) {
+            ->get();
+
+        // Pre-fetch all related articles in a single query to prevent N+1 performance issues
+        $articleIds = $logs->where('model_type', 'App\\Models\\Article')->pluck('model_id')->filter()->unique();
+        $articles = \App\Models\Article::whereIn('id', $articleIds)->pluck('title', 'id');
+
+        $mappedLogs = $logs->map(function ($log) use ($articles) {
                 $title = null;
                 if ($log->model_type === 'App\\Models\\Article') {
-                    $title = \App\Models\Article::find($log->model_id)?->title
-                        ?? ($log->old_values['title'] ?? null);
+                    $title = $articles->get($log->model_id) 
+                        ?? $log->old_values['title'] 
+                        ?? $log->new_values['title'] 
+                        ?? null;
                 }
                 return [
                     'action'    => ucfirst($log->action),
@@ -133,7 +151,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        return response()->json($logs);
+        return response()->json($mappedLogs);
     }
 
     public function apiAuditLogs(Request $request): JsonResponse
@@ -183,15 +201,18 @@ class DashboardController extends Controller
             });
         }
 
-        $logs = $query->paginate($perPage)->through(function ($log) {
+        $paginatedLogs = $query->paginate($perPage);
+        $articleIds = collect($paginatedLogs->items())->where('model_type', 'App\\Models\\Article')->pluck('model_id')->filter()->unique();
+        $articles = \App\Models\Article::whereIn('id', $articleIds)->pluck('title', 'id');
+
+        $logs = $paginatedLogs->through(function ($log) use ($articles) {
             $articleTitle = null;
             
             // Try to get article title from multiple sources
             if ($log->model_type === 'App\\Models\\Article') {
                 // First try to find the article
-                $article = \App\Models\Article::find($log->model_id);
-                if ($article) {
-                    $articleTitle = $article->title;
+                if ($articles->has($log->model_id)) {
+                    $articleTitle = $articles[$log->model_id];
                 } else {
                     // If article doesn't exist (deleted), try old_values or new_values
                     $articleTitle = $log->old_values['title'] 
@@ -203,7 +224,7 @@ class DashboardController extends Controller
             return [
                 'id'            => $log->id,
                 'action'        => $log->action,
-                'article_title' => $articleTitle,
+                'article_title' => $articleTitle ? htmlspecialchars($articleTitle, ENT_QUOTES, 'UTF-8') : null,
                 'user_email'    => $log->user?->email,
                 'created_at'    => $log->created_at,
             ];

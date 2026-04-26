@@ -12,27 +12,11 @@ class TagSeeder extends Seeder
      */
     public function run(): void
     {
+
         $tags = [
-            'Breaking News',
-            'Campus Life',
-            'Student Affairs',
-            'Faculty',
-            'Research',
-            'Events',
-            'Announcements',
-            'Editorial',
-            'Interview',
-            'Profile',
-            'Investigation',
-            'Analysis',
-            'Commentary',
-            'Review',
-            'Tutorial',
-            'Guide',
-            'Tips',
-            'Trending',
-            'Viral',
-            'Exclusive',
+            'Campus News', 'Student Life', 'Academics',
+            'Sports', 'Opinion', 'Technology', 'Events',
+            'Culture', 'Editorial'
         ];
 
         foreach ($tags as $tagName) {

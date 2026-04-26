@@ -105,13 +105,45 @@ class ContactController extends Controller
             'course'      => 'nullable|string|max:255',
         ]);
 
+        // Check daily upload limit per IP
+        $uploadedToday = \App\Models\ContactSubmission::where('type', 'join_herald')
+            ->where('created_at', '>=', now()->startOfDay())
+            ->whereJsonContains('payload->ip', $request->ip())
+            ->count();
+
+        if ($uploadedToday >= 3) {
+            return response()->json(['message' => 'Daily upload limit reached. Please try again tomorrow.'], 429);
+        }
+
         $name   = $request->fullName   ?? $request->name   ?? 'N/A';
         $course = $request->courseYear ?? $request->course  ?? 'N/A';
         $gender = $request->gender ?? 'N/A';
 
-        // Store uploaded files if present
-        $photoPath  = $request->hasFile('photo')       ? $request->file('photo')->store('herald-applications/photos', 'public')       : null;
-        $consentPath = $request->hasFile('consentForm') ? $request->file('consentForm')->store('herald-applications/consent', 'public') : null;
+        // Store uploaded files if present with validation
+        $photoPath = null;
+        $consentPath = null;
+
+        if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            
+            // Validate actual file content
+            $imageInfo = getimagesize($file->getRealPath());
+            if (!$imageInfo) {
+                return response()->json(['message' => 'Invalid photo file'], 422);
+            }
+            
+            // Generate safe filename
+            $filename = \Illuminate\Support\Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $photoPath = $file->storeAs('herald-applications/photos', $filename, 'public');
+        }
+
+        if ($request->hasFile('consentForm')) {
+            $file = $request->file('consentForm');
+            
+            // Generate safe filename
+            $filename = \Illuminate\Support\Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $consentPath = $file->storeAs('herald-applications/consent', $filename, 'public');
+        }
 
         $body  = "New Membership Application\n\n";
         $body .= "Personal Information:\n";
@@ -130,7 +162,10 @@ class ContactController extends Controller
 
         \App\Models\ContactSubmission::create([
             'type' => 'join_herald',
-            'payload' => $request->except(['photo', 'consentForm']),
+            'payload' => array_merge(
+                $request->except(['photo', 'consentForm']),
+                ['ip' => $request->ip()]
+            ),
         ]);
 
         try {

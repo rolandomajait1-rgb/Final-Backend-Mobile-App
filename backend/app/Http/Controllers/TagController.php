@@ -19,7 +19,9 @@ class TagController extends Controller
     {
         // Return all tags for public API, paginated for admin
         if (request()->is('api/*') && !request()->user()) {
-            $tags = Tag::orderBy('name')->get();
+            $tags = \Illuminate\Support\Facades\Cache::remember('tags_all', 3600, function () {
+                return Tag::orderBy('name')->get();
+            });
             return response()->json(['data' => $tags]);
         }
 

@@ -8,6 +8,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Support\EmailNormalizer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -60,8 +61,10 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user) {
-            // Constant-time response to prevent user enumeration via timing attacks
-            usleep(random_int(100000, 300000));
+            // Compute a dummy hash to simulate the CPU time of a real login attempt.
+            // This prevents timing attacks without using usleep(), which starves PHP-FPM workers
+            // and opens the app to denial-of-service (DoS) attacks.
+            Hash::check('dummy_password', '$2y$10$abcdefghijklmnopqrstuv');
 
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
@@ -118,7 +121,7 @@ class AuthController extends Controller
                     'action'     => 'register',
                     'model_type' => 'App\\Models\\User',
                     'model_id'   => $user->id,
-                    'new_values' => json_encode(['email' => $user->email, 'name' => $user->name]),
+                    'new_values' => ['email' => $user->email, 'name' => $user->name],
                 ]);
             } catch (\Exception $logEx) {
                 Log::warning('Failed to write register audit log: ' . $logEx->getMessage());
@@ -271,7 +274,7 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $result = $this->authService->resendVerification($request->email);
+        $result = $this->authService->resendVerification(EmailNormalizer::normalize($request->email));
 
         return response()->json([
             'message' => $result['message'],
@@ -282,7 +285,7 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $result = $this->authService->initiatePasswordReset($request->email);
+        $result = $this->authService->initiatePasswordReset(EmailNormalizer::normalize($request->email));
 
         if (!$result['success']) {
             return response()->json([
@@ -302,7 +305,7 @@ class AuthController extends Controller
             'otp' => 'required|string|size:6',
         ]);
 
-        $result = $this->authService->verifyOTP($request->email, $request->otp);
+        $result = $this->authService->verifyOTP(EmailNormalizer::normalize($request->email), $request->otp);
 
         if (!$result['success']) {
             return response()->json(['message' => $result['message']], 400);
@@ -321,7 +324,7 @@ class AuthController extends Controller
             'otp' => 'required|string|size:6',
         ]);
 
-        $result = $this->authService->verifyRegistrationOTP($request->email, $request->otp);
+        $result = $this->authService->verifyRegistrationOTP(EmailNormalizer::normalize($request->email), $request->otp);
 
         if (!$result['success']) {
             return response()->json(['message' => $result['message']], 400);
@@ -336,7 +339,7 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $result = $this->authService->resendRegistrationOTP($request->email);
+        $result = $this->authService->resendRegistrationOTP(EmailNormalizer::normalize($request->email));
 
         if (!$result['success']) {
             return response()->json([
