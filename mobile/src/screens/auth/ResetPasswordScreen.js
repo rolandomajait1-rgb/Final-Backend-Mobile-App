@@ -201,8 +201,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
                     placeholderTextColor="#9ca3af"
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
-                    textContentType="newPassword"
-                    autoComplete="password-new"
+                    contextMenuHidden={true}
                     onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
@@ -224,8 +223,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
                     placeholderTextColor="#9ca3af"
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
-                    textContentType="newPassword"
-                    autoComplete="password-new"
+                    contextMenuHidden={true}
                     onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="pr-3">

@@ -277,8 +277,7 @@ export default function LoginScreen({ navigation }) {
                       placeholderTextColor="#9ca3af"
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
-                      textContentType="password"
-                      autoComplete="password"
+                      contextMenuHidden={true}
                       onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="pr-3">
