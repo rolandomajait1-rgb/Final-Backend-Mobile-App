@@ -171,7 +171,7 @@
 <body>
     <div class="card">
        <div class="logo">
-            <img src="{{ asset('images/logo.png') }}" alt="La Verdad Herald Logo" onerror="this.style.display='none'" />
+            <img src="{{ \App\Helpers\ImageHelper::getLogoDataUri() }}" alt="La Verdad Herald Logo" onerror="this.style.display='none'" />
         </div>
         
         
