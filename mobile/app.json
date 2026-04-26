@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/logo.png",
-      "resizeMode": "contain",
+      "resizeMode": "contain", 
       "backgroundColor": "#2C5F7F"
     },
     "androidStatusBar": {
@@ -31,7 +31,7 @@
     "android": {
       "package": "com.landzki.laverdadherald",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#2C5F7F"
       },
       "splash": {
