@@ -126,19 +126,6 @@ class AuthController extends Controller
         try {
             $user = $this->authService->createUserWithVerification($request->validated());
 
-            // Audit log: successful registration
-            try {
-                \App\Models\Log::create([
-                    'user_id'    => $user->id,
-                    'action'     => 'register',
-                    'model_type' => 'App\\Models\\User',
-                    'model_id'   => $user->id,
-                    'new_values' => ['email' => $user->email, 'name' => $user->name],
-                ]);
-            } catch (\Exception $logEx) {
-                Log::warning('Failed to write register audit log: ' . $logEx->getMessage());
-            }
-
             return response()->json([
                 'message' => 'Registration successful! Please check your email to verify your account before logging in.',
                 'user_id' => $user->id,

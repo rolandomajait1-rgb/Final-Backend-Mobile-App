@@ -35,6 +35,9 @@ class ArticleController extends Controller
             }])
             ->withExists(['interactions as is_liked' => function ($query) {
                 $query->where('user_id', Auth::id())->where('type', 'liked');
+            }])
+            ->withExists(['interactions as user_liked' => function ($query) {
+                $query->where('user_id', Auth::id())->where('type', 'liked');
             }]);
 
         // Filter by status if provided
@@ -121,6 +124,14 @@ class ArticleController extends Controller
             return $query->paginate($perPage);
         });
 
+        if (Auth::check()) {
+            $articles->getCollection()->loadExists(['interactions as user_liked' => function ($query) {
+                $query->where('user_id', Auth::id())->where('type', 'liked');
+            }]);
+        } else {
+            $articles->getCollection()->each(function ($article) { $article->user_liked = false; });
+        }
+
         return response()->json($articles)
             ->header('Cache-Control', 'public, max-age=300')
             ->header('Expires', now()->addMinutes(5)->toRfc7231String());
@@ -179,6 +190,14 @@ class ArticleController extends Controller
             })
             ->latest('published_at')
             ->paginate($perPage, ['*'], 'page', $page);
+
+        if (Auth::check()) {
+            $articles->getCollection()->loadExists(['interactions as user_liked' => function ($query) {
+                $query->where('user_id', Auth::id())->where('type', 'liked');
+            }]);
+        } else {
+            $articles->getCollection()->each(function ($article) { $article->user_liked = false; });
+        }
 
         return response()->json([
             'data' => $articles->items(),
@@ -291,6 +310,14 @@ class ArticleController extends Controller
                 ->take(6)
                 ->get();
         });
+
+        if (Auth::check()) {
+            $articles->loadExists(['interactions as user_liked' => function ($query) {
+                $query->where('user_id', Auth::id())->where('type', 'liked');
+            }]);
+        } else {
+            $articles->each(function ($article) { $article->user_liked = false; });
+        }
 
         return response()->json($articles)
             ->header('Cache-Control', 'public, max-age=300')
@@ -451,6 +478,9 @@ class ArticleController extends Controller
                 }]);
                 if (Auth::check()) {
                     $article->loadExists(['interactions as is_liked' => function ($query) {
+                        $query->where('user_id', Auth::id())->where('type', 'liked');
+                    }]);
+                    $article->loadExists(['interactions as user_liked' => function ($query) {
                         $query->where('user_id', Auth::id())->where('type', 'liked');
                     }]);
                 }
@@ -849,20 +879,6 @@ class ArticleController extends Controller
         if ($existing) {
             $existing->delete();
             
-            // Log unlike action
-            try {
-                \App\Models\Log::create([
-                    'model_type' => 'App\\Models\\Article',
-                    'model_id'   => $article->id,
-                    'user_id'    => Auth::id(),
-                    'action'     => 'unlike',
-                    'old_values' => json_encode(['liked' => true]),
-                    'new_values' => json_encode(['liked' => false]),
-                ]);
-            } catch (\Exception $e) {
-                \Log::error('Failed to log unlike action:', ['error' => $e->getMessage()]);
-            }
-
             return response()->json(['liked' => false, 'likes_count' => $article->interactions()->where('type', 'liked')->count()]);
         }
 
@@ -871,20 +887,6 @@ class ArticleController extends Controller
             'article_id' => $article->id,
             'type' => 'liked',
         ]);
-        
-        // Log like action
-        try {
-            \App\Models\Log::create([
-                'model_type' => 'App\\Models\\Article',
-                'model_id'   => $article->id,
-                'user_id'    => Auth::id(),
-                'action'     => 'like',
-                'old_values' => json_encode(['liked' => false]),
-                'new_values' => json_encode(['liked' => true]),
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to log like action:', ['error' => $e->getMessage()]);
-        }
 
         return response()->json(['liked' => true, 'likes_count' => $article->interactions()->where('type', 'liked')->count()]);
     }
@@ -901,20 +903,6 @@ class ArticleController extends Controller
                 'article_id' => $article->id,
                 'type' => 'shared',
             ]);
-            
-            // Log share action
-            try {
-                \App\Models\Log::create([
-                    'model_type' => 'App\\Models\\Article',
-                    'model_id'   => $article->id,
-                    'user_id'    => Auth::id(),
-                    'action'     => 'share',
-                    'old_values' => json_encode(['shares_count' => $article->shares_count - 1]),
-                    'new_values' => json_encode(['shares_count' => $article->shares_count]),
-                ]);
-            } catch (\Exception $e) {
-                \Log::error('Failed to log share action:', ['error' => $e->getMessage()]);
-            }
         }
 
         return response()->json([
@@ -1010,6 +998,14 @@ class ArticleController extends Controller
 
         $articles = $query->paginate($perPage, ['*'], 'page', $page);
 
+        if (Auth::check()) {
+            $articles->getCollection()->loadExists(['interactions as user_liked' => function ($query) {
+                $query->where('user_id', Auth::id())->where('type', 'liked');
+            }]);
+        } else {
+            $articles->getCollection()->each(function ($article) { $article->user_liked = false; });
+        }
+
         // Add article count to response
         $articleCount = Article::where('author_id', $authorId)->count();
 
@@ -1040,6 +1036,14 @@ class ArticleController extends Controller
         $page = max((int) $request->get('page', 1), 1);
 
         $articles = $query->paginate($perPage, ['*'], 'page', $page);
+
+        if (Auth::check()) {
+            $articles->getCollection()->loadExists(['interactions as user_liked' => function ($query) {
+                $query->where('user_id', Auth::id())->where('type', 'liked');
+            }]);
+        } else {
+            $articles->getCollection()->each(function ($article) { $article->user_liked = false; });
+        }
 
         $articleCount = Article::where('author_id', $authorId)->count();
 
