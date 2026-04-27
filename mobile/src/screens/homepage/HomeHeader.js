@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useIsFocused } from '@react-navigation/native';
 import { colors } from '../../styles';
 import SidebarMenu from '../../components/homeheaderpart/SidebarMenu';
 import { isAdminOrModerator } from '../../utils/authUtils';
@@ -17,7 +16,7 @@ import client from '../../api/client';
 const HomeHeader = ({
   onMenuPress = () => {},
   onGridPress = () => {},
-  onSearch = () => {},
+  onSearch = null,
   categories = [],
   onCategorySelect = () => {},
   navigation = null,
@@ -32,16 +31,6 @@ const HomeHeader = ({
   const [showAdminIcon, setShowAdminIcon] = useState(false);
   const [internalCategories, setInternalCategories] = useState([]);
   const insets = useSafeAreaInsets();
-  const isFocused = useIsFocused();
-
-  // Clear search when screen loses focus
-  useEffect(() => {
-    if (!isFocused) {
-      setSearchQuery('');
-      setIsSearchActive(isSearchScreen);
-      onSearch(''); // Notify parent to clear search
-    }
-  }, [isFocused, isSearchScreen, onSearch]);
 
   useEffect(() => {
     checkAdminStatus();
@@ -74,10 +63,6 @@ const HomeHeader = ({
   // Update search query when external query changes
   useEffect(() => {
     setSearchQuery(externalSearchQuery);
-    // If external query is empty, also close the search bar
-    if (!externalSearchQuery) {
-      setIsSearchActive(isSearchScreen);
-    }
   }, [externalSearchQuery, isSearchScreen]);
 
   const checkAdminStatus = async () => {
@@ -92,19 +77,24 @@ const HomeHeader = ({
   };
 
   const handleSearchIconPress = () => {
-    // Just activate inline search, don't navigate
-    setIsSearchActive(true);
+    if (onSearch) {
+      // Activate inline search if the parent component provided an onSearch handler
+      setIsSearchActive(true);
+    } else if (navigation) {
+      // Otherwise, navigate to the dedicated Search screen
+      navigation.navigate("Search");
+    }
   };
 
   const handleSearch = (text) => {
     console.log('HomeHeader handleSearch called with:', text);
     setSearchQuery(text);
-    onSearch(text);
+    if (onSearch) onSearch(text);
   };
 
   const handleSearchClose = () => {
     setSearchQuery('');
-    onSearch(''); // Clear search in parent component
+    if (onSearch) onSearch(''); // Clear search in parent component
     setIsSearchActive(false); // Always close the search bar
   };
 
@@ -183,23 +173,23 @@ const HomeHeader = ({
             </View>
 
             {/* Logo Container (Center) */}
-            <View className="flex-1 items-center justify-center">
+            <View className="flex-1 items-center justify-center" style={{ marginTop:120}}>
               <Image
-                source={require('../../../assets/logo.png')}
-                style={{ width: width < 300 ? 40 : 43, height: width < 300 ? 40 : 44 }}
+                source={require('../../../assets/footertxt.png')}
+                style={{ width: width < 300 ? 120 : 240, height: width < 300 ? 120 : 240 }}
                 resizeMode="contain"
               />
             </View>
 
             {/* Right Side Container (Action Icons) - Balanced width with Left */}
-            <View className="w-20 flex-row items-center justify-end">
+            <View className="w-20 flex-row items-center justify-end gap-1">
               {enableSearch && (
-                <TouchableOpacity onPress={handleSearchIconPress} className="p-2">
+                <TouchableOpacity onPress={handleSearchIconPress} className="p-1">
                   <Ionicons name="search" size={width < 375 ? 20 : 24} color={colors.primary} />
                 </TouchableOpacity>
               )}
               {showAdminIcon && (
-                <TouchableOpacity onPress={handleGridPress} className="p-2">
+                <TouchableOpacity onPress={handleGridPress} className="p-1">
                   <MaterialCommunityIcons name="view-grid" size={width < 375 ? 20 : 24} color={colors.icons} />
                 </TouchableOpacity>
               )}
