@@ -142,7 +142,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
-      let msg = 'Failed to resend OTP. Please try again.';
+      let msg = 'Failed to resend OTP code. Please try again.';
       if (err.response?.data?.message) {
         msg = err.response.data.message;
       }
@@ -215,7 +215,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
 
-              <Text className="text-center font-bold text-4xl text-black mb-2">Verify Email</Text>
+              <Text className="text-center font-bold text-4xl text-black mb-2">Verify OTP</Text>
               <Text className="text-center text-sm text-gray-500 mb-2">
                 Enter the 6-digit code sent to {email}
               </Text>

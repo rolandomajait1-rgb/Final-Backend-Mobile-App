@@ -134,7 +134,7 @@ export default function LoginScreen({ navigation }) {
   const handleResend = async () => {
     setIsResending(true);
     try {
-      await client.post('/api/email/resend-verification', { email: email.trim().toLowerCase() });
+      await client.post('/api/resend-registration-otp', { email: email.trim().toLowerCase() });
       
       // Update pending_verification timestamp since we generated a new OTP
       const verificationData = {
@@ -143,13 +143,13 @@ export default function LoginScreen({ navigation }) {
       };
       await AsyncStorage.setItem('pending_verification', JSON.stringify(verificationData));
       
-      setSuccessMessage('Verification email sent! Please check your inbox.');
+      setSuccessMessage('New OTP code sent! Please check your email.');
       setShowResend(false);
       setErrors({});
     } catch (error) {
       // Security #1 Fix: Use sanitized logging
       logError('Resend verification error:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to resend verification email. Please try again.';
+      const errorMsg = error.response?.data?.message || 'Failed to resend OTP code. Please try again.';
       setErrors({ general: errorMsg });
     } finally {
       setIsResending(false);
@@ -236,7 +236,7 @@ export default function LoginScreen({ navigation }) {
 
                     <TouchableOpacity onPress={handleResend} disabled={isResending}>
                       <Text className="text-center text-gray-500 text-xs underline mt-1">
-                        {isResending ? "Sending..." : "Didn't get a code? Resend Email"}
+                        {isResending ? "Sending..." : "Didn't get a code? Resend OTP"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -255,7 +255,7 @@ export default function LoginScreen({ navigation }) {
                   <TextInput
                     className={`w-full rounded-md border ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                     value={email}
-                  onChangeText={(v) => { setEmail(v.trim()); setErrors((p) => ({ ...p, email: null, general: null })); }}
+                    onChangeText={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: null, general: null })); }}
                     placeholder="Enter your email"
                     placeholderTextColor="#9ca3af"
                     keyboardType="email-address"
@@ -272,7 +272,7 @@ export default function LoginScreen({ navigation }) {
                     <TextInput
                       className={`flex-1 ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} text-black`}
                       value={password}
-                      onChangeText={(v) => { setPassword(v); setErrors((p) => ({ ...p, password: null, general: null })); }}
+                      onChangeText={(v) => { setPassword(v); setErrors((p) => ({ ...p, password: null })); }}
                       placeholder="Enter your password"
                       placeholderTextColor="#9ca3af"
                       secureTextEntry={!showPassword}

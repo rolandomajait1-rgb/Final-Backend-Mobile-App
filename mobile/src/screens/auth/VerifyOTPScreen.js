@@ -210,7 +210,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
                   <Ionicons name="close" size={24} color="#6b7280" />
                 </TouchableOpacity>
 
-                <Text className="text-center font-bold text-4xl text-black mb-2">Verify OTP</Text>
+                <Text className="text-center font-bold text-4xl text-black mb-2">Verify Password Reset</Text>
                 <Text className="text-center text-sm text-gray-500 mb-2">
                   Enter the 6-digit code sent to {email}
                 </Text>
@@ -226,10 +226,10 @@ export default function VerifyOTPScreen({ navigation, route }) {
 
                 {/* OTP Input */}
                 <View className="mb-6">
-                  <Text className="mb-1 text-lg font-medium text-black">OTP Code</Text>
+                  <Text className="mb-1 text-sm font-medium text-gray-700">OTP Code</Text>
                   <TextInput
-                    className="w-full rounded-md border px-4 py-3 bg-white/80 text-center text-2xl font-bold tracking-widest"
-                    style={{ color: '#1f2937', letterSpacing: 8, borderColor: error ? '#f87171' : '#d1d5db' }}
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 bg-white text-center text-2xl font-bold tracking-widest"
+                    style={{ color: '#1f2937', letterSpacing: 8 }}
                     value={otp}
                     onChangeText={(v) => {
                   const cleanValue = v.replace(/[^0-9]/g, '');
