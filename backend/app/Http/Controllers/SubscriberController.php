@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Log;
 use App\Models\Subscriber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,14 +50,6 @@ class SubscriberController extends Controller
 
         $subscriber = Subscriber::create($data);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'created',
-            'model_type' => 'Subscriber',
-            'model_id' => $subscriber->id,
-            'new_values' => $subscriber->toArray(),
-        ]);
-
         return redirect()->route('subscribers.index')->with('success', 'Subscriber created successfully.');
     }
 
@@ -80,35 +71,14 @@ class SubscriberController extends Controller
             'status' => 'in:active,inactive,unsubscribed',
         ]);
 
-        $oldValues = $subscriber->toArray();
-
         $subscriber->update($request->only(['email', 'name', 'status']));
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'Subscriber',
-            'model_id' => $subscriber->id,
-            'old_values' => $oldValues,
-            'new_values' => $subscriber->toArray(),
-        ]);
 
         return redirect()->route('subscribers.index')->with('success', 'Subscriber updated successfully.');
     }
 
     public function destroy(Subscriber $subscriber): RedirectResponse
     {
-        $oldValues = $subscriber->toArray();
-
         $subscriber->delete();
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'deleted',
-            'model_type' => 'Subscriber',
-            'model_id' => $subscriber->id,
-            'old_values' => $oldValues,
-        ]);
 
         return redirect()->route('subscribers.index')->with('success', 'Subscriber deleted successfully.');
     }

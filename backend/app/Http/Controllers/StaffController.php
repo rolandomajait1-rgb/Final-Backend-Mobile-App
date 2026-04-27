@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Constants\UserRole;
-use App\Models\Log;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -48,14 +47,6 @@ class StaffController extends Controller
             'role' => $request->role,
         ]);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'created',
-            'model_type' => 'Staff',
-            'model_id' => $user->id,
-            'new_values' => ['name' => $request->name, 'email' => $request->email, 'role' => $request->role],
-        ]);
-
         return redirect()->route('staff.index')->with('success', 'Staff member created successfully.');
     }
 
@@ -91,15 +82,6 @@ class StaffController extends Controller
 
         $staff->update(['role' => $request->role]);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'Staff',
-            'model_id' => $staff->user_id,
-            'old_values' => $oldValues,
-            'new_values' => ['name' => $request->name, 'email' => $request->email, 'role' => $request->role],
-        ]);
-
         return redirect()->route('staff.index')->with('success', 'Staff member updated successfully.');
     }
 
@@ -113,14 +95,6 @@ class StaffController extends Controller
 
         $staff->user->delete();
         $staff->delete();
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'deleted',
-            'model_type' => 'Staff',
-            'model_id' => $staff->user_id,
-            'old_values' => $oldValues,
-        ]);
 
         return redirect()->route('staff.index')->with('success', 'Staff member deleted successfully.');
     }

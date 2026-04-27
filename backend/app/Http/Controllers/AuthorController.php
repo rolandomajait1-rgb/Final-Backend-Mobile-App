@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Article;
 use App\Models\Author;
-use App\Models\Log;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,14 +55,6 @@ class AuthorController extends Controller
                 'bio' => $request->bio,
                 'website' => $request->website,
                 'social_links' => $request->social_links,
-            ]);
-
-            Log::create([
-                'user_id' => Auth::id(),
-                'action' => 'created',
-                'model_type' => 'Author',
-                'model_id' => $author->id,
-                'new_values' => $request->all(),
             ]);
         });
 
@@ -122,15 +113,6 @@ class AuthorController extends Controller
             'social_links' => $request->social_links,
         ]);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'Author',
-            'model_id' => $author->user_id,
-            'old_values' => $oldValues,
-            'new_values' => $request->all(),
-        ]);
-
         return redirect()->route('authors.index')->with('success', 'Author updated successfully.');
     }
 
@@ -147,14 +129,6 @@ class AuthorController extends Controller
         DB::transaction(function () use ($author, $oldValues) {
             $author->user->delete();
             $author->delete();
-
-            Log::create([
-                'user_id' => Auth::id(),
-                'action' => 'deleted',
-                'model_type' => 'Author',
-                'model_id' => $author->user_id,
-                'old_values' => $oldValues,
-            ]);
         });
 
         return redirect()->route('authors.index')->with('success', 'Author deleted successfully.');

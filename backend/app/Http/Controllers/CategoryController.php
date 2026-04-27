@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Models\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -39,14 +38,6 @@ class CategoryController extends Controller
             'name' => $request->name,
             'slug' => Str::slug($request->name),
             'description' => $request->description,
-        ]);
-
-        Log::create([
-            'user_id'    => Auth::id(),
-            'action'     => 'created',
-            'model_type' => 'Category',
-            'model_id'   => $category->id,
-            'new_values' => $category->toArray(),
         ]);
 
         if (request()->wantsJson()) {
@@ -92,21 +83,10 @@ class CategoryController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $oldValues = $category->toArray();
-
         $category->update([
             'name' => $request->name,
             'slug' => Str::slug($request->name),
             'description' => $request->description,
-        ]);
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'Category',
-            'model_id' => $category->id,
-            'old_values' => $oldValues,
-            'new_values' => $category->toArray(),
         ]);
 
         if (request()->wantsJson()) {
@@ -118,17 +98,7 @@ class CategoryController extends Controller
 
     public function destroy(Category $category): JsonResponse|RedirectResponse
     {
-        $oldValues = $category->toArray();
-
         $category->delete();
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'deleted',
-            'model_type' => 'Category',
-            'model_id' => $category->id,
-            'old_values' => $oldValues,
-        ]);
 
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Category deleted successfully']);
