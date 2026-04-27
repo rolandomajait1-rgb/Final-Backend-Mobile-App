@@ -135,7 +135,8 @@ class ArticleController extends Controller
         $query = trim($query);
         $query = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
 
-        if (strlen($query) < 1) {
+        // Require at least 2 characters for search
+        if (strlen($query) < 2) {
             return response()->json([
                 'data' => [],
                 'meta' => [
@@ -144,6 +145,7 @@ class ArticleController extends Controller
                     'total' => 0,
                     'last_page' => 1,
                 ],
+                'message' => 'Search query must be at least 2 characters',
             ]);
         }
 
@@ -160,7 +162,6 @@ class ArticleController extends Controller
                 
                 // Use LOWER() for case-insensitive search on all databases
                 $q->whereRaw("LOWER(title) {$like} ?", ["%{$lowerQuery}%"])
-                    ->orWhereRaw("LOWER(excerpt) {$like} ?", ["%{$lowerQuery}%"])
                     ->orWhereRaw("LOWER(content) {$like} ?", ["%{$lowerQuery}%"])
                     ->orWhereRaw("LOWER(author_name) {$like} ?", ["%{$lowerQuery}%"])
                     // Search by author user name
