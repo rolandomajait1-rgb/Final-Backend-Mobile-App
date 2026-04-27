@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Constants\UserRole;
-use App\Models\Log;
 use App\Models\User;
 use App\Support\EmailNormalizer;
 use Illuminate\Http\JsonResponse;
@@ -29,19 +28,9 @@ class UserController extends Controller
         ]);
 
         $user = $request->user();
-        $oldValues = $user->toArray();
 
         $user->update([
             'name' => $request->name,
-        ]);
-
-        Log::create([
-            'user_id' => $user->id,
-            'action' => 'updated',
-            'model_type' => 'User',
-            'model_id' => $user->id,
-            'old_values' => $oldValues,
-            'new_values' => $user->toArray(),
         ]);
 
         return response()->json([
@@ -86,14 +75,6 @@ class UserController extends Controller
             'role' => $request->role,
         ]);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'created',
-            'model_type' => 'User',
-            'model_id' => $user->id,
-            'new_values' => $user->toArray(),
-        ]);
-
         return redirect()->route('users.index')->with('success', 'User created successfully.');
     }
 
@@ -115,35 +96,14 @@ class UserController extends Controller
             'role' => 'required|in:' . implode(',', UserRole::all()),
         ]);
 
-        $oldValues = $user->toArray();
-
         $user->update($request->only(['name', 'email', 'role']));
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'User',
-            'model_id' => $user->id,
-            'old_values' => $oldValues,
-            'new_values' => $user->toArray(),
-        ]);
 
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }
 
     public function destroy(User $user): RedirectResponse
     {
-        $oldValues = $user->toArray();
-
         $user->delete();
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'deleted',
-            'model_type' => 'User',
-            'model_id' => $user->id,
-            'old_values' => $oldValues,
-        ]);
 
         return redirect()->route('users.index')->with('success', 'User deleted successfully.');
     }
@@ -175,14 +135,6 @@ class UserController extends Controller
                 'email_verified_at' => now(), // auto-verify so they can log in
             ]);
 
-            Log::create([
-                'user_id'    => Auth::id(),
-                'action'     => 'created',
-                'model_type' => 'User',
-                'model_id'   => $user->id,
-                'new_values' => $user->toArray(),
-            ]);
-
             return response()->json([
                 'message'       => 'Moderator account created. Temporary password: ' . $tempPassword,
                 'temp_password' => $tempPassword,
@@ -193,17 +145,7 @@ class UserController extends Controller
             return response()->json(['message' => 'User is already a moderator'], 400);
         }
 
-        $oldValues = $user->toArray();
         $user->update(['role' => UserRole::MODERATOR]);
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'User',
-            'model_id' => $user->id,
-            'old_values' => $oldValues,
-            'new_values' => $user->toArray(),
-        ]);
 
         return response()->json(['message' => 'Moderator added successfully']);
     }
@@ -227,17 +169,7 @@ class UserController extends Controller
             return response()->json(['message' => 'User is not a moderator'], 400);
         }
 
-        $oldValues = $user->toArray();
         $user->update(['role' => UserRole::USER]);
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'User',
-            'model_id' => $user->id,
-            'old_values' => $oldValues,
-            'new_values' => $user->toArray(),
-        ]);
 
         return response()->json(['message' => 'Moderator removed successfully']);
     }

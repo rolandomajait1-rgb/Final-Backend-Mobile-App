@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Log;
 use App\Models\Tag;
 use App\Models\Article;
 use Illuminate\Http\JsonResponse;
@@ -45,14 +44,6 @@ class TagController extends Controller
 
         $tag = Tag::create($data);
 
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'created',
-            'model_type' => 'Tag',
-            'model_id' => $tag->id,
-            'new_values' => $tag->toArray(),
-        ]);
-
         if (request()->wantsJson()) {
             return response()->json($tag, 201);
         }
@@ -92,38 +83,17 @@ class TagController extends Controller
             'name' => 'required|string|max:255|unique:tags,name,'.$tag->id,
         ]);
 
-        $oldValues = $tag->toArray();
-
         $data = $request->all();
         $data['slug'] = Str::slug($request->name);
 
         $tag->update($data);
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'updated',
-            'model_type' => 'Tag',
-            'model_id' => $tag->id,
-            'old_values' => $oldValues,
-            'new_values' => $tag->toArray(),
-        ]);
 
         return response()->json($tag);
     }
 
     public function destroy(Tag $tag): JsonResponse
     {
-        $oldValues = $tag->toArray();
-
         $tag->delete();
-
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'deleted',
-            'model_type' => 'Tag',
-            'model_id' => $tag->id,
-            'old_values' => $oldValues,
-        ]);
 
         return response()->json(['message' => 'Tag deleted successfully']);
     }
