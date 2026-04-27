@@ -44,7 +44,6 @@ export default function EditProfile({ navigation, route }) {
   const userData = route?.params?.user || {};
   const isAdminUser = userData.role === 'admin' || userData.role === 'moderator';
   const [formData, setFormData] = useState({
-    name: userData.name || '',
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -146,12 +145,6 @@ export default function EditProfile({ navigation, route }) {
       setIsSaving(true);
       let updated = false;
 
-      // Update profile name
-      if (formData.name.trim() && formData.name !== userData.name) {
-        await client.put('/api/user/profile', { name: formData.name.trim() });
-        updated = true;
-      }
-
       // Change password if provided (validation already passed in handleSavePress)
       if (formData.oldPassword && formData.newPassword) {
         await client.post('/api/change-password', {
@@ -168,6 +161,7 @@ export default function EditProfile({ navigation, route }) {
         navigation.goBack();
       } else {
         setShowSaveModal(false);
+        showAuditToast('info', 'No changes to save');
         navigation.goBack();
       }
     } catch (err) {
@@ -264,17 +258,14 @@ export default function EditProfile({ navigation, route }) {
             className="flex-1 bg-white"
             style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 60 }}
           >
-            {/* Name Field */}
+            {/* Name Field (Read Only) */}
             <View className="mb-6">
               <Text className="text-[14px] font-medium text-gray-800 mb-2">Name</Text>
-              <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-white"
-                placeholder="Enter Name"
-                placeholderTextColor="#cbd5e1"
-                value={formData.name}
-                onChangeText={(value) => handleChange('name', value)}
-                style={{ fontSize: 16 }}
-              />
+              <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50 px-4 py-3.5">
+                <Text className="flex-1 text-gray-500" style={{ fontSize: 16 }}>
+                  {userData.name || 'No name provided'}
+                </Text>
+              </View>
             </View>
 
             {/* Email Field (Read Only) */}
@@ -354,20 +345,10 @@ export default function EditProfile({ navigation, route }) {
               <TouchableOpacity 
                 onPress={handleSavePress} 
                 disabled={isSaving}
-                className="w-2/3   bg-[#0ea5e9] rounded-full py-4 items-center justify-center mb-4"
+                className="w-2/3 bg-[#0ea5e9] rounded-full py-4 items-center justify-center mb-4"
               >
                 <Text className="text-white text-[17px] font-semibold">
-                  Update Profile
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                onPress={() => navigation.goBack()}
-                disabled={isSaving}
-                className="w-full py-2 items-center justify-center"
-              >
-                <Text className="text-[#0ea5e9] text-[17px] font-medium">
-                  Cancel
+                  Update Password
                 </Text>
               </TouchableOpacity>
             </View>

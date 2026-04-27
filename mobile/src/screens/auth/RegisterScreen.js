@@ -54,8 +54,9 @@ export default function RegisterScreen({ navigation }) {
     else if (formData.password.length < 8) e.password = ['Password must be at least 8 characters'];
     else if (!pwRegex.test(formData.password))
       e.password = ['Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number'];
-      
-    if (formData.password !== formData.password_confirmation)
+    
+    if (!formData.password_confirmation) e.password_confirmation = ['Please confirm your password'];
+    else if (formData.password !== formData.password_confirmation)
       e.password_confirmation = ['Passwords do not match'];
     
     return e;
@@ -211,7 +212,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   className={`w-full rounded-md border ${width < 375 ? 'px-3 py-1.5' : 'px-4 py-2'} mb-2 bg-white/80 text-black ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                   value={formData.email}
-                  onChangeText={(v) => handleChange('email', v.trim())}
+                  onChangeText={(v) => handleChange('email', v)}
                   placeholder="Enter your email"
                   placeholderTextColor="#9ca3af"
                   keyboardType="email-address"

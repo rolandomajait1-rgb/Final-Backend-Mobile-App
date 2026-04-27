@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import { showAuditToast } from '../../utils/toastNotification';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { isAuthenticated } from '../../utils/authUtils';
@@ -162,6 +163,15 @@ export default function EditArticleScreen({ navigation, route }) {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
+        // Check file size before processing (10MB limit)
+        const fileInfo = await FileSystem.getInfoAsync(result.assets[0].uri);
+        const fileSizeMB = fileInfo.size / (1024 * 1024);
+        
+        if (fileSizeMB > 10) {
+          Alert.alert('File Too Large', `This image is ${fileSizeMB.toFixed(1)}MB. Please choose a picture smaller than 10MB.`);
+          return;
+        }
+
         const compressed = await ImageManipulator.manipulateAsync(
           result.assets[0].uri,
           [{ resize: { width: 1280 } }],

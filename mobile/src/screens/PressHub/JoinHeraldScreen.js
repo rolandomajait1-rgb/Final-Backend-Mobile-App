@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Alert,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
@@ -106,6 +107,13 @@ const JoinHeraldScreen = ({ navigation }) => {
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
         
+        // Check file size (5MB limit for photo)
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+          Alert.alert('File Too Large', 'Photo must be less than 5MB.');
+          return;
+        }
+        
         // Compress image to ensure it's high quality but manageable size
         const compressed = await ImageManipulator.manipulateAsync(
           asset.uri,
@@ -199,9 +207,14 @@ const JoinHeraldScreen = ({ navigation }) => {
         type: photo.type,
       });
 
+      // Sanitize the file name to prevent multipart/form-data parsing issues in PHP
+      const cleanFileName = consentForm.name 
+        ? consentForm.name.replace(/[^a-zA-Z0-9.\-_]/g, '_') 
+        : `consent-${Date.now()}.pdf`;
+
       body.append('consentForm', {
         uri:  consentForm.uri,
-        name: consentForm.name,
+        name: cleanFileName,
         type: consentForm.type,
       });
 

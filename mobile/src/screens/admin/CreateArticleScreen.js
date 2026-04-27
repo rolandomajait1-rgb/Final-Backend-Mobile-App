@@ -16,6 +16,7 @@ import { showAuditToast } from '../../utils/toastNotification';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import { isAuthenticated } from '../../utils/authUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeHeader from '../homepage/HomeHeader';
@@ -108,6 +109,15 @@ export default function CreateArticleScreen({ navigation }) {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
+        // Check file size before processing (10MB limit)
+        const fileInfo = await FileSystem.getInfoAsync(result.assets[0].uri);
+        const fileSizeMB = fileInfo.size / (1024 * 1024);
+        
+        if (fileSizeMB > 10) {
+          Alert.alert('File Too Large', `This image is ${fileSizeMB.toFixed(1)}MB. Please choose a picture smaller than 10MB.`);
+          return;
+        }
+
         // Compress to max 1280px wide, 70% quality JPEG
         const compressed = await ImageManipulator.manipulateAsync(
           result.assets[0].uri,

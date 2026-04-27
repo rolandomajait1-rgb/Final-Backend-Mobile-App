@@ -12,15 +12,15 @@ export default function StatusBadge({ action, label }) {
     const lowerAction = actionType?.toLowerCase() || "";
 
     if (lowerAction.includes("published") || lowerAction.includes("created")) {
-      return "#27ae60";
+      return "#58ff9eff";
     }
 
     if (lowerAction.includes("edited") || lowerAction.includes("updated")) {
-      return "#3b82f6";
+      return "#5395ffff";
     }
 
     if (lowerAction.includes("deleted")) {
-      return "#e74c3c";
+      return "#e14432ff";
     }
 
     if (lowerAction.includes("draft") || lowerAction.includes("save")) {

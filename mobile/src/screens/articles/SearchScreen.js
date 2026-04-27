@@ -348,35 +348,8 @@ export default function SearchScreen({ navigation }) {
           ? response.data
           : [];
 
-      // If no exact results, filter by partial matches in tags, authors, categories
-      if (nextResults.length === 0) {
-        // Get all articles and filter locally
-        try {
-          const allArticlesResponse = await searchArticles('');
-          const allArticles = Array.isArray(allArticlesResponse.data?.data)
-            ? allArticlesResponse.data.data
-            : Array.isArray(allArticlesResponse.data)
-              ? allArticlesResponse.data
-              : [];
-
-          nextResults = allArticles.filter(article => {
-            const titleMatch = article.title?.toLowerCase().includes(normalizedQuery);
-            const authorMatch = (article.author?.user?.name || article.author?.name || article.author_name || '')
-              .toLowerCase()
-              .includes(normalizedQuery);
-            const categoryMatch = article.categories?.some(cat =>
-              cat.name?.toLowerCase().includes(normalizedQuery)
-            );
-            const tagMatch = article.tags?.some(tag =>
-              tag.name?.toLowerCase().includes(normalizedQuery)
-            );
-
-            return titleMatch || authorMatch || categoryMatch || tagMatch;
-          });
-        } catch (err) {
-          console.error('Error fetching all articles for filtering:', err);
-        }
-      }
+      // Note: Backend should be configured to handle searching by title, 
+      // author name, category, and tags to prevent downloading the entire database.
 
       setResults(nextResults);
     } catch (err) {

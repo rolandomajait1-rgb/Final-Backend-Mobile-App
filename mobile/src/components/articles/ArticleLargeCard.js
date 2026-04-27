@@ -155,7 +155,7 @@ export default function ArticleLargeCard({
         )}
         
         {/* Author and Date - At the bottom */}
-        <View className={`flex-row items-center gap-2 ${width < 375 ? 'pb-3' : 'pb-4'}`} pointerEvents="box-none">
+        <View className={`flex-row flex-wrap items-center gap-1 ${width < 375 ? 'pb-3' : 'pb-4'}`} pointerEvents="box-none">
           <TouchableOpacity 
             onPress={(e) => {
               e.stopPropagation();

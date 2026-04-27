@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -189,7 +188,6 @@ export default function HomeScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [menuX, setMenuX] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletingArticle, setDeletingArticle] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -201,6 +199,8 @@ export default function HomeScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [pendingDeletion, setPendingDeletion] = useState(null);
+  const pendingDeletionRef = useRef(null);
 
   useEffect(() => {
     checkUserRole();
@@ -241,20 +241,20 @@ export default function HomeScreen({ navigation }) {
       setRecentPage(page);
       
       // Mark initial load as complete after minimum delay
-      if (page === 1 && !initialLoadComplete) {
+      if (page === 1) {
         setTimeout(() => setInitialLoadComplete(true), 5000);
       }
     } catch (err) {
       console.error('Error fetching recent articles:', err);
       // Still mark as complete even on error after delay
-      if (page === 1 && !initialLoadComplete) {
+      if (page === 1) {
         setTimeout(() => setInitialLoadComplete(true), 5000);
       }
     } finally {
       setLoadingMore(false);
       loadingMoreRef.current = false;
     }
-  }, [initialLoadComplete]);
+  }, []);
   
   const handleLoadMore = () => {
     if (!loadingMore && recentHasMore) {
@@ -287,6 +287,47 @@ export default function HomeScreen({ navigation }) {
     [handleSearch]
   );
 
+  // Keep track of pending deletion for cleanup on unmount
+  useEffect(() => {
+    pendingDeletionRef.current = pendingDeletion;
+  }, [pendingDeletion]);
+
+  // Cleanup on unmount (kung isara ng user ang app, ituloy ang delete API)
+  useEffect(() => {
+    return () => {
+      if (pendingDeletionRef.current && pendingDeletionRef.current.timeLeft > 0) {
+        deleteArticle(pendingDeletionRef.current.article.id).catch(() => {});
+      }
+    };
+  }, []);
+
+  // Timer effect for 20s undo
+  useEffect(() => {
+    let timer;
+    if (pendingDeletion && pendingDeletion.timeLeft > 0) {
+      timer = setTimeout(() => {
+        setPendingDeletion(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
+      }, 1000);
+    } else if (pendingDeletion && pendingDeletion.timeLeft === 0) {
+      const articleId = pendingDeletion.article.id;
+      setPendingDeletion(null);
+      
+      // Time is up, i-execute na ang actual API deletion
+      deleteArticle(articleId)
+        .then(() => {
+          showAuditToast("success", "Article deleted successfully");
+          forceRefreshArticles();
+          fetchRecentArticles(1, true); // Refresh recent articles list to ensure deleted article is gone
+        })
+        .catch(err => {
+          console.error("Error executing delayed delete:", err);
+          showAuditToast("error", "Failed to delete article. Please try again.");
+          fetchRecentArticles(1, true); // I-refresh ang list para bumalik yung article
+        });
+    }     
+    return () => clearTimeout(timer);
+  }, [pendingDeletion, forceRefreshArticles, fetchRecentArticles]);
+
   useEffect(() => {
     fetchCategories();
     fetchRecentArticles(1, true); // Initial load
@@ -294,19 +335,34 @@ export default function HomeScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      // Only refresh on subsequent focuses (not on initial mount — ArticleContext handles that)
+      // IMPORTANT: Always refresh both latest and recent articles when screen comes into focus
+      // This ensures updates from other screens (Edit, Create, Draft, etc.) are immediately reflected
+      // - latestArticles: managed by ArticleContext (top featured articles)
+      // - recentArticles: managed locally with pagination (all published articles)
       if (hasMountedRef.current) {
-        refreshArticles();
-        fetchRecentArticles(1, true); // Refresh recent articles too
+        refreshArticles(); // Refresh latest articles from context
+        fetchRecentArticles(1, true); // Refresh recent articles list
       } else {
         hasMountedRef.current = true;
       }
-      
-      // Clear search when screen comes into focus
-      setSearchQuery('');
-      setSearchResults([]);
-      setSearching(false);
-    }, [refreshArticles, fetchRecentArticles]),
+
+      // Return a cleanup function that runs when the screen is unfocused.
+      return () => {
+        // If an article deletion is pending, navigating away should confirm the deletion.
+        if (pendingDeletionRef.current && pendingDeletionRef.current.timeLeft > 0) {
+          // Immediately delete the article in the background.
+          deleteArticle(pendingDeletionRef.current.article.id)
+            .then(() => {
+              forceRefreshArticles();
+              fetchRecentArticles(1, true); // Also refresh recent articles
+            })
+            .catch(() => {}); // Suppress errors for fire-and-forget
+
+          // Clear the pending deletion state to stop the timer and hide the undo toast.
+          setPendingDeletion(null);
+        }
+      };
+    }, [refreshArticles, fetchRecentArticles, forceRefreshArticles]),
   );
 
   const onRefresh = async () => {
@@ -338,45 +394,40 @@ export default function HomeScreen({ navigation }) {
     setShowDeleteModal(true);
   };
 
+  const undoDelete = () => {
+    if (!pendingDeletion) return;
+    
+    setPendingDeletion(null);
+    showAuditToast("info", "Deletion undone");
+    
+    // Restore the visually hidden article by re-fetching
+    forceRefreshArticles();
+    fetchRecentArticles(1, true);
+  };
+
   const confirmDelete = async () => {
-    if (!menuArticle?.id || deletingArticle) {
+    if (!menuArticle?.id) {
       return;
     }
 
-    try {
-      setDeletingArticle(true);
-      await deleteArticle(menuArticle.id);
-      
-      // Remove from local state immediately
-      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
-      setRecentArticles(prev => prev.filter(a => a.id !== menuArticle.id));
-      
-      setShowDeleteModal(false);
-      showAuditToast("success", "Article deleted successfully");
-      
-      // Force refresh to clear cache and get fresh data
-      try {
-        await forceRefreshArticles();
-        console.log('Articles refreshed after delete');
-      } catch (err) {
-        console.error('Failed to refresh articles:', err);
-      }
-    } catch (error) {
-      console.error("Error deleting article:", error);
-      
-      // Check if it's a 404 error (article already deleted)
-      if (error.response?.status === 404) {
-        // Remove from local state since it doesn't exist anymore
-        setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
-        setRecentArticles(prev => prev.filter(a => a.id !== menuArticle.id));
-        setShowDeleteModal(false);
-        showAuditToast("info", "Article was already deleted");
-      } else {
-        showAuditToast("error", "Failed to delete article. Please try again.");
-      }
-    } finally {
-      setDeletingArticle(false);
+    const articleToHide = menuArticle;
+
+    // If nag-delete ulit sila pero may pending timer pa, i-execute na ang previous deletion
+    if (pendingDeletion && pendingDeletion.timeLeft > 0) {
+      deleteArticle(pendingDeletion.article.id).catch(() => {});
     }
+    
+    // Optimistically remove from UI
+    setSearchResults(prev => prev.filter(a => a.id !== articleToHide.id));
+    setRecentArticles(prev => prev.filter(a => a.id !== articleToHide.id));
+    
+    setShowDeleteModal(false);
+    
+    // Start 20s countdown instead of deleting immediately
+    setPendingDeletion({
+      article: articleToHide,
+      timeLeft: 20
+    });
   };
 
   if (articlesLoading || categoriesLoading) {
@@ -387,10 +438,10 @@ export default function HomeScreen({ navigation }) {
             categories={categories}
             onCategorySelect={() => {}}
             onMenuPress={() => {}}
-            onSearchPress={() => {}}
             onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
             onSearch={debouncedSearch}
             navigation={navigation}
+              searchQuery={searchQuery}
           />
         </View>
         <HomeScreenSkeleton />
@@ -407,10 +458,10 @@ export default function HomeScreen({ navigation }) {
           categories={categories}
           onCategorySelect={() => {}}
           onMenuPress={() => {}}
-          onSearchPress={() => {}}
           onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
           onSearch={debouncedSearch}
           navigation={navigation}
+          searchQuery={searchQuery}
         />
       </View>
 
@@ -519,15 +570,53 @@ export default function HomeScreen({ navigation }) {
       {/* Bottom Navigation */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
 
+      {/* Undo Deletion Timer Toast */}
+      {pendingDeletion && pendingDeletion.timeLeft > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 100,
+            left: 16,
+            right: 16,
+            backgroundColor: '#374151', // Dark gray background
+            padding: 16,
+            borderRadius: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            elevation: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 5,
+            zIndex: 100,
+          }}
+        >
+          <View className="flex-row items-center">
+            <Ionicons name="trash-outline" size={20} color="#f87171" style={{ marginRight: 8 }} />
+            <Text style={{ color: 'white', fontSize: 15, fontWeight: '500' }}>
+              Article deleted ({pendingDeletion.timeLeft}s)
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={undoDelete}
+            style={{
+              backgroundColor: '#f59e0b', // Amber button
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 8,
+            }}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>UNDO</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <DeleteConfirmModal
         visible={showDeleteModal}
-        loading={deletingArticle}
+        loading={false}
         onConfirm={confirmDelete}
-        onCancel={() => {
-          if (!deletingArticle) {
-            setShowDeleteModal(false);
-          }
-        }}
+        onCancel={() => setShowDeleteModal(false)}
       />
 
       {/* Floating Action Button (Create Article) - Only for Admins/Mods */}

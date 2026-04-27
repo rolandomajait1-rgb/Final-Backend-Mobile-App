@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Share,
   Animated,
   useWindowDimensions,
 } from "react-native";
@@ -28,8 +27,7 @@ import { showArticleSuccessToast, showArticleErrorToast, showAuditToast } from "
 import { handleAuthorPress } from "../../utils/authorNavigation";
 import { handleCategoryPress } from "../../utils/categoryNavigation";
 import { getCategoryColor } from "../../utils/categoryColors";
-import { handleArticleShare, getArticleUrl, extractGist } from "../../utils/shareUtils";
-import { getArticleLikedState, saveArticleLikedState } from "../../hooks/useLikedArticles";
+import { handleArticleShare } from "../../utils/shareUtils";
 import { useResponsive, getResponsiveFontSize, getResponsiveSpacing, getResponsiveIconSize } from "../../utils/responsiveUtils";
 import { useUserInteractions } from "../../context/UserInteractionsContext";
 
@@ -50,6 +48,19 @@ function ArticleHero({
   const heroHeight = isSmallPhone ? 280 : 320;
   const backButtonSize = isSmallPhone ? 40 : 44;
   const iconSize = getResponsiveIconSize(24, width);
+  
+  // Calculate font size based on title length to avoid glitching
+  const titleLength = article?.title?.length || 0;
+  const baseFontSize = getResponsiveFontSize(isSmallPhone ? 24 : 28, width);
+  const smallerFontSize = getResponsiveFontSize(isSmallPhone ? 20 : 22, width);
+  
+  // More conservative threshold to ensure consistent sizing
+  // Reduce font size earlier to prevent overflow
+  const charsPerLine = isSmallPhone ? 22 : 28;
+  const maxCharsFor3Lines = charsPerLine * 3;
+  
+  // Use smaller font if title would exceed 3 lines
+  const titleFontSize = titleLength > maxCharsFor3Lines ? smallerFontSize : baseFontSize;
   
   const formattedDate =
     article.created_at || article.published_at
@@ -175,7 +186,7 @@ function ArticleHero({
                 <View 
                   style={{ 
                     borderRadius: 6, 
-                    paddingHorizontal: getResponsiveSpacing(14, width), 
+                    paddingHorizontal: getResponsiveSpacing(12, width), 
                     paddingVertical: getResponsiveSpacing(8, width),
                     backgroundColor: getCategoryColor(cat.name) + 'CC'
                   }}
@@ -183,7 +194,7 @@ function ArticleHero({
                   <Text style={{ 
                     color: 'white', 
                     fontWeight: 'bold', 
-                    fontSize: getResponsiveFontSize(8, width), 
+                    fontSize: getResponsiveFontSize(14, width), 
                     textTransform: 'uppercase', 
                     letterSpacing: 1.5 
                   }}>
@@ -195,14 +206,12 @@ function ArticleHero({
           </View>
         )}
         <Text
-          numberOfLines={2}
-          ellipsizeMode="tail"
           style={{
             color: "white",
             fontWeight: "bold",
-            fontSize: getResponsiveFontSize(isSmallPhone ? 24 : 28, width),
+            fontSize: titleFontSize,
             marginBottom: getResponsiveSpacing(8, width),
-            lineHeight: getResponsiveFontSize(isSmallPhone ? 24 : 28, width),
+            lineHeight: titleFontSize * 1.2,
           }}
         >
           {article.title}
@@ -449,10 +458,29 @@ export default function ArticleDetailScreen({ navigation, route }) {
     const loadInitialLikedState = async () => {
       const articleId = passedArticle?.id || id;
       if (articleId && !likedStateLoadedRef.current) {
+        let initialLiked = false;
+        let hasExplicitState = false;
+        
+        if (passedArticle) {
+            if (typeof passedArticle.user_liked !== 'undefined') {
+                initialLiked = !!passedArticle.user_liked;
+                hasExplicitState = true;
+            } else if (typeof passedArticle.is_liked !== 'undefined') {
+                initialLiked = !!passedArticle.is_liked;
+                hasExplicitState = true;
+            }
+        }
+
+        if (hasExplicitState && mountedRef.current) {
+            setLiked(initialLiked);
+            setLikes(passedArticle.likes_count || passedArticle.like_count || 0);
+            likedStateLoadedRef.current = true;
+        }
+
         // Fetch interactions from backend
         await fetchInteractions([articleId]);
         
-        if (mountedRef.current) {
+        if (mountedRef.current && !hasExplicitState) {
           const userLiked = isLiked(articleId);
           setLiked(userLiked);
           setLikes(passedArticle?.likes_count || 0);
