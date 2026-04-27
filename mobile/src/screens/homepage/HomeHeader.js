@@ -55,7 +55,14 @@ const HomeHeader = ({
       const res = await client.get('/api/categories');
       setInternalCategories(res.data || []);
     } catch (error) {
-      console.error('Error fetching categories in header:', error);
+      // Silently fail - categories are not critical for header functionality
+      // Set empty array to prevent infinite retry
+      setInternalCategories([]);
+      
+      // Only log in development
+      if (__DEV__) {
+        console.error('Error fetching categories in header:', error.message || error);
+      }
     }
   };
 
