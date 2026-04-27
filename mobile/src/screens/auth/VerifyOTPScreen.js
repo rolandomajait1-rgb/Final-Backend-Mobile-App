@@ -134,9 +134,9 @@ export default function VerifyOTPScreen({ navigation, route }) {
         navigation.replace('Welcome');
       }, 10 * 60 * 1000); // 10 minutes
       
-      showToast('OTP resent successfully! Check your email.', 'success');
+      showToast('New OTP code sent! Check your email.', 'success');
     } catch (err) {
-      let msg = 'Failed to resend OTP. Please try again.';
+      let msg = 'Failed to resend OTP code. Please try again.';
       if (err.response?.data?.message) {
         msg = err.response.data.message;
       }

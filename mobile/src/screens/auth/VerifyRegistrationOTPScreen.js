@@ -118,7 +118,7 @@ export default function VerifyRegistrationOTPScreen({ navigation, route }) {
     try {
       await client.post('/api/resend-registration-otp', { email });
       setOtp('');
-      setSuccessMsg('New OTP sent! Please check your email.');
+      setSuccessMsg('New OTP code sent! Please check your email.');
       setTimer(60);
       setIsTimerActive(true);
       
