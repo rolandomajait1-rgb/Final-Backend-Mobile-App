@@ -78,7 +78,7 @@ class AuthService
     private function generateOTP(string $email, string $type): string
     {
         // Generate 6-digit OTP
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         
         // Delete old OTP tokens for this email and type
         \App\Models\OTPToken::where('email', $email)
@@ -91,6 +91,13 @@ class AuthService
             'otp' => $otp,
             'type' => $type,
             'expires_at' => now()->addMinutes(10),
+        ]);
+
+        Log::info('OTP generated', [
+            'email' => $email,
+            'otp' => $otp,
+            'type' => $type,
+            'expires_at' => now()->addMinutes(10)->toDateTimeString(),
         ]);
 
         return $otp;
@@ -402,12 +409,32 @@ class AuthService
      */
     public function verifyRegistrationOTP(string $email, string $otp): array
     {
+        Log::info('Verifying registration OTP', [
+            'email' => $email,
+            'otp_received' => $otp,
+        ]);
+
         $otpRecord = \App\Models\OTPToken::where('email', $email)
             ->where('otp', $otp)
             ->where('expires_at', '>', now())
             ->first();
 
         if (!$otpRecord) {
+            // Log all OTP records for this email for debugging
+            $allRecords = \App\Models\OTPToken::where('email', $email)->get();
+            Log::warning('OTP verification failed', [
+                'email' => $email,
+                'otp_received' => $otp,
+                'all_otp_records' => $allRecords->map(function($record) {
+                    return [
+                        'otp' => $record->otp,
+                        'type' => $record->type,
+                        'expires_at' => $record->expires_at->toDateTimeString(),
+                        'expired' => $record->expires_at < now(),
+                    ];
+                }),
+            ]);
+
             return [
                 'success' => false,
                 'message' => 'Invalid or expired OTP',
@@ -437,6 +464,11 @@ class AuthService
 
             // Delete the OTP token
             $otpRecord->delete();
+
+            Log::info('Registration OTP verified successfully', [
+                'email' => $email,
+                'user_id' => $user->id,
+            ]);
 
             return [
                 'success' => true,
