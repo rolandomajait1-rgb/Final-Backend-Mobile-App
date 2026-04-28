@@ -1,72 +1,62 @@
-import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
 const CLOUDINARY_CLOUD_NAME = 'da9wvkqcl';
 const CLOUDINARY_UPLOAD_PRESET = 'mobile_articles';
 
 /**
- * Upload image directly to Cloudinary using fetch (NOT axios).
- * Axios has a known React Native bug where multipart/form-data throws
- * "Network Error" even when credentials and connectivity are valid.
- * fetch() handles RN FormData correctly.
+ * Upload image to Cloudinary using expo-file-system's uploadAsync.
  *
- * @param {string} imageUri - Local image URI from ImagePicker
- * @param {Function} onProgress - Callback for upload progress (0-100) [simulated]
+ * Why uploadAsync instead of fetch/axios:
+ * - axios: throws "Network Error" on multipart/form-data in React Native (known bug)
+ * - fetch + FormData: inconsistent file URI handling across Android versions
+ * - FileSystem.uploadAsync: uses native HTTP multipart upload — the correct Expo approach
+ *
+ * @param {string} imageUri - Local image URI from ImagePicker / ImageManipulator
+ * @param {Function} onProgress - Optional callback for progress (0-100) [simulated]
  * @returns {Promise<string>} - Cloudinary secure_url
  */
 export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
-  // Declare outside try so finally can always clear it
   let progressInterval = null;
 
   try {
     console.log('[Cloudinary] Starting upload:', imageUri);
-    console.log('[Cloudinary] Cloud name:', CLOUDINARY_CLOUD_NAME);
-    console.log('[Cloudinary] Upload preset:', CLOUDINARY_UPLOAD_PRESET);
+    console.log('[Cloudinary] Cloud:', CLOUDINARY_CLOUD_NAME, '| Preset:', CLOUDINARY_UPLOAD_PRESET);
 
     const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
-    // Determine file extension and MIME type
-    const filename = imageUri.split('/').pop() || `upload-${Date.now()}.jpg`;
-    const match = /\.(\w+)$/.exec(filename.toLowerCase());
-    let type = 'image/jpeg';
-    if (match) {
-      if (match[1] === 'png')  type = 'image/png';
-      else if (match[1] === 'gif')  type = 'image/gif';
-      else if (match[1] === 'webp') type = 'image/webp';
-    }
-
-    // iOS: strip file:// prefix — Android keeps content:// or file:// as-is
-    const cleanUri = Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri;
-
-    console.log('[Cloudinary] File info:', { cleanUri, type, filename });
-
-    const formData = new FormData();
-    formData.append('file', { uri: cleanUri, type, name: filename });
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('folder', 'presshub');
-
-    // Simulate upload progress with a plain counter (fetch has no native progress events)
-    // onProgress is a plain callback (not a React setState), so pass direct values.
+    // Simulate progress (FileSystem.uploadAsync doesn't expose native progress)
     if (onProgress) {
-      let currentProgress = 10;
-      onProgress(currentProgress);
+      let current = 10;
+      onProgress(current);
       progressInterval = setInterval(() => {
-        currentProgress = Math.min(currentProgress + 15, 85);
-        onProgress(currentProgress);
+        current = Math.min(current + 15, 85);
+        onProgress(current);
       }, 500);
     }
 
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-      // Do NOT set Content-Type manually — fetch auto-sets it with the correct boundary
+    const result = await FileSystem.uploadAsync(uploadUrl, imageUri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      parameters: {
+        upload_preset: CLOUDINARY_UPLOAD_PRESET,
+        folder: 'presshub',
+      },
+      mimeType: 'image/jpeg',
     });
 
-    const data = await response.json();
+    console.log('[Cloudinary] HTTP status:', result.status);
 
-    if (!response.ok) {
-      console.error('[Cloudinary] Upload rejected by server:', JSON.stringify(data, null, 2));
-      const cloudinaryMsg = data?.error?.message || `HTTP ${response.status}`;
-      throw new Error(`Cloudinary rejected upload: ${cloudinaryMsg}`);
+    const data = JSON.parse(result.body);
+
+    if (result.status < 200 || result.status >= 300) {
+      console.error('[Cloudinary] Upload rejected:', JSON.stringify(data, null, 2));
+      const msg = data?.error?.message || `HTTP ${result.status}`;
+      throw new Error(`Cloudinary rejected upload: ${msg}`);
+    }
+
+    if (!data.secure_url) {
+      throw new Error('Cloudinary returned no URL in response');
     }
 
     if (onProgress) onProgress(100);
@@ -77,7 +67,6 @@ export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
     console.error('[Cloudinary] Upload failed:', error.message);
     throw new Error(error.message || 'Image upload failed. Please check your internet connection.');
   } finally {
-    // Always clear the interval — whether upload succeeded, failed, or timed out
     if (progressInterval !== null) {
       clearInterval(progressInterval);
     }
