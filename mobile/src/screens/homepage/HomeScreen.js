@@ -18,12 +18,10 @@ import ArticleLargeCard from "../../components/articles/ArticleLargeCard";
 import { useArticles } from "../../context/ArticleContext";
 import {
   getArticles,
-  searchArticles,
   deleteArticle,
 } from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
 import { colors } from "../../styles";
-import { debounce } from "../../utils/debounce";
 import { showAuditToast } from "../../utils/toastNotification";
 import { formatArticleDate } from "../../utils/dateUtils";
 import { handleAuthorPress } from "../../utils/authorNavigation";
@@ -188,9 +186,6 @@ export default function HomeScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [menuX, setMenuX] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   
   // Pagination state for recent articles
   const [recentArticles, setRecentArticles] = useState([]);
@@ -232,7 +227,12 @@ export default function HomeScreen({ navigation }) {
     loadingMoreRef.current = true;
     
     try {
-      const res = await getArticles({ page, per_page: 10 });
+      // Fetch published articles sorted by published_at descending (latest first)
+      const res = await getArticles({ 
+        page, 
+        per_page: 10,
+        status: 'published'  // Only fetch published articles
+      });
       const newArticles = res.data?.data ?? [];
       const lastPage = res.data?.last_page ?? 1;
       
@@ -261,31 +261,6 @@ export default function HomeScreen({ navigation }) {
       fetchRecentArticles(recentPage + 1, false);
     }
   };
-
-  const handleSearch = useCallback(async (query) => {
-    setSearchQuery(query);
-    if (query.trim().length < 1) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    try {
-      const res = await searchArticles(query.trim());
-      setSearchResults(res.data?.data ?? []);
-    } catch (err) {
-      console.error("Search error:", err);
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  // Bug #2 Fix: Debounce created with useMemo — stable across renders
-  const debouncedSearch = useMemo(
-    () => debounce(handleSearch, 100),
-    [handleSearch]
-  );
 
   // Keep track of pending deletion for cleanup on unmount
   useEffect(() => {
@@ -418,7 +393,6 @@ export default function HomeScreen({ navigation }) {
     }
     
     // Optimistically remove from UI
-    setSearchResults(prev => prev.filter(a => a.id !== articleToHide.id));
     setRecentArticles(prev => prev.filter(a => a.id !== articleToHide.id));
     
     setShowDeleteModal(false);
@@ -437,11 +411,8 @@ export default function HomeScreen({ navigation }) {
           <HomeHeader
             categories={categories}
             onCategorySelect={() => {}}
-            onMenuPress={() => {}}
-            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
-            onSearch={debouncedSearch}
             navigation={navigation}
-              searchQuery={searchQuery}
+            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
           />
         </View>
         <HomeScreenSkeleton />
@@ -457,63 +428,13 @@ export default function HomeScreen({ navigation }) {
         <HomeHeader
           categories={categories}
           onCategorySelect={() => {}}
-          onMenuPress={() => {}}
-          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
-          onSearch={debouncedSearch}
           navigation={navigation}
-          searchQuery={searchQuery}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
         />
       </View>
 
       {/* Flexible Content Area */}
       <View className="flex-1">
-        {searchQuery.trim().length >= 1 ? (
-          // Search Results View
-          <ScrollView className="flex-1 px-4">
-            <Text className="text-2xl font-bold text-gray-900 my-4">
-              Search Results for {`"${searchQuery}"`}
-            </Text>
-            {searching ? (
-              <Loader />
-            ) : searchResults.length > 0 ? (
-              searchResults.map((article) => (
-                <ArticleLargeCard
-                  key={article.id}
-                  title={article.title}
-                  category={article.categories?.[0]?.name}
-                  hashtags={article.tags?.map((t) => t.name) || []}
-                  author={
-                    article.author_name ||
-                    article.author?.name ||
-                    article.author?.user?.name ||
-                    "Unknown Author"
-                  }
-                  date={formatArticleDate(article.created_at || article.published_at)}
-                  image={article.featured_image_url || article.featured_image}
-                  onPress={() =>
-                    navigation.navigate("ArticleStack", {
-                      screen: "ArticleDetail",
-                      params: {
-                        slug: article.slug,
-                        article,
-                      }
-                    })
-                  }
-                  onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
-                  onTagPress={(tag) =>
-                    navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag } })
-                  }
-                  onAuthorPress={() => handleAuthorPress(article, navigation)}
-                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
-                />
-              ))
-            ) : (
-              <Text className="text-center text-gray-500 my-8">
-                No results found for {`"${searchQuery}"`}
-              </Text>
-            )}
-          </ScrollView>
-        ) : (
           <ArticlesListContent
             latestArticles={latestArticles}
             recentArticles={recentArticles}
@@ -541,7 +462,6 @@ export default function HomeScreen({ navigation }) {
             navigation={navigation}
             scrollViewRef={scrollViewRef}
           />
-        )}
       </View>
 
       {/* Edit/Delete Menu Modal */}

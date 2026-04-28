@@ -77,11 +77,8 @@ const HomeHeader = ({
   };
 
   const handleSearchIconPress = () => {
-    if (onSearch) {
-      // Activate inline search if the parent component provided an onSearch handler
-      setIsSearchActive(true);
-    } else if (navigation) {
-      // Otherwise, navigate to the dedicated Search screen
+    // Always navigate to dedicated Search screen if not already there
+    if (!isSearchScreen && navigation) {
       navigation.navigate("Search");
     }
   };
@@ -89,13 +86,31 @@ const HomeHeader = ({
   const handleSearch = (text) => {
     console.log('HomeHeader handleSearch called with:', text);
     setSearchQuery(text);
-    if (onSearch) onSearch(text);
+    // Only call onSearch if we're already in SearchScreen (inline search)
+    if (onSearch && isSearchScreen) {
+      onSearch(text);
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    // When user submits search from HomeScreen, navigate to SearchScreen with query
+    if (navigation && searchQuery.trim()) {
+      navigation.navigate("Search", { initialQuery: searchQuery });
+      setIsSearchActive(false);
+    }
   };
 
   const handleSearchClose = () => {
-    setSearchQuery('');
-    if (onSearch) onSearch(''); // Clear search in parent component
-    setIsSearchActive(false); // Always close the search bar
+    if (searchQuery.trim().length > 0) {
+      setSearchQuery('');
+      if (onSearch) onSearch('');
+    } else {
+      if (isSearchScreen && navigation) {
+        navigation.goBack(); // If in search screen, closing it goes back
+      } else {
+        setIsSearchActive(false);
+      }
+    }
   };
 
   const handleMenuPress = () => {
@@ -138,11 +153,13 @@ const HomeHeader = ({
               <Ionicons name="search" size={width < 375 ? 18 : 20} color="#252424ff" />
               <TextInput
                 className={`flex-1 text-gray-800 ${width < 375 ? 'text-sm' : 'text-base'} py-0`}
-                placeholder="Search..."
+                placeholder="Search articles, #tags, authors..."
                 placeholderTextColor="#999"
                 value={searchQuery}
                 onChangeText={handleSearch}
                 onBlur={handleSearchBlur}
+                onSubmitEditing={handleSearchSubmit}
+                returnKeyType="search"
                 autoFocus
               />
               {/* Always show X button when search is active */}
