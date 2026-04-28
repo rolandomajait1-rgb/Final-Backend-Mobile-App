@@ -282,9 +282,11 @@ const JoinHeraldScreen = ({ navigation }) => {
         <HomeHeader
           categories={[]}
           onCategorySelect={() => {}}
-          onGridPress={() => {}} // Disabled in sub-screens to prevent navigation stack issues
           navigation={navigation}
-          enableSearch={false}
+          onSearch={() => {}}
+          searchQuery=""
+          isSearchScreen={true}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
         />
       </View>
 
@@ -419,7 +421,7 @@ const JoinHeraldScreen = ({ navigation }) => {
                 style={{
                   borderColor: '#D1D5DB',
                   borderWidth: 1, borderRadius: 8,
-                  height: 110, alignItems: "center", justifyContent: "center",
+                  height:180, alignItems: "center", justifyContent: "center",
                   backgroundColor: "#fff",
                 }}
                 onPress={handlePhotoUpload}
@@ -487,7 +489,7 @@ const JoinHeraldScreen = ({ navigation }) => {
                 style={{
                   borderColor: '#D1D5DB',
                   borderWidth: 1, borderRadius: 8,
-                  height: 110, alignItems: "center", justifyContent: "center",
+                  height: 180, alignItems: "center", justifyContent: "center",
                   backgroundColor: "#fff",
                 }}
                 onPress={handleFileUpload}

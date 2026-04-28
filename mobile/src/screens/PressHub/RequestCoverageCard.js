@@ -11,7 +11,7 @@ const RequestCoverageCard = () => {
     <TouchableOpacity
       className="flex-row items-center p-4 rounded-lg border-2"
       style={{ borderColor: colors.border, backgroundColor: colors.surface }}
-      activeOpacity={0.7}
+      activeOpacity={1}
       onPress={() => navigation.navigate('RequestCoverage')}
     >
       <Ionicons name="mail" size={80} color={colors.primary} />

@@ -11,7 +11,7 @@ const SendFeedbackCard = () => {
     <TouchableOpacity
       className="flex-row items-center p-4 rounded-lg border-2"
       style={{ borderColor: colors.border, backgroundColor: colors.surface }}
-      activeOpacity={0.7}
+      activeOpacity={1}
       onPress={() => navigation.navigate('SendFeedback')}
     >
       <Ionicons name="hand-left" size={80} color={colors.primary} />

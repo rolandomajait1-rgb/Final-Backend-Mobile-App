@@ -67,9 +67,11 @@ const SendFeedbackScreen = ({ navigation }) => {
         <HomeHeader
           categories={[]}
           onCategorySelect={() => {}}
-          onGridPress={() => {}} // Disabled in sub-screens to prevent navigation stack issues
           navigation={navigation}
-          enableSearch={false}
+          onSearch={() => {}}
+          searchQuery=""
+          isSearchScreen={true}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
         />
       </View>
 
