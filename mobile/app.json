@@ -4,12 +4,12 @@
     "slug": "laverdad-herald",
     "scheme": "laverdadherald",
     "icon": "./assets/icon.png",
-    "version": "1.0.0",
-    "runtimeVersion": "1.0.0",
+    "version": "1.0.1",
+    "runtimeVersion": "1.0.1",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/logo.png",
-      "resizeMode": "contain", 
+      "resizeMode": "contain",
       "backgroundColor": "#2C5F7F"
     },
     "androidStatusBar": {
@@ -22,13 +22,14 @@
     },
     "extra": {
       "eas": {
-        "projectId": "1765d994-9d3b-471b-b28f-75963495893b"
+        "projectId": "fb81b76f-342c-4529-8b59-5672105c59ca"
       }
     },
     "updates": {
       "url": "https://u.expo.dev/1765d994-9d3b-471b-b28f-75963495893b"
     },
     "android": {
+      "versionCode": 2,
       "package": "com.landzki.laverdadherald",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -54,6 +55,6 @@
         "backgroundColor": "#2C5F7F"
       }
     },
-    "owner": "ispm-g4"
+    "owner": "ispm-g-4"
   }
 }

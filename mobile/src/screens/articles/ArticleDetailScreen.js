@@ -9,6 +9,7 @@ import {
   Alert,
   Animated,
   useWindowDimensions,
+  DeviceEventEmitter,
 } from "react-native";
 import { getImageUri } from "../../utils/imageUtils";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -370,7 +371,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
   // Bug #6 Fix: Add mounted ref to prevent state updates after unmount
   const mountedRef = useRef(true);
   
-  const { updateArticleLocally, forceRefreshArticles } = useArticles();
+  const { updateArticleLocally, removeArticleLocally, forceRefreshArticles } = useArticles();
   const { isLiked, toggleLike, markAsShared, fetchInteractions } = useUserInteractions();
 
   const checkAdminStatus = useCallback(async () => {
@@ -441,9 +442,51 @@ export default function ArticleDetailScreen({ navigation, route }) {
         setShares(res.data.shares_count || 0);
       }
     } catch (err) {
-      console.error("Error fetching article:", err);
+      // Log error details for debugging (but don't spam console)
+      if (err.response?.status !== 404 && err.response?.status !== 500) {
+        console.error("Error fetching article:", err);
+      } else {
+        console.log(`[ArticleDetailScreen] Article fetch failed with ${err.response?.status}`);
+      }
+      
       if (mountedRef.current) {
-        Alert.alert("Error", "Failed to load article.");
+        // Better error handling based on status code
+        const status = err.response?.status;
+        
+        if (status === 404) {
+          Alert.alert(
+            "Article Not Found", 
+            "This article may have been deleted or moved.",
+            [{ text: "Go Back", onPress: () => navigation.goBack() }]
+          );
+        } else if (status === 500) {
+          Alert.alert(
+            "Server Error", 
+            "The server encountered an error. Please try again later.",
+            [
+              { text: "Go Back", onPress: () => navigation.goBack() },
+              { text: "Retry", onPress: () => fetchArticle() }
+            ]
+          );
+        } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network')) {
+          Alert.alert(
+            "Network Error", 
+            "Please check your internet connection and try again.",
+            [
+              { text: "Go Back", onPress: () => navigation.goBack() },
+              { text: "Retry", onPress: () => fetchArticle() }
+            ]
+          );
+        } else {
+          Alert.alert(
+            "Error", 
+            "Failed to load article. Please try again.",
+            [
+              { text: "Go Back", onPress: () => navigation.goBack() },
+              { text: "Retry", onPress: () => fetchArticle() }
+            ]
+          );
+        }
       }
     } finally {
       if (mountedRef.current) {
@@ -609,11 +652,15 @@ export default function ArticleDetailScreen({ navigation, route }) {
       
       await deleteArticle(article.id);
       
-      // Refresh articles list
-      try { 
-        await forceRefreshArticles?.(); 
-      } catch { /* non-critical */ }
+      // Remove from local cache instantly for immediate UI feedback
+      if (removeArticleLocally) {
+        removeArticleLocally(article.id);
+      }
       
+      // Emit event to update HomeScreen (recentArticles + latestArticles)
+      // The HomeScreen listener handles the delayed background refresh
+      DeviceEventEmitter.emit('ARTICLE_DELETED', article.id);
+
       setShowDeleteModal(false);
       
       // Navigate first, then show toast after navigation completes
@@ -627,6 +674,11 @@ export default function ArticleDetailScreen({ navigation, route }) {
       // Check if it's a 404 error (article already deleted or doesn't exist)
       if (error.response?.status === 404) {
         // Article doesn't exist anymore, navigate back anyway
+        if (removeArticleLocally) {
+          removeArticleLocally(article.id);
+        }
+        DeviceEventEmitter.emit('ARTICLE_DELETED', article.id);
+
         setShowDeleteModal(false);
         navigation.goBack();
         

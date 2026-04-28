@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  DeviceEventEmitter,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -44,140 +45,151 @@ const ArticlesListContent = ({
   isAdminUser,
   navigation,
   scrollViewRef,
-}) => (
-  <ScrollView
-    ref={scrollViewRef}
-    showsVerticalScrollIndicator={false}
-    refreshControl={
-      <RefreshControl
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        tintColor={colors.primary}
-      />
-    }
-  >
-    <View className="px-4 mt-2">
-      <Text className="text-3xl font-bold text-gray-900 mb-4 mt-2">
-        Latest Articles
-      </Text>
-      {latestArticles?.length > 0 ? (
-        latestArticles.slice(0, 1).map((article) => (
-          <ArticleLargeCard
-            key={article.id}
-            title={article.title}
-            category={article.categories?.[0]?.name}
-            hashtags={article.tags?.map((t) => t.name) || []}
-            author={
-              article.author_name || article.author?.name || "Unknown Author"
-            }
-            date={formatArticleDate(article.created_at || article.published_at)}
-            image={article.featured_image_url || article.featured_image}
-            onPress={() => onArticlePress(article)}
-            onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
-            onTagPress={onTagPress}
-            onAuthorPress={() => onAuthorPress(article)}
-            onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+}) => {
+  // If latestArticles is empty (e.g. featured article was just deleted),
+  // promote the first article from recentArticles to fill the Latest slot.
+  const latestIds = new Set((latestArticles || []).map(a => a.id));
+  const promotedFromRecent =
+    latestArticles?.length === 0 && recentArticles?.length > 0
+      ? [recentArticles[0]]
+      : [];
+  const displayLatest = latestArticles?.length > 0 ? latestArticles : promotedFromRecent;
+  const displayLatestIds = new Set(displayLatest.slice(0, 1).map(a => a.id));
+
+  // Recent section: hide articles already shown in Latest slot
+  const filteredRecent = (recentArticles || []).filter(
+    a => !displayLatestIds.has(a.id)
+  );
+
+  return (
+    <ScrollView
+      ref={scrollViewRef}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+        />
+      }
+    >
+      <View className="px-4 mt-2">
+        <Text className="text-3xl font-bold text-gray-900 mb-4 mt-2">
+          Latest Articles
+        </Text>
+        {displayLatest.length > 0 ? (
+          displayLatest.slice(0, 1).map((article) => (
+            <ArticleLargeCard
+              key={article.id}
+              title={article.title}
+              category={article.categories?.[0]?.name}
+              hashtags={article.tags?.map((t) => t.name) || []}
+              author={
+                article.author_name || article.author?.name || "Unknown Author"
+              }
+              date={formatArticleDate(article.created_at || article.published_at)}
+              image={article.featured_image_url || article.featured_image}
+              onPress={() => onArticlePress(article)}
+              onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
+              onTagPress={onTagPress}
+              onAuthorPress={() => onAuthorPress(article)}
+              onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+            />
+          ))
+        ) : (
+          <EmptyState 
+            icon="newspaper-outline" 
+            title="No featured articles" 
+            message="Check back later for top stories." 
           />
-        ))
-      ) : (
-        <EmptyState 
-          icon="newspaper-outline" 
-          title="No featured articles" 
-          message="Check back later for top stories." 
-        />
-      )}
-    </View>
+        )}
+      </View>
 
-    <View className="px-4 mb-2">
-      <Text className="text-2xl font-bold text-gray-900 mb-4 mt-2">
-        Recent Articles
-      </Text>
-      {/* Filter out articles already shown in Latest section */}
-      {(() => {
-        const latestIds = latestArticles.slice(0, 1).map(a => a.id);
-        const filteredRecent = recentArticles?.filter(article => !latestIds.includes(article.id)) || [];
-        return filteredRecent.length > 0 ? (
-        <>
-          <View className="gap-1">
-            {filteredRecent.map((article) => (
-              <ArticleMediumCard
-                key={article.id}
-                title={article.title}
-                category={article.categories?.[0]?.name}
-                author={
-                  article.author_name || article.author?.name || "Unknown Author"
-                }
-                date={formatArticleDate(article.created_at || article.published_at)}
-                image={article.featured_image_url || article.featured_image}
-                hashtags={article.tags}
-                onPress={() => onArticlePress(article)}
-                onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
-                onAuthorPress={() => onAuthorPress(article)}
-                onTagPress={onTagPress}
-                onCategoryPress={(category) => handleCategoryPress(category, navigation)}
-                navigation={navigation}
-              />
-            ))}
-          </View>
-          
-          {/* Load More Button */}
-          {hasMore && (
-            <TouchableOpacity
-              onPress={onLoadMore}
-              disabled={loadingMore}
-              className="items-center justify-center py-4 mt-2"
-            >
-              {loadingMore ? (
-                <View className="flex-row items-center justify-center">
-                  <Loader />
+      <View className="px-4 mb-2">
+        <Text className="text-2xl font-bold text-gray-900 mb-4 mt-2">
+          Recent Articles
+        </Text>
+        {filteredRecent.length > 0 ? (
+          <>
+            <View className="gap-1">
+              {filteredRecent.map((article) => (
+                <ArticleMediumCard
+                  key={article.id}
+                  title={article.title}
+                  category={article.categories?.[0]?.name}
+                  author={
+                    article.author_name || article.author?.name || "Unknown Author"
+                  }
+                  date={formatArticleDate(article.created_at || article.published_at)}
+                  image={article.featured_image_url || article.featured_image}
+                  hashtags={article.tags}
+                  onPress={() => onArticlePress(article)}
+                  onMenuPress={isAdminUser ? (e) => handleMenuPress(article, e) : undefined}
+                  onAuthorPress={() => onAuthorPress(article)}
+                  onTagPress={onTagPress}
+                  onCategoryPress={(category) => handleCategoryPress(category, navigation)}
+                  navigation={navigation}
+                />
+              ))}
+            </View>
+            
+            {/* Load More Button */}
+            {hasMore && (
+              <TouchableOpacity
+                onPress={onLoadMore}
+                disabled={loadingMore}
+                className="items-center justify-center py-4 mt-2"
+              >
+                {loadingMore ? (
+                  <View className="flex-row items-center justify-center">
+                    <Loader />
+                  </View>
+                ) : (
+                  <Text className="text-base text-blue-500 font-semibold text-center">
+                    Load More
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Back to Top Button - Below Load More */}
+            {filteredRecent.length > 5 && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (scrollViewRef && scrollViewRef.current) {
+                    scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                  }
+                }}
+                className="items-center justify-center py-4 mt-2 mb-4"
+                style={{ backgroundColor: '#f0f9ff', borderRadius: 12, marginHorizontal: 4 }}
+              >
+                <View className="flex-row items-center justify-center gap-2">
+                  <Ionicons name="arrow-up-circle" size={24} color="#0891b2" />
+                  <Text className="text-base text-cyan-600 font-semibold">Back to Top</Text>
                 </View>
-              ) : (
-                <Text className="text-base text-blue-500 font-semibold text-center">
-                  Load More
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Back to Top Button - Below Load More */}
-          {filteredRecent.length > 5 && (
-            <TouchableOpacity
-              onPress={() => {
-                if (scrollViewRef && scrollViewRef.current) {
-                  scrollViewRef.current.scrollTo({ y: 0, animated: true });
-                }
-              }}
-              className="items-center justify-center py-4 mt-2 mb-4"
-              style={{ backgroundColor: '#f0f9ff', borderRadius: 12, marginHorizontal: 4 }}
-            >
-              <View className="flex-row items-center justify-center gap-2">
-                <Ionicons name="arrow-up-circle" size={24} color="#0891b2" />
-                <Text className="text-base text-cyan-600 font-semibold">Back to Top</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-        </>
-      ) : initialLoadComplete ? (
-        <EmptyState 
-          icon="document-text-outline" 
-          title="No recent articles" 
-          message="More news and updates coming soon." 
-        />
-      ) : null;
-      })()}
-    </View>
-    
-    <View className="h-24" />
-  </ScrollView>
-);
+              </TouchableOpacity>
+            )}
+          </>
+        ) : initialLoadComplete ? (
+          <EmptyState 
+            icon="document-text-outline" 
+            title="No recent articles" 
+            message="More news and updates coming soon." 
+          />
+        ) : null}
+      </View>
+      
+      <View className="h-24" />
+    </ScrollView>
+  );
+};
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation }) {
-  const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles } = useArticles();
+  const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles, removeArticleLocally, filterDeleted } = useArticles();
   const hasMountedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const isAdminUser = userRole === 'admin' || userRole === 'moderator';
@@ -194,9 +206,7 @@ export default function HomeScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [pendingDeletion, setPendingDeletion] = useState(null);
-  const pendingDeletionRef = useRef(null);
-  const [deletedArticleIds, setDeletedArticleIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     checkUserRole();
@@ -215,8 +225,7 @@ export default function HomeScreen({ navigation }) {
       const res = await getCategories();
       setCategories(res.data ?? []);
     } catch (_) {
-    } finally {
-      setCategoriesLoading(false);
+      // Silent fail
     }
   };
   
@@ -228,92 +237,42 @@ export default function HomeScreen({ navigation }) {
     loadingMoreRef.current = true;
     
     try {
-      // Fetch published articles sorted by published_at descending (latest first)
       const res = await getArticles({ 
         page, 
         per_page: 10,
-        status: 'published'  // Only fetch published articles
+        status: 'published'
       });
-      const newArticles = res.data?.data ?? [];
+      const rawArticles = res.data?.data ?? [];
       const lastPage = res.data?.last_page ?? 1;
       
-      setRecentArticles(prev => replace ? newArticles : [...prev, ...newArticles]);
+      // Always filter out permanently deleted articles before setting state
+      // This protects recentArticles from useFocusEffect re-fetches that
+      // race against the backend delete propagation
+      const newArticles = filterDeleted(rawArticles);
+      
+      setRecentArticles(prev => replace ? newArticles : [...filterDeleted(prev), ...newArticles]);
       setRecentHasMore(page < lastPage);
       setRecentPage(page);
       
-      // Mark initial load as complete after minimum delay
       if (page === 1) {
-        setTimeout(() => setInitialLoadComplete(true), 5000);
+        setInitialLoadComplete(true);
       }
     } catch (err) {
       console.error('Error fetching recent articles:', err);
-      // Still mark as complete even on error after delay
       if (page === 1) {
-        setTimeout(() => setInitialLoadComplete(true), 5000);
+        setInitialLoadComplete(true);
       }
     } finally {
       setLoadingMore(false);
       loadingMoreRef.current = false;
     }
-  }, []);
+  }, [filterDeleted]);
   
   const handleLoadMore = () => {
     if (!loadingMore && recentHasMore) {
       fetchRecentArticles(recentPage + 1, false);
     }
   };
-
-  // Keep track of pending deletion for cleanup on unmount
-  useEffect(() => {
-    pendingDeletionRef.current = pendingDeletion;
-  }, [pendingDeletion]);
-
-  // Cleanup on unmount (kung isara ng user ang app, ituloy ang delete API)
-  useEffect(() => {
-    return () => {
-      if (pendingDeletionRef.current && pendingDeletionRef.current.timeLeft > 0) {
-        deleteArticle(pendingDeletionRef.current.article.id).catch(() => {});
-      }
-    };
-  }, []);
-
-  // Timer effect for 20s undo
-  useEffect(() => {
-    let timer;
-    if (pendingDeletion && pendingDeletion.timeLeft > 0) {
-      timer = setTimeout(() => {
-        setPendingDeletion(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
-      }, 1000);
-    } else if (pendingDeletion && pendingDeletion.timeLeft === 0) {
-      const articleId = pendingDeletion.article.id;
-      
-      // Prevent multiple calls while deleting
-      setPendingDeletion(prev => ({ ...prev, timeLeft: -1 }));
-      
-      // Optimistically hide the article from all lists permanently on this screen
-      setDeletedArticleIds(prev => [...prev, articleId]);
-
-      // Time is up, i-execute na ang actual API deletion
-      (async () => {
-        try {
-          await deleteArticle(articleId);
-          showAuditToast("success", "Article deleted successfully");
-        } catch (error) {
-          // Ignore if already deleted (404)
-          if (error.response?.status !== 404) {
-            console.error("Error executing delayed delete:", error);
-            showAuditToast("error", "Failed to delete article. Please try again.");
-            setDeletedArticleIds(prev => prev.filter(id => id !== articleId));
-          }
-        } finally {
-          setRecentArticles(prev => prev.filter(a => a.id !== articleId));
-          try { await forceRefreshArticles?.(); } catch(e) {}
-          setPendingDeletion(null);
-        }
-      })();
-    }     
-    return () => clearTimeout(timer);
-  }, [pendingDeletion, forceRefreshArticles, fetchRecentArticles]);
 
   useEffect(() => {
     fetchCategories();
@@ -322,37 +281,46 @@ export default function HomeScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      // IMPORTANT: Always refresh both latest and recent articles when screen comes into focus
-      // This ensures updates from other screens (Edit, Create, Draft, etc.) are immediately reflected
-      // - latestArticles: managed by ArticleContext (top featured articles)
-      // - recentArticles: managed locally with pagination (all published articles)
       if (hasMountedRef.current) {
-        refreshArticles(); // Refresh latest articles from context
-        fetchRecentArticles(1, true); // Refresh recent articles list
+        refreshArticles();
+        fetchRecentArticles(1, true);
       } else {
         hasMountedRef.current = true;
       }
-
-      // Return a cleanup function that runs when the screen is unfocused.
-      return () => {
-        // If an article deletion is pending, navigating away should confirm the deletion.
-        if (pendingDeletionRef.current && pendingDeletionRef.current.timeLeft > 0) {
-          const articleId = pendingDeletionRef.current.article.id;
-          setDeletedArticleIds(prev => [...prev, articleId]);
-          
-          // Immediately delete the article in the background.
-          deleteArticle(articleId)
-            .then(() => {
-              forceRefreshArticles();
-            })
-            .catch(() => {}); // Suppress errors for fire-and-forget
-
-          // Clear the pending deletion state to stop the timer and hide the undo toast.
-          setPendingDeletion(null);
-        }
-      };
-    }, [refreshArticles, fetchRecentArticles, forceRefreshArticles]),
+    }, [refreshArticles, fetchRecentArticles]),
   );
+
+  // Listen for article publish/delete events for auto-refresh
+  useEffect(() => {
+    const handlePublish = () => {
+      console.log('[HomeScreen] Article published - auto refreshing...');
+      forceRefreshArticles();
+      fetchRecentArticles(1, true);
+    };
+    
+    const handleDelete = (deletedId) => {
+      console.log('[HomeScreen] Article deleted - updating UI instantly...', deletedId);
+      if (deletedId) {
+        // 1. Instantly remove from both local lists — no waiting for API
+        setRecentArticles(prev => prev.filter(a => a.id !== deletedId));
+        removeArticleLocally(deletedId);
+      }
+      // 2. Delayed background refresh — gives backend time to commit delete
+      //    so the re-fetch doesn't race-condition bring the article back
+      setTimeout(() => {
+        forceRefreshArticles();
+        fetchRecentArticles(1, true);
+      }, 800);
+    };
+
+    const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+
+    return () => {
+      publishListener.remove();
+      deleteListener.remove();
+    };
+  }, [forceRefreshArticles, fetchRecentArticles, removeArticleLocally]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -383,35 +351,59 @@ export default function HomeScreen({ navigation }) {
     setShowDeleteModal(true);
   };
 
-  const undoDelete = () => {
-    if (!pendingDeletion) return;
-    
-    setPendingDeletion(null);
-    showAuditToast("info", "Deletion undone");
-  };
-
   const confirmDelete = async () => {
-    if (!menuArticle?.id) {
-      return;
-    }
+    if (!menuArticle?.id || isDeleting) return;
 
-    const articleToHide = menuArticle;
+    try {
+      setIsDeleting(true);
+      setShowDeleteModal(false);
+      
+      // Optimistically remove from UI first (instant feedback)
+      const deletedArticleId = menuArticle.id;
+      setRecentArticles(prev => prev.filter(a => a.id !== deletedArticleId));
+      
+      // Instant removal from global context (Latest Articles)
+      removeArticleLocally(deletedArticleId);
+      
+      try {
+        await deleteArticle(deletedArticleId);
+        showAuditToast("success", "Article deleted successfully");
+      } catch (deleteError) {
+        // Silent handling of 404 - article already deleted
+        if (deleteError.response?.status === 404) {
+          console.log('[HomeScreen] Article already deleted (404)');
+          showAuditToast("success", "Article removed");
+        } else if (deleteError.response?.status === 500) {
+          // Backend error - but UI already updated, so just log it
+          console.log('[HomeScreen] Backend error on delete (500) - UI updated anyway');
+          showAuditToast("success", "Article removed from view");
+        } else {
+          // Other errors - restore the article in UI
+          console.log('[HomeScreen] Delete failed with unexpected error');
+          showAuditToast("error", "Failed to delete article");
+          // Refresh to restore correct state
+          fetchRecentArticles(1, true);
+          forceRefreshArticles();
+          return;
+        }
+      }
+      
+      // Force refresh both latest and recent articles
+      forceRefreshArticles();
+      fetchRecentArticles(1, true);
+      
+      // Emit event for other screens to refresh
+      DeviceEventEmitter.emit('ARTICLE_DELETED', deletedArticleId);
 
-    // If nag-delete ulit sila pero may pending timer pa, i-execute na ang previous deletion
-    if (pendingDeletion && pendingDeletion.timeLeft > 0) {
-      deleteArticle(pendingDeletion.article.id).catch(() => {});
+    } catch (error) {
+      console.error("Unexpected error in confirmDelete:", error);
+      showAuditToast("error", "An unexpected error occurred");
+    } finally {
+      setIsDeleting(false);
     }
-    
-    setShowDeleteModal(false);
-    
-    // Start 20s countdown instead of deleting immediately
-    setPendingDeletion({
-      article: articleToHide,
-      timeLeft: 20
-    });
   };
 
-  if (articlesLoading || categoriesLoading) {
+  if (articlesLoading) {
     return (
       <View className="flex-1 bg-gray-50">
         <View className="flex-shrink-0">
@@ -443,8 +435,8 @@ export default function HomeScreen({ navigation }) {
       {/* Flexible Content Area */}
       <View className="flex-1">
           <ArticlesListContent
-            latestArticles={latestArticles.filter(a => a.id !== pendingDeletion?.article?.id && !deletedArticleIds.includes(a.id))}
-            recentArticles={recentArticles.filter(a => a.id !== pendingDeletion?.article?.id && !deletedArticleIds.includes(a.id))}
+            latestArticles={latestArticles}
+            recentArticles={recentArticles}
             refreshing={refreshing}
             onRefresh={onRefresh}
             loadingMore={loadingMore}
@@ -497,81 +489,9 @@ export default function HomeScreen({ navigation }) {
       {/* Bottom Navigation */}
       <BottomNavigation navigation={navigation} activeTab="Home" />
 
-      {/* Undo Deletion Timer Toast */}
-      {pendingDeletion && pendingDeletion.timeLeft > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            left: 16,
-            right: 16,
-            backgroundColor: '#374151', // Dark gray background
-            padding: 16,
-            borderRadius: 12,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            elevation: 6,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 5,
-            zIndex: 100,
-          }}
-        >
-          <View className="flex-row items-center">
-            <TouchableOpacity 
-              onPress={() => {
-                if (pendingDeletion.timeLeft === -1) return; // Prevent double tap
-                // Skip timer and execute delete immediately
-                const articleId = pendingDeletion.article.id;
-                setPendingDeletion(prev => ({ ...prev, timeLeft: -1 }));
-                
-                // Optimistically hide the article from all lists permanently
-                setDeletedArticleIds(prev => [...prev, articleId]);
-
-                (async () => {
-                  try {
-                    await deleteArticle(articleId);
-                    showAuditToast("success", "Article deleted successfully");
-                  } catch (error) {
-                    if (error.response?.status !== 404) {
-                      showAuditToast("error", "Failed to delete article.");
-                      setDeletedArticleIds(prev => prev.filter(id => id !== articleId));
-                    }
-                  } finally {
-                    setRecentArticles(prev => prev.filter(a => a.id !== articleId));
-                    try { await forceRefreshArticles?.(); } catch(e) {}
-                    setPendingDeletion(null);
-                  }
-                })();
-              }}
-              style={{ paddingRight: 10 }}
-            >
-              <Ionicons name="close" size={22} color="#9ca3af" />
-            </TouchableOpacity>
-            <Ionicons name="trash-outline" size={20} color="#f87171" style={{ marginRight: 8 }} />
-            <Text style={{ color: 'white', fontSize: 15, fontWeight: '500' }}>
-              Article deleted ({pendingDeletion.timeLeft}s)
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={undoDelete}
-            style={{
-              backgroundColor: '#f59e0b', // Amber button
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 8,
-            }}
-          >
-            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>UNDO</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       <DeleteConfirmModal
         visible={showDeleteModal}
-        loading={false}
+        loading={isDeleting}
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteModal(false)}
       />

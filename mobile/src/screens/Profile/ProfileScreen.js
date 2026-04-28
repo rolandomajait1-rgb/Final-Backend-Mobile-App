@@ -43,7 +43,7 @@ export default function ProfileScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { forceRefreshArticles } = useArticles();
+  const { forceRefreshArticles, removeArticleLocally } = useArticles();
 
   // Per-tab article state
   const [likedArticles, setLikedArticles] = useState([]);
@@ -76,6 +76,17 @@ export default function ProfileScreen({ navigation }) {
         }
         return;
       }
+
+      // Show cached user data instantly so the profile renders during cold start
+      const cachedUserJson = await AsyncStorage.getItem("user_data");
+      if (cachedUserJson && mountedRef.current) {
+        const cachedUser = JSON.parse(cachedUserJson);
+        setUser(cachedUser);
+        setIsAdminUser(cachedUser.role === 'admin' || cachedUser.role === 'moderator');
+        setLoading(false); // Show cached profile immediately
+      }
+
+      // Refresh from network in background (may be slow on Render cold start)
       const res = await getCurrentUser();
       if (mountedRef.current) {
         setUser(res.data);
@@ -86,11 +97,18 @@ export default function ProfileScreen({ navigation }) {
     } catch (err) {
       console.error("Error loading profile:", err);
       if (err.response?.status === 401) {
+        // Only clear cache on explicit auth failure, not network errors
         await AsyncStorage.multiRemove(["auth_token", "user_data"]);
+        if (mountedRef.current) {
+          setUser(null);
+          setLoading(false);
+        }
+        return;
       }
+      // Network error or timeout — keep showing cached data if available
       if (mountedRef.current) {
         setLoading(false);
-        setUser(null);
+        // Don't set user to null on network error — cached data is already shown
       }
     }
   }, []);
@@ -245,17 +263,16 @@ export default function ProfileScreen({ navigation }) {
         setSharedArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       }
       
-      // Remove from global article cache
-      forceRefreshArticles();
-      
       setShowDeleteModal(false);
       showAuditEventToast({
         action: 'article_delete',
         status: 'success',
         message: 'Article deleted successfully'
       });
-      // Global refresh
-      forceRefreshArticles();
+      // Register deletion in context — prevents API re-fetch from bringing it back
+      removeArticleLocally(menuArticle.id);
+      // Emit event — HomeScreen listener handles the delayed background refresh
+      DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       console.error("Error deleting article:", err);
       showAuditEventToast({

@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, FlatList,
-  RefreshControl, TouchableOpacity, ActivityIndicator, Animated,
+  RefreshControl, TouchableOpacity, ActivityIndicator, Animated, DeviceEventEmitter,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ArticleLargeCard from '../../components/articles/ArticleLargeCard';
@@ -20,6 +20,7 @@ import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { formatArticleDate } from '../../utils/dateUtils';
 import { handleAuthorPress } from '../../utils/authorNavigation';
 import { handleCategoryPress } from '../../utils/categoryNavigation';
+import { useArticles } from '../../context/ArticleContext';
 
 export default function ExploreScreen({ navigation }) {
   const [trendingArticles, setTrendingArticles] = useState([]);
@@ -41,6 +42,7 @@ export default function ExploreScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { removeArticleLocally } = useArticles();
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -292,6 +294,10 @@ export default function ExploreScreen({ navigation }) {
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
       setShowDeleteModal(false);
       showAuditToast('success', 'Article deleted successfully');
+      // Register deletion in context — prevents API re-fetch from bringing it back
+      removeArticleLocally(menuArticle.id);
+      // Emit event — HomeScreen listener handles the delayed background refresh
+      DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       console.error("Error deleting article:", err);
       showAuditToast('error', 'Failed to delete article');

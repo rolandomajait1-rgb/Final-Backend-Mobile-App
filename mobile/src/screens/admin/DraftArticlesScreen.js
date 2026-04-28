@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, FlatList, DeviceEventEmitter } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import HomeHeader from '../homepage/HomeHeader';
@@ -39,7 +39,7 @@ export default function DraftArticlesScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const { forceRefreshArticles } = useArticles();
+  const { forceRefreshArticles, removeArticleLocally } = useArticles();
 
   const handleSearch = useCallback(async (query) => {
     setSearchQuery(query);
@@ -130,7 +130,7 @@ export default function DraftArticlesScreen({ navigation }) {
     try {
       setPublishingDraft(true);
       // Fetch full article to ensure we pass all required fields back to the server
-      const res = await client.get(`/api/articles/id/${menuArticle.id}`);
+      const res = await client.get(`/api/articles/${menuArticle.id}`);
       const fullArticle = res.data?.data || res.data;
       
       if (!fullArticle) {
@@ -147,12 +147,10 @@ export default function DraftArticlesScreen({ navigation }) {
       const payload = {
         title: fullArticle.title,
         content: fullArticle.content,
-        category: categoryNameFromList, // Backend now expects category name string
         category_id: categoryId,
-        author: authorName,
         author_name: authorName,
         status: 'published',
-        tags: tagsArray.join(','), // Backend expects string
+        tags: tagsArray, 
         featured_image_url: fullArticle.featured_image_url || fullArticle.featured_image,
         _method: 'PUT'
       };
@@ -162,6 +160,7 @@ export default function DraftArticlesScreen({ navigation }) {
       setShowPublishModal(false);
       showAuditToast('success', 'Article published successfully!');
       forceRefreshArticles();
+      DeviceEventEmitter.emit('ARTICLE_PUBLISHED');
       fetchDrafts();
     } catch (error) {
       console.error('Error publishing draft:', error);
@@ -192,12 +191,14 @@ export default function DraftArticlesScreen({ navigation }) {
       
       // Remove from local state immediately
       setDraftArticles(prev => prev.filter(d => d.id !== menuArticle.id));
+      // Register deletion in context — prevents API re-fetch from bringing it back
+      removeArticleLocally(menuArticle.id);
       
       setShowDeleteModal(false);
       showAuditToast('success', 'Draft deleted successfully');
       
-      // Refresh latest articles context
-      forceRefreshArticles();
+      // Emit event — HomeScreen listener handles the delayed refresh
+      DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (error) {
       // Check if it's a 404 error (draft already deleted)
       if (error.response?.status === 404) {

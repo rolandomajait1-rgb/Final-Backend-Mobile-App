@@ -6,14 +6,13 @@ import { BASE_URL } from '../constants/config';
 export const ArticleContext = createContext();
 
 const CACHE_KEY = 'cached_latest_articles';
-const MIN_REFETCH_INTERVAL_MS = 500; // Reduced from 3000ms for faster updates
-const RETRY_DELAY_MS = 3000;
+const MIN_REFETCH_INTERVAL_MS = 500;
+const RETRY_DELAY_MS = 500; // SUPER FAST: Reduced from 1000ms to 500ms
 
-// FIX: Reduce backend wake-up timeout and make it non-blocking
-// 3 seconds is enough for most cases, and we don't want to block app startup
+// SUPER FAST: Reduce backend wake-up timeout to 2 seconds
 const wakeUpBackend = () => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced from 5s to 3s
+  const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced from 3s to 2s
 
   fetch(`${BASE_URL}/api/health`, {
     method: 'GET',
@@ -42,6 +41,7 @@ export function ArticleProvider({ children }) {
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
   const abortControllerRef = useRef(null); // Bug #4 Fix: Add abort controller for request cancellation
+  const deletedIdsRef = useRef(new Set()); // Track deleted article IDs so API re-fetch never brings them back
 
   // ─── Load cached articles from AsyncStorage instantly ─────────────────────
   const loadCache = useCallback(async () => {
@@ -52,9 +52,11 @@ export function ArticleProvider({ children }) {
         if (Array.isArray(cached) && cached.length > 0) {
           setLatestArticles(cached);
           setLoading(false); // show cached data — no spinner
+          return true; // has cache
         }
       }
     } catch (_) {}
+    return false; // no cache
   }, []);
 
   // ─── Persist articles to cache ────────────────────────────────────────────
@@ -65,7 +67,8 @@ export function ArticleProvider({ children }) {
   }, []);
 
   // Bug #4 & #11 Fix: Improved fetch with abort controller and smart retry logic
-  const fetchLatestArticles = useCallback(async (retries = 1, bypassCooldown = false) => {
+  // SUPER FAST MODE: No retry on first load, only retry on manual refresh
+  const fetchLatestArticles = useCallback(async (retries = 0, bypassCooldown = false) => {
     if (fetchingRef.current) {
       // Cancel previous request if still in flight
       if (abortControllerRef.current) {
@@ -82,14 +85,16 @@ export function ArticleProvider({ children }) {
     abortControllerRef.current = new AbortController();
 
     try {
-      // FIX: Add timeout to the actual API call (30 seconds max)
-      const res = await Promise.race([
-        getLatestArticles({ signal: abortControllerRef.current.signal }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 30000)),
-      ]);
-      const data = res.data ?? [];
+      // FIX: Timeout aligned with axios client (15s) - no need for extra timeout here
+      const res = await getLatestArticles({ signal: abortControllerRef.current.signal });
+      const rawData = res.data ?? [];
+      // Always filter out permanently deleted article IDs so they never reappear after refresh
+      const data = deletedIdsRef.current.size > 0
+        ? rawData.filter(a => !deletedIdsRef.current.has(a.id))
+        : rawData;
       setLatestArticles(data);
       setError(null);
+      setLoading(false); // CRITICAL: Always set loading to false after fetch
       lastFetchRef.current = Date.now();
       saveCache(data); // update local cache silently
     } catch (err) {
@@ -130,6 +135,7 @@ export function ArticleProvider({ children }) {
 
       // Keep showing cached data — don't clear it on error
       console.warn('[ArticleContext] Fetch failed:', err.message);
+      setLoading(false); // CRITICAL: Set loading to false even on error
       // Only show error if we have no cached data
       if (latestArticles.length === 0) {
         setError('Unable to load articles. Please check your connection.');
@@ -141,12 +147,13 @@ export function ArticleProvider({ children }) {
   }, [saveCache, latestArticles.length]);
 
   // ─── Public: refresh (with spinner only if no data) ───────────────────────
+  // SUPER FAST: Enable retry on manual refresh
   const refreshArticles = useCallback(async () => {
     setError(null);
     const hadNoData = latestArticles.length === 0;
     if (hadNoData) setLoading(true);
     try {
-      await fetchLatestArticles();
+      await fetchLatestArticles(1, true); // Enable 1 retry on manual refresh
     } finally {
       setLoading(false);
     }
@@ -169,19 +176,42 @@ export function ArticleProvider({ children }) {
 
   // ─── Public: remove article from cache (after delete) ──────────────────────
   const removeArticleLocally = useCallback((articleId) => {
+    // Add to permanent deletion set — survives any future API re-fetches
+    deletedIdsRef.current.add(articleId);
     setLatestArticles(prev => {
       const newArticles = prev.filter(a => a.id !== articleId);
       saveCache(newArticles);
       return newArticles;
     });
+    // Auto-clear from deletion set after 30s (backend is definitely synced by then)
+    setTimeout(() => {
+      deletedIdsRef.current.delete(articleId);
+    }, 30000);
   }, [saveCache]);
+
+  // ─── Public: filter any article array through the permanent deletion set ────
+  // Use this in ANY screen that fetches articles locally (recentArticles, etc.)
+  // so deleted articles never reappear regardless of which screen triggered the delete.
+  const filterDeleted = useCallback((articles) => {
+    if (!deletedIdsRef.current.size) return articles;
+    return articles.filter(a => !deletedIdsRef.current.has(a.id));
+  }, []);
 
   // ─── On mount: wake backend → load cache → fetch fresh in background ──────
   useEffect(() => {
     wakeUpBackend();   // fire-and-forget wake-up ping
     const init = async () => {
-      await loadCache();       // ← instant: show cached data
+      const hasCache = await loadCache();       // ← instant: show cached data
       fetchLatestArticles();   // ← background: silently update
+      
+      // CRITICAL: If no cache, set a timeout to stop loading after fetch completes
+      if (!hasCache) {
+        setTimeout(() => {
+          if (!fetchingRef.current) {
+            setLoading(false); // Stop loading if fetch already completed
+          }
+        }, 10000); // Maximum 10 seconds wait
+      }
     };
     init();
     
@@ -195,12 +225,14 @@ export function ArticleProvider({ children }) {
 
   const value = {
     latestArticles,
+    historicalArticles: latestArticles, // alias for HomeScreen/home compatibility
     loading,
     error,
     refreshArticles,
     forceRefreshArticles,
     updateArticleLocally,
     removeArticleLocally,
+    filterDeleted,   // use this in any local fetch to strip deleted IDs from API results
   };
 
   return (

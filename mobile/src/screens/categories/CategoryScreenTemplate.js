@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Image,
   useWindowDimensions,
+  DeviceEventEmitter,
 } from "react-native";
 import { deleteArticle, searchArticles } from "../../api/services/articleService";
 import { showAuditToast } from "../../utils/toastNotification";
@@ -45,7 +46,7 @@ export default function CategoryScreen({
   categorySlug,
 }) {
   const { width } = useWindowDimensions();
-  const { forceRefreshArticles } = useArticles();
+  const { forceRefreshArticles, removeArticleLocally } = useArticles();
   const CATEGORY_SCREEN_MAP = {
     News: "NewsScreen",
     Literary: "LiteraryScreen",
@@ -193,13 +194,10 @@ export default function CategoryScreen({
       setShowDeleteModal(false);
       showAuditToast("success", "Article deleted successfully");
       
-      // Refresh latest articles context
-      try {
-        await forceRefreshArticles();
-        console.log('Articles refreshed after delete');
-      } catch (err) {
-        console.error('Failed to refresh articles:', err);
-      }
+      // Register deletion in context — prevents API re-fetch from bringing it back
+      removeArticleLocally(menuArticle.id);
+      // Emit event — HomeScreen listener handles the delayed background refresh
+      DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       // Check if it's a 404 error (article already deleted)
       if (err.response?.status === 404) {
@@ -208,6 +206,8 @@ export default function CategoryScreen({
         setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
         setShowDeleteModal(false);
         showAuditToast("info", "Article was already deleted");
+        removeArticleLocally(menuArticle.id);
+        DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
       } else {
         console.error("Error deleting article:", err);
         showAuditToast("error", "Failed to delete article");

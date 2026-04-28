@@ -7,21 +7,26 @@ import { logError } from '../utils/logger';
 
 const client = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000,
+  timeout: 30000, // 30s default — handles Render free-tier cold starts (can take 30-60s)
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
 
-// Extend timeout for slow endpoints (Render cold start)
+// Extend timeout for slow/auth-sensitive endpoints
 client.interceptors.request.use((config) => {
-  if (config.url?.includes('/forgot-password') || config.url?.includes('/register')) {
-    config.timeout = 180000;
-  }
-  // Extra time for cold starts on all endpoints
-  if (!config.timeout || config.timeout < 60000) {
-    config.timeout = 60000;
+  const slowEndpoints = [
+    '/forgot-password',
+    '/register',
+    '/login',
+    '/user',
+    '/me',
+    '/profile',
+    '/current-user',
+  ];
+  if (slowEndpoints.some(path => config.url?.includes(path))) {
+    config.timeout = 60000; // 60s for auth + profile endpoints
   }
   return config;
 });
