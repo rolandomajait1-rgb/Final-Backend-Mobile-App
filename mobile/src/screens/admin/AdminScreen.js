@@ -22,7 +22,6 @@ import { searchArticles } from '../../api/services/articleService';
 import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
 import { handleAuthorPress } from '../../utils/authorNavigation';
 import { handleCategoryPress } from '../../utils/categoryNavigation';
-import { isAdminOrModerator } from '../../utils/authUtils';
 import { showAuditToast } from '../../utils/toastNotification';
 import { ArticleActionMenu } from '../../components/common';
 import { formatArticleDate } from '../../utils/dateUtils';
@@ -435,7 +434,7 @@ export default function AdminScreen({ navigation }) {
             ) : searchResults.length === 0 ? (
               <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
                 <Ionicons name="search-outline" size={48} color="#d1d5db" />
-                <Text style={{ marginTop: 12, color: MUTED, fontSize: 14, textAlign: 'center' }}>No articles found for "{searchQuery}"</Text>
+                <Text style={{ marginTop: 12, color: MUTED, fontSize: 14, textAlign: 'center' }}>No articles found for &quot;{searchQuery}&quot;</Text>
               </View>
             ) : (
               <View style={{ gap: 12 }}>

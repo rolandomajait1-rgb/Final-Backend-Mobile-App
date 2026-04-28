@@ -14,6 +14,9 @@ const CLOUDINARY_UPLOAD_PRESET = 'mobile_articles';
  * @returns {Promise<string>} - Cloudinary secure_url
  */
 export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
+  // Declare outside try so finally can always clear it
+  let progressInterval = null;
+
   try {
     console.log('[Cloudinary] Starting upload:', imageUri);
     console.log('[Cloudinary] Cloud name:', CLOUDINARY_CLOUD_NAME);
@@ -41,29 +44,26 @@ export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('folder', 'presshub');
 
-    // Simulate progress since fetch doesn't natively support upload progress
+    // Simulate upload progress with a plain counter (fetch has no native progress events)
+    // onProgress is a plain callback (not a React setState), so pass direct values.
     if (onProgress) {
-      onProgress(10);
-      const progressInterval = setInterval(() => {
-        onProgress(prev => {
-          if (prev >= 85) { clearInterval(progressInterval); return prev; }
-          return prev + 15;
-        });
+      let currentProgress = 10;
+      onProgress(currentProgress);
+      progressInterval = setInterval(() => {
+        currentProgress = Math.min(currentProgress + 15, 85);
+        onProgress(currentProgress);
       }, 500);
-      // Clear on completion
-      setTimeout(() => clearInterval(progressInterval), 10000);
     }
 
     const response = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
-      // Do NOT set Content-Type manually — fetch sets it with the correct boundary
+      // Do NOT set Content-Type manually — fetch auto-sets it with the correct boundary
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      // Log full Cloudinary error for debugging
       console.error('[Cloudinary] Upload rejected by server:', JSON.stringify(data, null, 2));
       const cloudinaryMsg = data?.error?.message || `HTTP ${response.status}`;
       throw new Error(`Cloudinary rejected upload: ${cloudinaryMsg}`);
@@ -76,5 +76,10 @@ export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
   } catch (error) {
     console.error('[Cloudinary] Upload failed:', error.message);
     throw new Error(error.message || 'Image upload failed. Please check your internet connection.');
+  } finally {
+    // Always clear the interval — whether upload succeeded, failed, or timed out
+    if (progressInterval !== null) {
+      clearInterval(progressInterval);
+    }
   }
 };
