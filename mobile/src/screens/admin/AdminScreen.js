@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  DeviceEventEmitter,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +27,7 @@ import { showAuditToast } from '../../utils/toastNotification';
 import { ArticleActionMenu } from '../../components/common';
 import { formatArticleDate } from '../../utils/dateUtils';
 import { colors } from '../../styles';
+import { useArticles } from '../../context/ArticleContext';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const BRAND_BLUE       = '#2c6587';
@@ -235,6 +237,7 @@ const ActionCard = ({ icon, label, onPress }) => (
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function AdminScreen({ navigation }) {
+  const { removeArticleLocally } = useArticles();
   const [categories, setCategories]   = useState([]);
   const [stats, setStats]             = useState(null);
   const [loading, setLoading]         = useState(true);
@@ -291,6 +294,8 @@ export default function AdminScreen({ navigation }) {
       const { deleteArticle } = await import("../../api/services/articleService");
       await deleteArticle(menuArticle.id);
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      removeArticleLocally(menuArticle.id);
+      DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
       showAuditToast("success", "Article deleted successfully");
     } catch (err) {
       console.error("Error deleting article:", err);

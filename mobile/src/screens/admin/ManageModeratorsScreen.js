@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -20,8 +21,10 @@ import { isAdminOrModerator } from '../../utils/authUtils';
 import { ArticleActionMenu } from '../../components/common';
 import { formatArticleDate } from '../../utils/dateUtils';
 import { colors } from '../../styles';
+import { useArticles } from '../../context/ArticleContext';
 
 export default function ManageModeratorsScreen({ navigation }) {
+  const { removeArticleLocally } = useArticles();
   const [headerSearchQuery, setHeaderSearchQuery] = useState(''); // For HomeHeader article search
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -235,6 +238,8 @@ export default function ManageModeratorsScreen({ navigation }) {
       const { deleteArticle } = await import("../../api/services/articleService");
       await deleteArticle(menuArticle.id);
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      removeArticleLocally(menuArticle.id);
+      DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
       showAuditToast("success", "Article deleted successfully");
     } catch (err) {
       console.error("Error deleting article:", err);
