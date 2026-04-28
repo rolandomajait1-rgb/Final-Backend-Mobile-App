@@ -95,7 +95,7 @@ const MetricTile = ({ label, value }) => (
       borderWidth: 1,
       borderColor: '#edf2f7',
       paddingVertical: 18,
-      paddingHorizontal: 8,
+      paddingHorizontal: 4,
       alignItems: 'center',
       justifyContent: 'center',
       elevation: 4,
@@ -105,7 +105,11 @@ const MetricTile = ({ label, value }) => (
       shadowRadius: 10,
     }}
   >
-    <Text style={{ fontSize: 13, color: '#475569', fontWeight: '600', textAlign: 'center', marginBottom: 10 }}>
+    <Text 
+      style={{ fontSize: 12, color: '#475569', fontWeight: '600', textAlign: 'center', marginBottom: 10 }}
+      numberOfLines={2}
+      adjustsFontSizeToFit
+    >
       {label}
     </Text>
     <Text style={{ fontSize: 18, fontWeight: '900', color: '#0f172a' }}>
@@ -525,9 +529,9 @@ export default function AdminScreen({ navigation }) {
             {/* ── Press Hub ── */}
             <StatGroup title="Press Hub" color={BRAND_YELLOW}>
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <MetricTile label="Feedback Forms" value={fmt(stats?.feedbackForms)} />
-                <MetricTile label="Coverage Requests" value={fmt(stats?.coverageRequests)} />
-                <MetricTile label="Membership Applications" value={fmt(stats?.membershipApps)} />
+            <MetricTile label={`Feedback\nForms`} value={fmt(stats?.feedbackForms)} />
+            <MetricTile label={`Coverage\nRequests`} value={fmt(stats?.coverageRequests)} />
+            <MetricTile label={`Membership\nApps`} value={fmt(stats?.membershipApps)} />
               </View>
             </StatGroup>
 

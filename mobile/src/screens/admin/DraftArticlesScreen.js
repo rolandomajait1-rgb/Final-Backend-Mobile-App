@@ -199,10 +199,6 @@ export default function DraftArticlesScreen({ navigation }) {
       // Refresh latest articles context
       forceRefreshArticles();
     } catch (error) {
-      console.error('Error deleting draft:', error);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
-      
       // Check if it's a 404 error (draft already deleted)
       if (error.response?.status === 404) {
         // Remove from local state since it doesn't exist anymore
@@ -210,6 +206,10 @@ export default function DraftArticlesScreen({ navigation }) {
         setShowDeleteModal(false);
         showAuditToast('info', 'Draft was already deleted');
       } else {
+        console.error('Error deleting draft:', error);
+        console.error('Error status:', error.response?.status);
+        console.error('Error data:', error.response?.data);
+        
         const errorMsg = error.response?.data?.message || error.message || 'Failed to delete draft';
         showAuditToast('error', errorMsg);
       }
