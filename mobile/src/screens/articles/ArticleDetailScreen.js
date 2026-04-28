@@ -654,8 +654,10 @@ export default function ArticleDetailScreen({ navigation, route }) {
         <View className="flex-shrink-0 bg-white">
           <HomeHeader
             categories={categories}
-            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
+            onCategorySelect={() => {}}
             navigation={navigation}
+            onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
+            enableSearch={false}
           />
           <View style={{ height: 2, backgroundColor: "#f39c12" }} />
         </View>
@@ -678,8 +680,10 @@ export default function ArticleDetailScreen({ navigation, route }) {
       <View className="flex-shrink-0 bg-white">
         <HomeHeader
           categories={categories}
-          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
+          onCategorySelect={() => {}}
           navigation={navigation}
+          onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
+          enableSearch={false}
         />
         
       </View>
