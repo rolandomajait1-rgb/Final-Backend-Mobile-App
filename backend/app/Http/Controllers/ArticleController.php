@@ -146,8 +146,7 @@ class ArticleController extends Controller
         $query = trim($query);
         $query = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
 
-        // Require at least 2 characters for search
-        if (strlen($query) < 2) {
+        if (strlen($query) < 1) {
             return response()->json([
                 'data' => [],
                 'meta' => [
@@ -156,7 +155,6 @@ class ArticleController extends Controller
                     'total' => 0,
                     'last_page' => 1,
                 ],
-                'message' => 'Search query must be at least 2 characters',
             ]);
         }
 
