@@ -201,8 +201,6 @@ export default function CategoryScreen({
         console.error('Failed to refresh articles:', err);
       }
     } catch (err) {
-      console.error("Error deleting article:", err);
-      
       // Check if it's a 404 error (article already deleted)
       if (err.response?.status === 404) {
         // Remove from local state since it doesn't exist anymore
@@ -211,6 +209,7 @@ export default function CategoryScreen({
         setShowDeleteModal(false);
         showAuditToast("info", "Article was already deleted");
       } else {
+        console.error("Error deleting article:", err);
         showAuditToast("error", "Failed to delete article");
       }
     } finally {
