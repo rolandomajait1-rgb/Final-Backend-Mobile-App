@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import { useArticle } from '../../context/ArticleContext';
 import { colors } from '../../styles';
 import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
 import { ArticleActionMenu } from '../../components/common';
@@ -47,6 +48,7 @@ export default function AuthorProfileScreen({ route, navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { forceRefreshArticles } = useArticle();
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -179,9 +181,20 @@ export default function AuthorProfileScreen({ route, navigation }) {
       setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       setShowDeleteModal(false);
       showAuditToast('success', 'Article deleted successfully');
+
+      // Force a refresh of articles across the app to reflect the deletion
+      if (forceRefreshArticles) {
+        forceRefreshArticles();
+      }
     } catch (err) {
-      console.error("Error deleting article:", err);
-      showAuditToast('error', 'Failed to delete article');
+      if (err.response?.status === 404) {
+        setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
+        setShowDeleteModal(false);
+        showAuditToast('info', 'Article was already deleted');
+      } else {
+        console.error("Error deleting article:", err);
+        showAuditToast('error', 'Failed to delete article');
+      }
     } finally {
       setIsDeleting(false);
     }
