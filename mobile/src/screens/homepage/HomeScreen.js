@@ -196,6 +196,7 @@ export default function HomeScreen({ navigation }) {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pendingDeletion, setPendingDeletion] = useState(null);
   const pendingDeletionRef = useRef(null);
+  const [deletedArticleIds, setDeletedArticleIds] = useState([]);
 
   useEffect(() => {
     checkUserRole();
@@ -285,20 +286,31 @@ export default function HomeScreen({ navigation }) {
       }, 1000);
     } else if (pendingDeletion && pendingDeletion.timeLeft === 0) {
       const articleId = pendingDeletion.article.id;
-      setPendingDeletion(null);
       
+      // Prevent multiple calls while deleting
+      setPendingDeletion(prev => ({ ...prev, timeLeft: -1 }));
+      
+      // Optimistically hide the article from all lists permanently on this screen
+      setDeletedArticleIds(prev => [...prev, articleId]);
+
       // Time is up, i-execute na ang actual API deletion
-      deleteArticle(articleId)
-        .then(() => {
+      (async () => {
+        try {
+          await deleteArticle(articleId);
           showAuditToast("success", "Article deleted successfully");
-          forceRefreshArticles();
-          fetchRecentArticles(1, true); // Refresh recent articles list to ensure deleted article is gone
-        })
-        .catch(err => {
-          console.error("Error executing delayed delete:", err);
-          showAuditToast("error", "Failed to delete article. Please try again.");
-          fetchRecentArticles(1, true); // I-refresh ang list para bumalik yung article
-        });
+        } catch (error) {
+          // Ignore if already deleted (404)
+          if (error.response?.status !== 404) {
+            console.error("Error executing delayed delete:", error);
+            showAuditToast("error", "Failed to delete article. Please try again.");
+            setDeletedArticleIds(prev => prev.filter(id => id !== articleId));
+          }
+        } finally {
+          setRecentArticles(prev => prev.filter(a => a.id !== articleId));
+          try { await forceRefreshArticles?.(); } catch(e) {}
+          setPendingDeletion(null);
+        }
+      })();
     }     
     return () => clearTimeout(timer);
   }, [pendingDeletion, forceRefreshArticles, fetchRecentArticles]);
@@ -325,11 +337,13 @@ export default function HomeScreen({ navigation }) {
       return () => {
         // If an article deletion is pending, navigating away should confirm the deletion.
         if (pendingDeletionRef.current && pendingDeletionRef.current.timeLeft > 0) {
+          const articleId = pendingDeletionRef.current.article.id;
+          setDeletedArticleIds(prev => [...prev, articleId]);
+          
           // Immediately delete the article in the background.
-          deleteArticle(pendingDeletionRef.current.article.id)
+          deleteArticle(articleId)
             .then(() => {
               forceRefreshArticles();
-              fetchRecentArticles(1, true); // Also refresh recent articles
             })
             .catch(() => {}); // Suppress errors for fire-and-forget
 
@@ -374,10 +388,6 @@ export default function HomeScreen({ navigation }) {
     
     setPendingDeletion(null);
     showAuditToast("info", "Deletion undone");
-    
-    // Restore the visually hidden article by re-fetching
-    forceRefreshArticles();
-    fetchRecentArticles(1, true);
   };
 
   const confirmDelete = async () => {
@@ -391,9 +401,6 @@ export default function HomeScreen({ navigation }) {
     if (pendingDeletion && pendingDeletion.timeLeft > 0) {
       deleteArticle(pendingDeletion.article.id).catch(() => {});
     }
-    
-    // Optimistically remove from UI
-    setRecentArticles(prev => prev.filter(a => a.id !== articleToHide.id));
     
     setShowDeleteModal(false);
     
@@ -436,8 +443,8 @@ export default function HomeScreen({ navigation }) {
       {/* Flexible Content Area */}
       <View className="flex-1">
           <ArticlesListContent
-            latestArticles={latestArticles}
-            recentArticles={recentArticles}
+            latestArticles={latestArticles.filter(a => a.id !== pendingDeletion?.article?.id && !deletedArticleIds.includes(a.id))}
+            recentArticles={recentArticles.filter(a => a.id !== pendingDeletion?.article?.id && !deletedArticleIds.includes(a.id))}
             refreshing={refreshing}
             onRefresh={onRefresh}
             loadingMore={loadingMore}
@@ -513,6 +520,36 @@ export default function HomeScreen({ navigation }) {
           }}
         >
           <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => {
+                if (pendingDeletion.timeLeft === -1) return; // Prevent double tap
+                // Skip timer and execute delete immediately
+                const articleId = pendingDeletion.article.id;
+                setPendingDeletion(prev => ({ ...prev, timeLeft: -1 }));
+                
+                // Optimistically hide the article from all lists permanently
+                setDeletedArticleIds(prev => [...prev, articleId]);
+
+                (async () => {
+                  try {
+                    await deleteArticle(articleId);
+                    showAuditToast("success", "Article deleted successfully");
+                  } catch (error) {
+                    if (error.response?.status !== 404) {
+                      showAuditToast("error", "Failed to delete article.");
+                      setDeletedArticleIds(prev => prev.filter(id => id !== articleId));
+                    }
+                  } finally {
+                    setRecentArticles(prev => prev.filter(a => a.id !== articleId));
+                    try { await forceRefreshArticles?.(); } catch(e) {}
+                    setPendingDeletion(null);
+                  }
+                })();
+              }}
+              style={{ paddingRight: 10 }}
+            >
+              <Ionicons name="close" size={22} color="#9ca3af" />
+            </TouchableOpacity>
             <Ionicons name="trash-outline" size={20} color="#f87171" style={{ marginRight: 8 }} />
             <Text style={{ color: 'white', fontSize: 15, fontWeight: '500' }}>
               Article deleted ({pendingDeletion.timeLeft}s)
