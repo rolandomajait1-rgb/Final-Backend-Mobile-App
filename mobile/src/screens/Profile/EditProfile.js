@@ -1,12 +1,10 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
 import {
   View,
   Text,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,14 +13,6 @@ import HomeHeader from '../homepage/HomeHeader';
 import BottomNavigation from '../../components/common/BottomNavigation';
 import SaveProfileModal from '../../components/common/SaveProfileModal';
 import { showAuditToast, showProfileSuccessToast, showProfileErrorToast } from '../../utils/toastNotification';
-import { debounce } from '../../utils/debounce';
-import { searchArticles } from '../../api/services/articleService';
-import ArticleMediumCard from '../../components/articles/ArticleMediumCard';
-import { handleAuthorPress } from '../../utils/authorNavigation';
-import { handleCategoryPress } from '../../utils/categoryNavigation';
-import { colors } from '../../styles';
-import { ArticleActionMenu } from '../../components/common';
-import { formatArticleDate } from '../../utils/dateUtils';
 
 const validatePassword = (password) => {
   if (password.length < 8) {
@@ -42,7 +32,6 @@ const validatePassword = (password) => {
 
 export default function EditProfile({ navigation, route }) {
   const userData = route?.params?.user || {};
-  const isAdminUser = userData.role === 'admin' || userData.role === 'moderator';
   const [formData, setFormData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -53,59 +42,6 @@ export default function EditProfile({ navigation, route }) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [menuArticle, setMenuArticle] = useState(null);
-  const [showMenu, setShowMenu] = useState(false);
-  const [menuX, setMenuX] = useState(0);
-  const [menuY, setMenuY] = useState(0);
-
-  const handleSearch = useCallback(async (query) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    try {
-      const res = await searchArticles(query.trim());
-      setSearchResults(res.data?.data ?? []);
-    } catch (err) {
-      console.error('Search error:', err);
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  const debouncedSearch = useMemo(() => debounce(handleSearch, 100), [handleSearch]);
-
-  const handleMenuPress = (article, pos) => {
-    setMenuArticle(article);
-    setMenuX(pos.px);
-    setMenuY(pos.py);
-    setShowMenu(true);
-  };
-
-  const handleEditArticle = () => {
-    setShowMenu(false);
-    navigation.navigate("Management", { screen: "EditArticle", params: { articleId: menuArticle.id } });
-  };
-
-  const handleDeleteArticle = async () => {
-    setShowMenu(false);
-    try {
-      const { deleteArticle } = await import("../../api/services/articleService");
-      await deleteArticle(menuArticle.id);
-      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
-      showAuditToast("success", "Article deleted successfully");
-    } catch (err) {
-      console.error("Error deleting article:", err);
-      showAuditToast("error", "Failed to delete article");
-    }
-  };
 
   const handleCopyEmail = async () => {
     if (userData.email) {
@@ -188,57 +124,13 @@ export default function EditProfile({ navigation, route }) {
         <HomeHeader
           categories={[]}
           onCategorySelect={() => {}}
-          onMenuPress={() => {}}
           onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
-          onSearch={debouncedSearch}
           navigation={navigation}
           enableSearch={false}
-          searchQuery={searchQuery}
         />
       </View>
 
-      {searchQuery.trim() !== '' ? (
-        <ScrollView
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        >
-          <View className="px-4 py-4">
-            {searching ? (
-              <View className="items-center justify-center py-12">
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text className="text-gray-500 mt-4">Searching...</Text>
-              </View>
-            ) : searchResults.length === 0 ? (
-              <View className="items-center justify-center py-12">
-                <Ionicons name="search-outline" size={48} color={colors.border} />
-                <Text className="text-gray-500 mt-4 text-center">No articles found for "{searchQuery}"</Text>
-              </View>
-            ) : (
-              <View className="gap-3">
-                {searchResults.map((article) => (
-                  <ArticleMediumCard
-                    key={article.id}
-                    title={article.title}
-                    category={article.categories?.[0]?.name || 'Uncategorized'}
-                    author={article.author_name || article.author?.name || 'Unknown Author'}
-                    date={formatArticleDate(article.created_at || article.published_at)}
-                    image={article.featured_image_url || article.featured_image}
-                    hashtags={article.tags?.map((t) => t.name) || []}
-                    onPress={() => navigation.navigate('ArticleStack', { screen: 'ArticleDetail', params: { slug: article.slug, article } })}
-                    onMenuPress={isAdminUser ? (pos) => handleMenuPress(article, pos) : undefined}
-                    onTagPress={(tagName) => navigation.navigate('ArticleStack', { screen: 'TagArticles', params: { tagName } })}
-                    onAuthorPress={() => handleAuthorPress(article, navigation)}
-                    onCategoryPress={(category) => handleCategoryPress(category, navigation)}
-                    navigation={navigation}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </ScrollView>
-      ) : (
-        <KeyboardAwareScrollView
+      <KeyboardAwareScrollView
           className="flex-1"
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
@@ -354,30 +246,8 @@ export default function EditProfile({ navigation, route }) {
             </View>
           </View>
         </KeyboardAwareScrollView>
-      )}
+
       <BottomNavigation navigation={navigation} activeTab="Profile" />
-      
-      {/* Article Action Menu */}
-      <ArticleActionMenu
-        visible={showMenu}
-        x={menuX}
-        y={menuY}
-        onClose={() => setShowMenu(false)}
-        actions={[
-          {
-            label: "Edit",
-            icon: "create-outline",
-            color: "#0284c7",
-            onPress: handleEditArticle,
-          },
-          {
-            label: "Delete",
-            icon: "trash-outline",
-            color: "#ef4444",
-            onPress: handleDeleteArticle,
-          },
-        ]}
-      />
       
       <SaveProfileModal
         isOpen={showSaveModal}
