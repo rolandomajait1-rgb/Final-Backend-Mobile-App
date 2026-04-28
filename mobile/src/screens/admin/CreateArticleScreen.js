@@ -93,45 +93,29 @@ export default function CreateArticleScreen({ navigation }) {
 
   // ─── Image Picker ──────────────────────────────────────────────
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Please enable media library access in settings.');
-      return;
-    }
-
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please enable media library access in settings.');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 1,
-        exif: false,
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        // Check file size before processing (10MB limit)
-        const fileInfo = await FileSystem.getInfoAsync(result.assets[0].uri);
-        const fileSizeMB = fileInfo.size / (1024 * 1024);
-        
-        if (fileSizeMB > 10) {
-          Alert.alert('File Too Large', `This image is ${fileSizeMB.toFixed(1)}MB. Please choose a picture smaller than 10MB.`);
-          return;
-        }
-
-        // Compress to max 1280px wide, 70% quality JPEG
-        const compressed = await ImageManipulator.manipulateAsync(
-          result.assets[0].uri,
-          [{ resize: { width: 1280 } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
         setImage({
-          uri: compressed.uri,
+          uri: result.assets[0].uri,
           type: 'image/jpeg',
           name: `article-${Date.now()}.jpg`,
         });
       }
-    } catch {
+    } catch (error) {
+      console.error('ImagePicker error:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
@@ -348,7 +332,7 @@ export default function CreateArticleScreen({ navigation }) {
         onCategorySelect={() => {}}
         onMenuPress={() => {}}
         onSearchPress={() => {}}
-        onGridPress={() => navigation.navigate('MainApp')}
+        onGridPress={() => navigation.navigate('Management', { screen: 'Admin' })}
         onSearch={() => {}}
         navigation={navigation}
       />
