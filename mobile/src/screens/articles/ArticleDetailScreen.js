@@ -624,11 +624,6 @@ export default function ArticleDetailScreen({ navigation, route }) {
         showArticleSuccessToast('deleted');
       }, 300);
     } catch (error) {
-      console.error("Error deleting article:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      console.error("Request URL:", error.config?.url);
-      
       // Check if it's a 404 error (article already deleted or doesn't exist)
       if (error.response?.status === 404) {
         // Article doesn't exist anymore, navigate back anyway
@@ -639,6 +634,11 @@ export default function ArticleDetailScreen({ navigation, route }) {
           showAuditToast("info", "Article was already deleted");
         }, 300);
       } else {
+        console.error("Error deleting article:", error);
+        console.error("Error response:", error.response?.data);
+        console.error("Error status:", error.response?.status);
+        console.error("Request URL:", error.config?.url);
+        
         showArticleErrorToast('deleted');
         const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete article. Please try again.';
         Alert.alert("Error", errorMessage);
