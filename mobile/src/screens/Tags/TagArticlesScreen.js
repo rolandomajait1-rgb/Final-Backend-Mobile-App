@@ -27,9 +27,9 @@ import { debounce } from '../../utils/debounce';
 
 export default function TagArticlesScreen({ route, navigation }) {
   const { tagName, authorId, authorName } = route.params ?? {};
-  
+
   console.log('TagArticlesScreen mounted with params:', { tagName, authorId, authorName });
-  
+
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,16 +63,16 @@ export default function TagArticlesScreen({ route, navigation }) {
     try {
       console.log('Fetching articles for tag:', tagName);
       console.log('Author ID filter:', authorId);
-      
+
       // If authorId is provided, filter by author too
       if (authorId) {
         console.log('Filtering by author:', authorId);
         // Fetch author's articles first, then filter by tag on client side
         const response = await client.get(`/api/articles/author-public/${authorId}`);
         const allAuthorArticles = response.data.articles?.data || response.data.articles || [];
-        
+
         console.log('Total author articles:', allAuthorArticles.length);
-        
+
         // Filter articles that have the specific tag
         const filteredArticles = allAuthorArticles.filter(article => {
           const hasTags = article.tags?.some(tag => {
@@ -81,28 +81,28 @@ export default function TagArticlesScreen({ route, navigation }) {
           });
           return hasTags;
         });
-        
+
         console.log('Filtered articles with tag:', filteredArticles.length);
         setArticles(filteredArticles);
       } else {
         console.log('Fetching all articles with tag (no author filter)');
         console.log('Tag parameter:', tagName);
         console.log('Tag type:', typeof tagName);
-        
+
         const url = `/api/articles/public?tag=${encodeURIComponent(tagName)}`;
         console.log('Request URL:', url);
-        
+
         const response = await client.get(url);
         console.log('Full response URL:', response.request?.responseURL || response.config.url);
         console.log('API response:', response.data);
         const articlesData = response.data.data || response.data || [];
         console.log('Articles found:', articlesData.length);
-        
+
         // Log first article's tags to verify
         if (articlesData.length > 0 && articlesData[0].tags) {
           console.log('First article tags:', articlesData[0].tags.map(t => t.name));
         }
-        
+
         setArticles(articlesData);
       }
     } catch (err) {
@@ -143,7 +143,7 @@ export default function TagArticlesScreen({ route, navigation }) {
         setUserRole(user.role);
       }
     };
-    
+
     checkAdminStatus();
     fetchCategories();
     fetchTagArticles();
@@ -177,7 +177,7 @@ export default function TagArticlesScreen({ route, navigation }) {
       setIsDeleting(true);
       const { deleteArticle } = await import("../../api/services/articleService");
       await deleteArticle(menuArticle.id);
-      
+
       setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
       setShowDeleteModal(false);
@@ -234,7 +234,7 @@ export default function TagArticlesScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} className="mb-2 self-start p-1 -ml-1">
           <Ionicons name="arrow-back" size={24} color="#075985" />
         </TouchableOpacity>
-        
+
         <View>
           <Text className="text-[26px] font-bold tracking-tight mb-0.5" style={{ color: '#075985' }}>
             #{tagName}
