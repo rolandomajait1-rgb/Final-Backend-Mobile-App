@@ -364,6 +364,38 @@ export default function AdminScreen({ navigation }) {
     return () => clearInterval(interval);
   }, [loadDashboard]);
 
+  // Listen for article events for real-time dashboard updates
+  useEffect(() => {
+    const handlePublish = () => {
+      console.log('[AdminScreen] Article published - refreshing dashboard...');
+      loadDashboard('refresh');
+    };
+
+    const handleDelete = (deletedId) => {
+      console.log('[AdminScreen] Article deleted - refreshing dashboard...', deletedId);
+      // Remove from search results if present
+      if (deletedId) {
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+      }
+      loadDashboard('refresh');
+    };
+
+    const handleDrafted = () => {
+      console.log('[AdminScreen] Article drafted - refreshing dashboard...');
+      loadDashboard('refresh');
+    };
+
+    const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
+
+    return () => {
+      publishListener.remove();
+      deleteListener.remove();
+      draftedListener.remove();
+    };
+  }, [loadDashboard]);
+
   const growthPct   = Number(stats?.growthPct ?? 0);
   const platformUsage = (stats?.totalViews ?? 0) + (stats?.totalLikes ?? 0) + (stats?.totalShares ?? 0);
 
