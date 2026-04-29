@@ -42,7 +42,9 @@ export default function ExploreScreen({ navigation }) {
   const [menuY, setMenuY] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { removeArticleLocally } = useArticles();
+  
+  // Track permanently deleted article IDs (persists across refreshes)
+  const deletedIdsRef = useRef(new Set());
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -82,11 +84,14 @@ export default function ExploreScreen({ navigation }) {
     try {
       // Fetch articles and sort by trending score (views + likes + shares)
       const res = await getArticles({ limit: 20 });
-      const data = res.data?.data ?? res.data ?? [];
+      const rawData = res.data?.data ?? res.data ?? [];
+      
+      // Filter out permanently deleted articles
+      const filteredData = rawData.filter(a => !deletedIdsRef.current.has(String(a.id)));
       
       // Calculate trending score: views + (likes * 2) + (shares * 3)
       // Likes and shares are weighted more heavily than views
-      const sorted = [...data].sort((a, b) => {
+      const sorted = [...filteredData].sort((a, b) => {
         const scoreA = (a.view_count || 0) + ((a.like_count || a.likes_count || 0) * 2) + ((a.shares_count || 0) * 3);
         const scoreB = (b.view_count || 0) + ((b.like_count || b.likes_count || 0) * 2) + ((b.shares_count || 0) * 3);
         return scoreB - scoreA;
@@ -261,6 +266,56 @@ export default function ExploreScreen({ navigation }) {
     }, [])
   );
 
+  // Listen for article publish events for auto-refresh (same as HomeScreen)
+  useEffect(() => {
+    const handlePublish = (publishedId) => {
+      console.log('[ExploreScreen] Article published - auto refreshing...', publishedId);
+      
+      // Remove from deletion tracking if it was previously drafted/deleted
+      if (publishedId) {
+        deletedIdsRef.current.delete(String(publishedId));
+      }
+      
+      fetchTrendingArticles();
+    };
+
+    const handleDelete = (deletedId) => {
+      console.log('[ExploreScreen] Article deleted - permanently removing...', deletedId);
+      if (deletedId) {
+        // Add to permanent deletion set (no timeout - stays deleted until app restart)
+        deletedIdsRef.current.add(String(deletedId));
+        
+        // Instantly remove from local lists
+        setTrendingArticles(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+      }
+      // NO background refresh - rely on manual refresh or navigation to update
+      // This prevents the deleted article from coming back
+    };
+
+    const handleDrafted = (draftedId) => {
+      console.log('[ExploreScreen] Article drafted - permanently hiding from public feed...', draftedId);
+      if (draftedId) {
+        // Add to permanent deletion set (stays hidden until app restart)
+        deletedIdsRef.current.add(String(draftedId));
+        
+        // Instantly remove from Trending articles
+        setTrendingArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+      }
+    };
+
+    const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
+
+    return () => {
+      publishListener.remove();
+      deleteListener.remove();
+      draftedListener.remove();
+    };
+  }, [fetchTrendingArticles]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchTrendingArticles();
@@ -290,13 +345,15 @@ export default function ExploreScreen({ navigation }) {
       const { deleteArticle } = await import("../../api/services/articleService");
       await deleteArticle(menuArticle.id);
       
-      setTrendingArticles(prev => prev.filter(a => a.id !== menuArticle.id));
-      setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
+      // Add to permanent deletion set
+      deletedIdsRef.current.add(String(menuArticle.id));
+      
+      setTrendingArticles(prev => prev.filter(a => String(a.id) !== String(menuArticle.id)));
+      setSearchResults(prev => prev.filter(a => String(a.id) !== String(menuArticle.id)));
       setShowDeleteModal(false);
       showAuditToast('success', 'Article deleted successfully');
-      // Register deletion in context — prevents API re-fetch from bringing it back
-      removeArticleLocally(menuArticle.id);
-      // Emit event — HomeScreen listener handles the delayed background refresh
+      
+      // Emit event for other screens
       DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       console.error("Error deleting article:", err);

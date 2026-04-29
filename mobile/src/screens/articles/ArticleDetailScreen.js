@@ -542,6 +542,41 @@ export default function ArticleDetailScreen({ navigation, route }) {
       mountedRef.current = false;
     };
   }, [fetchArticle, checkAdminStatus, fetchCategories, passedArticle, id, fetchInteractions, isLiked]);
+  
+  // Listen for article events from other screens
+  useEffect(() => {
+    const handleDelete = (deletedId) => {
+      console.log('[ArticleDetailScreen] Article deleted event received...', deletedId);
+      // If the currently viewed article was deleted, go back
+      if (article && String(article.id) === String(deletedId)) {
+        console.log('[ArticleDetailScreen] Current article was deleted, navigating back...');
+        navigation.goBack();
+        setTimeout(() => {
+          showAuditToast("info", "This article was deleted");
+        }, 300);
+      }
+    };
+
+    const handleDrafted = (draftedId) => {
+      console.log('[ArticleDetailScreen] Article drafted event received...', draftedId);
+      // If the currently viewed article was drafted, go back
+      if (article && String(article.id) === String(draftedId)) {
+        console.log('[ArticleDetailScreen] Current article was drafted, navigating back...');
+        navigation.goBack();
+        setTimeout(() => {
+          showAuditToast("info", "This article was saved as draft");
+        }, 300);
+      }
+    };
+
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
+
+    return () => {
+      deleteListener.remove();
+      draftedListener.remove();
+    };
+  }, [article, navigation]);
 
   const handleLike = async () => {
     if (!article?.id) return;

@@ -16,10 +16,10 @@ import ArticleMediumCard from "../../components/articles/ArticleMediumCard";
 import HomeHeader from "./HomeHeader";
 import BottomNavigation from "../../components/common/BottomNavigation";
 import ArticleLargeCard from "../../components/articles/ArticleLargeCard";
-import { useArticles } from "../../context/ArticleContext";
 import {
   getArticles,
   deleteArticle,
+  getLatestArticles,
 } from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
 import { colors } from "../../styles";
@@ -48,17 +48,33 @@ const ArticlesListContent = ({
 }) => {
   // If latestArticles is empty (e.g. featured article was just deleted),
   // promote the first article from recentArticles to fill the Latest slot.
+  // IMPORTANT: Create a copy to avoid shared reference issues
   const promotedFromRecent =
     latestArticles?.length === 0 && recentArticles?.length > 0
-      ? [recentArticles[0]]
+      ? [{ ...recentArticles[0] }]  // Create a copy, not a reference
       : [];
   const displayLatest = latestArticles?.length > 0 ? latestArticles : promotedFromRecent;
+  
+  // Only filter out the FIRST article from Latest (the one actually displayed)
   const displayLatestIds = new Set(displayLatest.slice(0, 1).map(a => a.id));
 
-  // Recent section: hide articles already shown in Latest slot
-  const filteredRecent = (recentArticles || []).filter(
-    a => !displayLatestIds.has(a.id)
-  );
+  // Merge Latest articles (excluding the displayed one) with Recent articles
+  // This ensures the old "Latest" article appears at the top of Recent section
+  const remainingLatest = (latestArticles || []).slice(1); // Articles #2-6 from Latest API
+  
+  // Create a Set of all article IDs to avoid duplicates
+  const seenIds = new Set([...displayLatestIds, ...remainingLatest.map(a => a.id)]);
+  
+  // Filter Recent articles to exclude duplicates
+  const uniqueRecent = (recentArticles || []).filter(a => !seenIds.has(a.id));
+  
+  // Combine remaining Latest articles with unique Recent articles
+  // Sort by published_at to ensure proper descending order (newest first)
+  const filteredRecent = [...remainingLatest, ...uniqueRecent].sort((a, b) => {
+    const dateA = new Date(a.published_at || a.created_at);
+    const dateB = new Date(b.published_at || b.created_at);
+    return dateB - dateA; // Descending order (newest first)
+  });
 
   return (
     <ScrollView
@@ -185,7 +201,6 @@ const ArticlesListContent = ({
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation }) {
-  const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles, removeArticleLocally, filterDeleted } = useArticles();
   const hasMountedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const [categories, setCategories] = useState([]);
@@ -198,6 +213,10 @@ export default function HomeScreen({ navigation }) {
   const [menuX, setMenuX] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   
+  // Latest Articles - fetch directly like Explore (no context, no delay)
+  const [latestArticles, setLatestArticles] = useState([]);
+  const [loadingLatest, setLoadingLatest] = useState(true);
+  
   // Pagination state for recent articles
   const [recentArticles, setRecentArticles] = useState([]);
   const [recentPage, setRecentPage] = useState(1);
@@ -206,6 +225,26 @@ export default function HomeScreen({ navigation }) {
   const loadingMoreRef = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Track permanently deleted article IDs (persists across refreshes)
+  const deletedIdsRef = useRef(new Set());
+
+  // Fetch latest articles directly (like Explore)
+  const fetchLatestArticles = useCallback(async () => {
+    try {
+      const res = await getLatestArticles();
+      const rawData = res.data ?? [];
+      
+      // Filter out permanently deleted articles
+      const filteredData = rawData.filter(a => !deletedIdsRef.current.has(String(a.id)));
+      
+      setLatestArticles(filteredData);
+      setLoadingLatest(false);
+    } catch (err) {
+      console.error('Error fetching latest articles:', err);
+      setLoadingLatest(false);
+    }
+  }, []);
 
   useEffect(() => {
     checkUserRole();
@@ -244,12 +283,10 @@ export default function HomeScreen({ navigation }) {
       const rawArticles = res.data?.data ?? [];
       const lastPage = res.data?.last_page ?? 1;
       
-      // Always filter out permanently deleted articles before setting state
-      // This protects recentArticles from useFocusEffect re-fetches that
-      // race against the backend delete propagation
-      const newArticles = filterDeleted(rawArticles);
+      // Filter out permanently deleted articles
+      const filteredArticles = rawArticles.filter(a => !deletedIdsRef.current.has(String(a.id)));
       
-      setRecentArticles(prev => replace ? newArticles : [...filterDeleted(prev), ...newArticles]);
+      setRecentArticles(prev => replace ? filteredArticles : [...prev, ...filteredArticles]);
       setRecentHasMore(page < lastPage);
       setRecentPage(page);
       
@@ -265,7 +302,7 @@ export default function HomeScreen({ navigation }) {
       setLoadingMore(false);
       loadingMoreRef.current = false;
     }
-  }, [filterDeleted]);
+  }, []);
   
   const handleLoadMore = () => {
     if (!loadingMore && recentHasMore) {
@@ -275,48 +312,58 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     fetchCategories();
+    fetchLatestArticles(); // Fetch latest articles directly
     fetchRecentArticles(1, true); // Initial load
-  }, [fetchRecentArticles]);
+  }, [fetchLatestArticles, fetchRecentArticles]);
 
   useFocusEffect(
     useCallback(() => {
       if (hasMountedRef.current) {
-        refreshArticles();
+        fetchLatestArticles();
         fetchRecentArticles(1, true);
       } else {
         hasMountedRef.current = true;
       }
-    }, [refreshArticles, fetchRecentArticles]),
+    }, [fetchLatestArticles, fetchRecentArticles]),
   );
 
-  // Listen for article publish/delete events for auto-refresh
+  // Listen for article events for auto-refresh
   useEffect(() => {
     const handlePublish = (publishedId) => {
       console.log('[HomeScreen] Article published - auto refreshing...', publishedId);
-      forceRefreshArticles();
+      
+      // Remove from deletion tracking if it was previously drafted/deleted
+      if (publishedId) {
+        deletedIdsRef.current.delete(String(publishedId));
+      }
+      
+      fetchLatestArticles();
       fetchRecentArticles(1, true);
     };
-    
+
     const handleDelete = (deletedId) => {
-      console.log('[HomeScreen] Article deleted - updating UI instantly...', deletedId);
+      console.log('[HomeScreen] Article deleted - permanently removing...', deletedId);
       if (deletedId) {
-        // 1. Instantly remove from both local lists — no waiting for API
-        setRecentArticles(prev => prev.filter(a => a.id !== deletedId));
-        removeArticleLocally(deletedId);
+        // Add to permanent deletion set (no timeout - stays deleted until app restart)
+        deletedIdsRef.current.add(String(deletedId));
+        
+        // Instantly remove from both local lists
+        setLatestArticles(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+        setRecentArticles(prev => prev.filter(a => String(a.id) !== String(deletedId)));
       }
-      // 2. Delayed background refresh — gives backend time to commit delete
-      //    so the re-fetch doesn't race-condition bring the article back
-      setTimeout(() => {
-        forceRefreshArticles();
-        fetchRecentArticles(1, true);
-      }, 800);
+      // NO background refresh - rely on manual refresh or navigation to update
+      // This prevents the deleted article from coming back
     };
 
     const handleDrafted = (draftedId) => {
-      console.log('[HomeScreen] Article drafted - hiding from public feed instantly...', draftedId);
+      console.log('[HomeScreen] Article drafted - permanently hiding from public feed...', draftedId);
       if (draftedId) {
+        // Add to permanent deletion set (stays hidden until app restart)
+        deletedIdsRef.current.add(String(draftedId));
+        
+        // Instantly remove from both Latest and Recent articles
+        setLatestArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
         setRecentArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
-        removeArticleLocally(draftedId);
       }
     };
 
@@ -329,11 +376,11 @@ export default function HomeScreen({ navigation }) {
       deleteListener.remove();
       draftedListener.remove();
     };
-  }, [forceRefreshArticles, fetchRecentArticles, removeArticleLocally]);
+  }, [fetchLatestArticles, fetchRecentArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refreshArticles();
+    await fetchLatestArticles();
     await fetchRecentArticles(1, true); // Refresh recent articles
     setRefreshing(false);
   };
@@ -369,10 +416,13 @@ export default function HomeScreen({ navigation }) {
       
       // Optimistically remove from UI first (instant feedback)
       const deletedArticleId = menuArticle.id;
-      setRecentArticles(prev => prev.filter(a => a.id !== deletedArticleId));
       
-      // Instant removal from global context (Latest Articles)
-      removeArticleLocally(deletedArticleId);
+      // Add to permanent deletion set
+      deletedIdsRef.current.add(String(deletedArticleId));
+      
+      // Instant removal from both Latest and Recent articles
+      setLatestArticles(prev => prev.filter(a => String(a.id) !== String(deletedArticleId)));
+      setRecentArticles(prev => prev.filter(a => String(a.id) !== String(deletedArticleId)));
       
       try {
         await deleteArticle(deletedArticleId);
@@ -390,16 +440,13 @@ export default function HomeScreen({ navigation }) {
           // Other errors - restore the article in UI
           console.log('[HomeScreen] Delete failed with unexpected error');
           showAuditToast("error", "Failed to delete article");
-          // Refresh to restore correct state
+          // Remove from deletion set and refresh to restore correct state
+          deletedIdsRef.current.delete(String(deletedArticleId));
+          fetchLatestArticles();
           fetchRecentArticles(1, true);
-          forceRefreshArticles();
           return;
         }
       }
-      
-      // Force refresh both latest and recent articles
-      forceRefreshArticles();
-      fetchRecentArticles(1, true);
       
       // Emit event for other screens to refresh
       DeviceEventEmitter.emit('ARTICLE_DELETED', deletedArticleId);
@@ -412,9 +459,9 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  if (articlesLoading) {
+  if (loadingLatest) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <View className="flex-shrink-0">
           <HomeHeader
             categories={categories}

@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { Loader } from "../../components/common";
 import HomeHeader from "../homepage/HomeHeader";
 import BottomNavigation from "../../components/common/BottomNavigation";
+import { useArticles } from "../../context/ArticleContext";
 import { searchArticles } from "../../api/services/articleService";
 import { getCategories } from "../../api/services/categoryService";
 import { colors } from "../../styles";
@@ -26,6 +27,7 @@ export default function SearchScreen({ navigation, route }) {
   const [categories, setCategories] = useState([]);
   const debounceRef = useRef(null);
   const requestIdRef = useRef(0);
+  const { deletedIds = [] } = useArticles();
 
   useEffect(() => {
     fetchCategories();
@@ -160,6 +162,9 @@ export default function SearchScreen({ navigation, route }) {
 
   const trimmedQuery = query.trim();
 
+  // I-filter out ang mga articles na katatapos lang i-delete globally
+  const displayResults = results.filter(item => !deletedIds.includes(item.id));
+
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <StatusBar style="dark" hidden={false} />
@@ -177,7 +182,7 @@ export default function SearchScreen({ navigation, route }) {
       </View>
 
       <FlatList
-        data={results}
+        data={displayResults}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <View style={{ paddingHorizontal: getResponsiveSpacing(14, width), marginBottom: getResponsiveSpacing(16, width) }}>
@@ -207,13 +212,13 @@ export default function SearchScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          results.length > 0 ? (
+          displayResults.length > 0 ? (
             <View style={{ paddingHorizontal: getResponsiveSpacing(14 , width), paddingBottom: getResponsiveSpacing(16, width) }}>
               <Text style={{ fontSize: getResponsiveFontSize(20, width), fontWeight: 'bold', color: '#1f3b4d' }}>
                 Search Results for "{query}"
               </Text>
               <Text style={{ fontSize: getResponsiveFontSize(14, width), color: '#64748b', marginTop: getResponsiveSpacing(4, width) }}>
-                Found {results.length} article{results.length !== 1 ? 's' : ''}
+                Found {displayResults.length} article{displayResults.length !== 1 ? 's' : ''}
               </Text>
             </View>
           ) : null

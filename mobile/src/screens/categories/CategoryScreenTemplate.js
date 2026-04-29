@@ -82,6 +82,9 @@ export default function CategoryScreen({
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const loadingMoreRef = useRef(false);
+  
+  // Track permanently deleted/drafted article IDs (persists across refreshes)
+  const deletedIdsRef = useRef(new Set());
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -108,8 +111,11 @@ export default function CategoryScreen({
           per_page: 10,
         },
       });
-      const data = res.data?.data ?? [];
+      const rawData = res.data?.data ?? [];
       const lastPage = res.data?.last_page ?? 1;
+      
+      // Filter out deleted/drafted articles
+      const data = rawData.filter(a => !deletedIdsRef.current.has(String(a.id)));
 
       setArticles((prev) => (replace ? data : [...prev, ...data]));
       setHasMore(pageNum < lastPage);
@@ -159,6 +165,45 @@ export default function CategoryScreen({
     fetchCategories();
     fetchArticles(1, true);
   }, [categoryName, fetchCategories, fetchArticles]);
+  
+  // Listen for article events
+  useEffect(() => {
+    const handlePublish = (publishedId) => {
+      console.log('[CategoryScreen] Article published - removing from deletion tracking...', publishedId);
+      if (publishedId) {
+        deletedIdsRef.current.delete(String(publishedId));
+      }
+      fetchArticles(1, true, true);
+    };
+
+    const handleDelete = (deletedId) => {
+      console.log('[CategoryScreen] Article deleted - permanently removing...', deletedId);
+      if (deletedId) {
+        deletedIdsRef.current.add(String(deletedId));
+        setArticles(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+      }
+    };
+
+    const handleDrafted = (draftedId) => {
+      console.log('[CategoryScreen] Article drafted - permanently hiding...', draftedId);
+      if (draftedId) {
+        deletedIdsRef.current.add(String(draftedId));
+        setArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+      }
+    };
+
+    const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
+
+    return () => {
+      publishListener.remove();
+      deleteListener.remove();
+      draftedListener.remove();
+    };
+  }, [categoryName, fetchArticles]);
 
   const handleMenuPress = (article, pos) => {
     if (isAdminUser) {
@@ -187,6 +232,9 @@ export default function CategoryScreen({
       setDeletingArticle(true);
       await deleteArticle(menuArticle.id);
       
+      // Add to permanent deletion set
+      deletedIdsRef.current.add(String(menuArticle.id));
+      
       // Remove from local state immediately
       setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
@@ -194,9 +242,7 @@ export default function CategoryScreen({
       setShowDeleteModal(false);
       showAuditToast("success", "Article deleted successfully");
       
-      // Register deletion in context — prevents API re-fetch from bringing it back
-      removeArticleLocally(menuArticle.id);
-      // Emit event — HomeScreen listener handles the delayed background refresh
+      // Emit event for other screens
       DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       // Check if it's a 404 error (article already deleted)
@@ -206,7 +252,6 @@ export default function CategoryScreen({
         setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
         setShowDeleteModal(false);
         showAuditToast("info", "Article was already deleted");
-        removeArticleLocally(menuArticle.id);
         DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
       } else {
         console.error("Error deleting article:", err);
