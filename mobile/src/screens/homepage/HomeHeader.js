@@ -138,7 +138,7 @@ const HomeHeader = ({
         navigation={navigation}
       />
       <View className="bg-white" style={{ paddingTop: Math.max(insets.top, 0) }}>
-        {isSearchActive ? (
+        {isSearchActive && enableSearch ? (
           // Search Active - Full width search bar
           <View className="flex-row items-center px-4" style={{ height: width < 375 ? 48 : 54 }}>
             {/* Menu Icon */}
