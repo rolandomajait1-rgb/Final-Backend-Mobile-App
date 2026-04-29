@@ -46,23 +46,20 @@ const ArticlesListContent = ({
   navigation,
   scrollViewRef,
 }) => {
-  // Combine all articles, remove duplicates, and sort by date descending
-  // This GUARANTEES that a newly published article ALWAYS goes to the Latest slot
-  const allArticles = [...(latestArticles || []), ...(recentArticles || [])];
-  const uniqueArticles = Array.from(new Map(allArticles.map(a => [a.id, a])).values());
-  
-  uniqueArticles.sort((a, b) => {
-    const dateA = new Date(a.published_at || a.created_at || 0);
-    const dateB = new Date(b.published_at || b.created_at || 0);
-    return dateB - dateA;
-  });
+  // If latestArticles is empty (e.g. featured article was just deleted),
+  // promote the first article from recentArticles to fill the Latest slot.
+  const latestIds = new Set((latestArticles || []).map(a => a.id));
+  const promotedFromRecent =
+    latestArticles?.length === 0 && recentArticles?.length > 0
+      ? [recentArticles[0]]
+      : [];
+  const displayLatest = latestArticles?.length > 0 ? latestArticles : promotedFromRecent;
+  const displayLatestIds = new Set(displayLatest.slice(0, 1).map(a => a.id));
 
-  // The absolute newest article takes the top "Latest Article" slot
-  const displayLatest = uniqueArticles.slice(0, 1);
-  const displayLatestIds = new Set(displayLatest.map(a => a.id));
-
-  // Everything else falls into "Recent Articles"
-  const filteredRecent = uniqueArticles.filter(a => !displayLatestIds.has(a.id));
+  // Recent section: hide articles already shown in Latest slot
+  const filteredRecent = (recentArticles || []).filter(
+    a => !displayLatestIds.has(a.id)
+  );
 
   return (
     <ScrollView
@@ -316,12 +313,22 @@ export default function HomeScreen({ navigation }) {
       }, 800);
     };
 
+    const handleDrafted = (draftedId) => {
+      console.log('[HomeScreen] Article drafted - hiding from public feed instantly...', draftedId);
+      if (draftedId) {
+        setRecentArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+        removeArticleLocally(draftedId);
+      }
+    };
+
     const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
     const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
 
     return () => {
       publishListener.remove();
       deleteListener.remove();
+      draftedListener.remove();
     };
   }, [forceRefreshArticles, fetchRecentArticles, removeArticleLocally]);
 

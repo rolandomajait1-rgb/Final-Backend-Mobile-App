@@ -90,7 +90,7 @@ export function ArticleProvider({ children }) {
       const rawData = res.data ?? [];
       // Always filter out permanently deleted article IDs so they never reappear after refresh
       const data = deletedIdsRef.current.size > 0
-        ? rawData.filter(a => !deletedIdsRef.current.has(a.id))
+        ? rawData.filter(a => !deletedIdsRef.current.has(String(a.id)))
         : rawData;
       setLatestArticles(data);
       setError(null);
@@ -176,25 +176,26 @@ export function ArticleProvider({ children }) {
 
   // ─── Public: remove article from cache (after delete) ──────────────────────
   const removeArticleLocally = useCallback((articleId) => {
-    // Add to permanent deletion set — survives any future API re-fetches
-    deletedIdsRef.current.add(articleId);
+    // Add to permanent deletion set as a String to avoid 123 !== '123' bugs
+    const idStr = String(articleId);
+    deletedIdsRef.current.add(idStr);
+    
     setLatestArticles(prev => {
-      const newArticles = prev.filter(a => a.id !== articleId);
+      const newArticles = prev.filter(a => String(a.id) !== idStr);
       saveCache(newArticles);
       return newArticles;
     });
-    // Auto-clear from deletion set after 30s (backend is definitely synced by then)
+    
+    // Auto-clear from deletion set after 30s
     setTimeout(() => {
-      deletedIdsRef.current.delete(articleId);
+      deletedIdsRef.current.delete(idStr);
     }, 30000);
   }, [saveCache]);
 
   // ─── Public: filter any article array through the permanent deletion set ────
-  // Use this in ANY screen that fetches articles locally (recentArticles, etc.)
-  // so deleted articles never reappear regardless of which screen triggered the delete.
   const filterDeleted = useCallback((articles) => {
     if (!deletedIdsRef.current.size) return articles;
-    return articles.filter(a => !deletedIdsRef.current.has(a.id));
+    return articles.filter(a => !deletedIdsRef.current.has(String(a.id)));
   }, []);
 
   // ─── On mount: wake backend → load cache → fetch fresh in background ──────

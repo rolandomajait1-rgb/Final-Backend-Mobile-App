@@ -9,13 +9,13 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  DeviceEventEmitter,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
 import { showAuditToast } from '../../utils/toastNotification';
 import { ALLOWED_CATEGORIES } from '../../constants/categories';
 import { isAuthenticated } from '../../utils/authUtils';
@@ -162,12 +162,38 @@ export default function EditArticleScreen({ navigation, route }) {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        setImage({
-          uri: result.assets[0].uri,
-          type: 'image/jpeg',
-          name: `article-${Date.now()}.jpg`,
-        });
-        setIsNewImage(true);
+        const pickedImage = result.assets[0];
+        
+        // Compress and resize large images to prevent upload failures
+        try {
+          const manipulatedImage = await ImageManipulator.manipulateAsync(
+            pickedImage.uri,
+            [
+              // Resize if width > 1920px (keep aspect ratio)
+              { resize: { width: Math.min(pickedImage.width || 1920, 1920) } }
+            ],
+            {
+              compress: 0.7, // Compress to 70% quality
+              format: ImageManipulator.SaveFormat.JPEG,
+            }
+          );
+          
+          setImage({
+            uri: manipulatedImage.uri,
+            type: 'image/jpeg',
+            name: `article-${Date.now()}.jpg`,
+          });
+          setIsNewImage(true);
+        } catch (manipError) {
+          console.error('Image manipulation error:', manipError);
+          // Fallback to original image if compression fails
+          setImage({
+            uri: pickedImage.uri,
+            type: 'image/jpeg',
+            name: `article-${Date.now()}.jpg`,
+          });
+          setIsNewImage(true);
+        }
       }
     } catch (error) {
       console.error('ImagePicker error:', error);
@@ -300,7 +326,11 @@ export default function EditArticleScreen({ navigation, route }) {
         console.error('Failed to refresh articles:', err);
       }
 
-      setShowModal(false);
+      if (status === 'draft') {
+        DeviceEventEmitter.emit('ARTICLE_DRAFTED', articleId);
+      } else {
+        DeviceEventEmitter.emit('ARTICLE_PUBLISHED');
+      }
 
       // Navigate first, then show toast after navigation completes
       navigation.navigate('MainApp', { screen: 'Home' });
@@ -340,18 +370,20 @@ export default function EditArticleScreen({ navigation, route }) {
 
       const isCloudinaryError = error.data?.error === 'cloudinary_upload_failed';
 
+      const errStatus = error.response?.status || error.status;
+      const errData = error.response?.data || error.data;
       const friendlyMessage =
-        error.status === 401 ? 'Session expired. Please log in again.' :
-        error.status === 403 ? 'You do not have permission to edit this article.' :
+        errStatus === 401 ? 'Session expired. Please log in again.' :
+        errStatus === 403 ? 'You do not have permission to edit this article.' :
         isCloudinaryError ? 'Image upload to cloud storage failed. Try again or update without the image.' :
-        error.status === 422 ? (error.data?.message || 'Validation failed. Check your input.') :
-        error.status === 500 ? 'Server error. Please try again later.' :
+        errStatus === 422 ? (errData?.message || 'Validation failed. Check your input.') :
+        errStatus === 500 ? 'Server error. Please try again later.' :
         isNetworkError ? 'Cannot reach the server. Check your internet or wait for the server to wake up.' :
-        `Update Failed: Status ${error.status || 'N/A'} - ${error.data ? JSON.stringify(error.data) : msg}`;
+        `Update Failed: Status ${errStatus || 'N/A'} - ${errData ? JSON.stringify(errData) : msg}`;
 
-      if (error.status === 401) setTimeout(() => navigation.navigate('Login'), 1500);
+      if (errStatus === 401) setTimeout(() => navigation.navigate('Login'), 1500);
 
-      console.error("UPDATE ERROR:", error.status, error.message, error.data);
+      console.error("UPDATE ERROR:", errStatus, error.message, errData);
 
       Alert.alert('Error', friendlyMessage);
     } finally {
