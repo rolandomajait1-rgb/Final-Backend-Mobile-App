@@ -22,8 +22,7 @@ export function useLikedArticles(articles) {
             return {
               ...article,
               user_liked: true,
-              likes_count: likedArticles[article.id].count,
-              like_count: likedArticles[article.id].count,
+              likes_count: likedArticles[article.id].count
             };
           }
           return article;

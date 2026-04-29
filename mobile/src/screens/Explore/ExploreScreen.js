@@ -92,8 +92,8 @@ export default function ExploreScreen({ navigation }) {
       // Calculate trending score: views + (likes * 2) + (shares * 3)
       // Likes and shares are weighted more heavily than views
       const sorted = [...filteredData].sort((a, b) => {
-        const scoreA = (a.view_count || 0) + ((a.like_count || a.likes_count || 0) * 2) + ((a.shares_count || 0) * 3);
-        const scoreB = (b.view_count || 0) + ((b.like_count || b.likes_count || 0) * 2) + ((b.shares_count || 0) * 3);
+        const scoreA = (a.view_count || 0) + ((a.likes_count || 0) * 2) + ((a.shares_count || 0) * 3);
+        const scoreB = (b.view_count || 0) + ((b.likes_count || 0) * 2) + ((b.shares_count || 0) * 3);
         return scoreB - scoreA;
       });
       
@@ -102,7 +102,7 @@ export default function ExploreScreen({ navigation }) {
       // Calculate trending score for an article
       const calculateScore = (article) => {
         return (article.view_count || 0) + 
-               ((article.like_count || article.likes_count || 0) * 2) + 
+               ((article.likes_count || 0) * 2) + 
                ((article.shares_count || 0) * 3);
       };
       

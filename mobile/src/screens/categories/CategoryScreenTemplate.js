@@ -173,7 +173,7 @@ export default function CategoryScreen({
       if (publishedId) {
         deletedIdsRef.current.delete(String(publishedId));
       }
-      fetchArticles(1, true, true);
+      fetchArticles(1, true, false);
     };
 
     const handleDelete = (deletedId) => {
@@ -282,6 +282,13 @@ export default function CategoryScreen({
     navigation.navigate("ArticleStack", { screen: "TagArticles", params: { tagName: tag } });
   };
 
+  const handleCategoryPress = (category) => {
+    const screen = CATEGORY_SCREEN_MAP[category];
+    if (screen) {
+      navigation.navigate("ArticleStack", { screen });
+    }
+  };
+
 
   // ─── Local Empty State ──────────────────────────────────────────────────
   const renderEmptyState = useCallback(() => (
@@ -387,6 +394,7 @@ export default function CategoryScreen({
                   onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
                   onTagPress={handleTagPress}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
+                  onCategoryPress={handleCategoryPress}
                 />
               </View>
             )}
@@ -449,6 +457,7 @@ export default function CategoryScreen({
                   onMenuPress={isAdminUser ? (e) => handleMenuPress(item, e) : undefined}
                   onTagPress={handleTagPress}
                   onAuthorPress={() => handleAuthorPress(item, navigation)}
+                  onCategoryPress={handleCategoryPress}
                 />
               </View>
             )}

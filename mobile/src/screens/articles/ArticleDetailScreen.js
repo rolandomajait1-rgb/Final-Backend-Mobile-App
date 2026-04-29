@@ -516,7 +516,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
 
         if (hasExplicitState && mountedRef.current) {
             setLiked(initialLiked);
-            setLikes(passedArticle.likes_count || passedArticle.like_count || 0);
+            setLikes(passedArticle.likes_count || 0);
             likedStateLoadedRef.current = true;
         }
 
@@ -594,8 +594,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
     if (updateArticleLocally) {
       updateArticleLocally(article.id, { 
         user_liked: newLiked, 
-        likes_count: newCount,
-        like_count: newCount // Some screens use like_count instead of likes_count
+        likes_count: newCount
       });
     }
 
@@ -614,8 +613,7 @@ export default function ArticleDetailScreen({ navigation, route }) {
       if (updateArticleLocally) {
         updateArticleLocally(article.id, { 
           user_liked: !newLiked, 
-          likes_count: newLiked ? likes - 1 : likes + 1,
-          like_count: newLiked ? likes - 1 : likes + 1
+          likes_count: newLiked ? likes - 1 : likes + 1
         });
       }
       
