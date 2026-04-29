@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  DeviceEventEmitter,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -108,11 +109,36 @@ export default function CreateArticleScreen({ navigation }) {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        setImage({
-          uri: result.assets[0].uri,
-          type: 'image/jpeg',
-          name: `article-${Date.now()}.jpg`,
-        });
+        const pickedImage = result.assets[0];
+        
+        // Compress and resize large images to prevent upload failures
+        try {
+          const manipulatedImage = await ImageManipulator.manipulateAsync(
+            pickedImage.uri,
+            [
+              // Resize if width > 1920px (keep aspect ratio)
+              { resize: { width: Math.min(pickedImage.width || 1920, 1920) } }
+            ],
+            {
+              compress: 0.7, // Compress to 70% quality
+              format: ImageManipulator.SaveFormat.JPEG,
+            }
+          );
+          
+          setImage({
+            uri: manipulatedImage.uri,
+            type: 'image/jpeg',
+            name: `article-${Date.now()}.jpg`,
+          });
+        } catch (manipError) {
+          console.error('Image manipulation error:', manipError);
+          // Fallback to original image if compression fails
+          setImage({
+            uri: pickedImage.uri,
+            type: 'image/jpeg',
+            name: `article-${Date.now()}.jpg`,
+          });
+        }
       }
     } catch (error) {
       console.error('ImagePicker error:', error);
@@ -254,6 +280,13 @@ export default function CreateArticleScreen({ navigation }) {
         'success',
         status === 'published' ? 'Article published successfully' : 'Article saved as draft successfully'
       );
+      
+      // Emit event for auto-refresh
+      if (status === 'published') {
+        const newArticleId = res.data?.data?.id || res.data?.id;
+        DeviceEventEmitter.emit('ARTICLE_PUBLISHED', newArticleId);
+      }
+      
       navigation.navigate('Admin');
 
     } catch (error) {
@@ -286,18 +319,20 @@ export default function CreateArticleScreen({ navigation }) {
       // Handle specific Cloudinary upload failure from backend
       const isCloudinaryError = error.data?.error === 'cloudinary_upload_failed';
 
+      const errStatus = error.response?.status || error.status;
+      const errData = error.response?.data || error.data;
       const friendlyMessage =
-        error.status === 401 ? 'Session expired. Please log in again.' :
-        error.status === 403 ? 'You do not have permission to create articles.' :
+        errStatus === 401 ? 'Session expired. Please log in again.' :
+        errStatus === 403 ? 'You do not have permission to create articles.' :
         isCloudinaryError ? 'Image upload to cloud storage failed. Try again or publish without the image.' :
-        error.status === 422 ? (error.data?.message || 'Validation failed. Check your input.') :
-        error.status === 500 ? 'Server error. Please try again later.' :
+        errStatus === 422 ? (errData?.message || 'Validation failed. Check your input.') :
+        errStatus === 500 ? 'Server error. Please try again later.' :
         isNetworkError ? 'Cannot reach the server. Check your internet or wait for the server to wake up.' :
-        `Upload Failed: Status ${error.status || 'N/A'} - ${error.data ? JSON.stringify(error.data) : msg}`;
+        `Upload Failed: Status ${errStatus || 'N/A'} - ${errData ? JSON.stringify(errData) : msg}`;
 
-      if (error.status === 401) setTimeout(() => navigation.navigate('Login'), 1500);
+      if (errStatus === 401) setTimeout(() => navigation.navigate('Login'), 1500);
 
-      console.error("UPLOAD ERROR:", error.status, error.message, error.data);
+      console.error("UPLOAD ERROR:", errStatus, error.message, errData);
 
       Alert.alert('Error', friendlyMessage, [
         { text: 'OK' },

@@ -323,7 +323,7 @@ export default function EditArticleScreen({ navigation, route }) {
       if (status === 'draft') {
         DeviceEventEmitter.emit('ARTICLE_DRAFTED', articleId);
       } else {
-        DeviceEventEmitter.emit('ARTICLE_PUBLISHED');
+        DeviceEventEmitter.emit('ARTICLE_PUBLISHED', articleId);
       }
 
       // Refresh context in the background so it doesn't block the UI

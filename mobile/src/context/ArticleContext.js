@@ -6,13 +6,13 @@ import { BASE_URL } from '../constants/config';
 export const ArticleContext = createContext();
 
 const CACHE_KEY = 'cached_latest_articles';
-const MIN_REFETCH_INTERVAL_MS = 500;
-const RETRY_DELAY_MS = 500; // SUPER FAST: Reduced from 1000ms to 500ms
+const MIN_REFETCH_INTERVAL_MS = 200;
+const RETRY_DELAY_MS = 200; // SUPER FAST: Reduced from 1000ms to 500ms
 
 // SUPER FAST: Reduce backend wake-up timeout to 2 seconds
 const wakeUpBackend = () => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced from 3s to 2s
+  const timeoutId = setTimeout(() => controller.abort(), 200); // Reduced from 3s to 2s
 
   fetch(`${BASE_URL}/api/health`, {
     method: 'GET',
@@ -186,11 +186,16 @@ export function ArticleProvider({ children }) {
       return newArticles;
     });
     
-    // Auto-clear from deletion set after 30s
+    // Auto-clear from deletion set after 10 minutes (ensures backend cache has fully expired)
     setTimeout(() => {
       deletedIdsRef.current.delete(idStr);
-    }, 30000);
+    }, 600000);
   }, [saveCache]);
+
+  // ─── Public: unban an article (if an admin re-publishes a drafted/deleted article)
+  const unbanArticleLocally = useCallback((articleId) => {
+    deletedIdsRef.current.delete(String(articleId));
+  }, []);
 
   // ─── Public: filter any article array through the permanent deletion set ────
   const filterDeleted = useCallback((articles) => {
@@ -233,6 +238,7 @@ export function ArticleProvider({ children }) {
     forceRefreshArticles,
     updateArticleLocally,
     removeArticleLocally,
+    unbanArticleLocally,
     filterDeleted,   // use this in any local fetch to strip deleted IDs from API results
   };
 
