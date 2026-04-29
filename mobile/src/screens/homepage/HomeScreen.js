@@ -48,7 +48,6 @@ const ArticlesListContent = ({
 }) => {
   // If latestArticles is empty (e.g. featured article was just deleted),
   // promote the first article from recentArticles to fill the Latest slot.
-  const latestIds = new Set((latestArticles || []).map(a => a.id));
   const promotedFromRecent =
     latestArticles?.length === 0 && recentArticles?.length > 0
       ? [recentArticles[0]]
