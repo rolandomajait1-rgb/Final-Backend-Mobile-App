@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -49,6 +49,9 @@ export default function TagArticlesScreen({ route, navigation }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { removeArticleLocally } = useArticles();
+  
+  // Track permanently deleted/drafted article IDs (persists across refreshes)
+  const deletedIdsRef = useRef(new Set());
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -76,13 +79,14 @@ export default function TagArticlesScreen({ route, navigation }) {
 
         console.log('Total author articles:', allAuthorArticles.length);
 
-        // Filter articles that have the specific tag
+        // Filter articles that have the specific tag AND not in deletedIds
         const filteredArticles = allAuthorArticles.filter(article => {
           const hasTags = article.tags?.some(tag => {
             console.log('Comparing tag:', tag.name, 'with:', tagName);
             return tag.name.toLowerCase() === tagName.toLowerCase();
           });
-          return hasTags;
+          const notDeleted = !deletedIdsRef.current.has(String(article.id));
+          return hasTags && notDeleted;
         });
 
         console.log('Filtered articles with tag:', filteredArticles.length);
@@ -98,8 +102,11 @@ export default function TagArticlesScreen({ route, navigation }) {
         const response = await client.get(url);
         console.log('Full response URL:', response.request?.responseURL || response.config.url);
         console.log('API response:', response.data);
-        const articlesData = response.data.data || response.data || [];
-        console.log('Articles found:', articlesData.length);
+        const rawArticlesData = response.data.data || response.data || [];
+        console.log('Articles found:', rawArticlesData.length);
+
+        // Filter out deleted/drafted articles
+        const articlesData = rawArticlesData.filter(a => !deletedIdsRef.current.has(String(a.id)));
 
         // Log first article's tags to verify
         if (articlesData.length > 0 && articlesData[0].tags) {
@@ -151,6 +158,45 @@ export default function TagArticlesScreen({ route, navigation }) {
     fetchCategories();
     fetchTagArticles();
   }, [fetchCategories, fetchTagArticles]);
+  
+  // Listen for article events
+  useEffect(() => {
+    const handlePublish = (publishedId) => {
+      console.log('[TagArticlesScreen] Article published - removing from deletion tracking...', publishedId);
+      if (publishedId) {
+        deletedIdsRef.current.delete(String(publishedId));
+      }
+      fetchTagArticles();
+    };
+
+    const handleDelete = (deletedId) => {
+      console.log('[TagArticlesScreen] Article deleted - permanently removing...', deletedId);
+      if (deletedId) {
+        deletedIdsRef.current.add(String(deletedId));
+        setArticles(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+      }
+    };
+
+    const handleDrafted = (draftedId) => {
+      console.log('[TagArticlesScreen] Article drafted - permanently hiding...', draftedId);
+      if (draftedId) {
+        deletedIdsRef.current.add(String(draftedId));
+        setArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+        setSearchResults(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+      }
+    };
+
+    const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
+
+    return () => {
+      publishListener.remove();
+      deleteListener.remove();
+      draftedListener.remove();
+    };
+  }, [fetchTagArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -181,13 +227,15 @@ export default function TagArticlesScreen({ route, navigation }) {
       const { deleteArticle } = await import("../../api/services/articleService");
       await deleteArticle(menuArticle.id);
 
+      // Add to permanent deletion set
+      deletedIdsRef.current.add(String(menuArticle.id));
+      
       setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       setSearchResults(prev => prev.filter(a => a.id !== menuArticle.id));
       setShowDeleteModal(false);
       showAuditToast('success', 'Article deleted successfully');
-      // Register deletion in context — prevents API re-fetch from bringing it back
-      removeArticleLocally(menuArticle.id);
-      // Emit event — HomeScreen listener handles the delayed background refresh
+      
+      // Emit event for other screens
       DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       console.error("Error deleting article:", err);

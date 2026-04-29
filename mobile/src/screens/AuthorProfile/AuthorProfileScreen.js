@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,9 @@ export default function AuthorProfileScreen({ route, navigation }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { forceRefreshArticles, removeArticleLocally } = useArticles();
+  
+  // Track permanently deleted/drafted article IDs (persists across refreshes)
+  const deletedIdsRef = useRef(new Set());
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -72,17 +75,20 @@ export default function AuthorProfileScreen({ route, navigation }) {
       
       // The API returns { articles: {...}, article_count: X, author: {...} }
       // articles is a paginated object with 'data' property
-      let articlesData = [];
+      let rawArticlesData = [];
       
       if (response.data.articles) {
         if (response.data.articles.data) {
           // Paginated response
-          articlesData = response.data.articles.data;
+          rawArticlesData = response.data.articles.data;
         } else if (Array.isArray(response.data.articles)) {
           // Direct array
-          articlesData = response.data.articles;
+          rawArticlesData = response.data.articles;
         }
       }
+      
+      // Filter out deleted/drafted articles
+      const articlesData = rawArticlesData.filter(a => !deletedIdsRef.current.has(String(a.id)));
       
       console.log('Extracted articles:', articlesData);
       console.log('Number of articles:', articlesData.length);
@@ -149,6 +155,43 @@ export default function AuthorProfileScreen({ route, navigation }) {
     fetchCategories();
     fetchAuthorArticles();
   }, [fetchCategories, fetchAuthorArticles]);
+  
+  // Listen for article events
+  useEffect(() => {
+    const handlePublish = (publishedId) => {
+      console.log('[AuthorProfileScreen] Article published - removing from deletion tracking...', publishedId);
+      if (publishedId) {
+        deletedIdsRef.current.delete(String(publishedId));
+      }
+      fetchAuthorArticles();
+    };
+
+    const handleDelete = (deletedId) => {
+      console.log('[AuthorProfileScreen] Article deleted - permanently removing...', deletedId);
+      if (deletedId) {
+        deletedIdsRef.current.add(String(deletedId));
+        setArticles(prev => prev.filter(a => String(a.id) !== String(deletedId)));
+      }
+    };
+
+    const handleDrafted = (draftedId) => {
+      console.log('[AuthorProfileScreen] Article drafted - permanently hiding...', draftedId);
+      if (draftedId) {
+        deletedIdsRef.current.add(String(draftedId));
+        setArticles(prev => prev.filter(a => String(a.id) !== String(draftedId)));
+      }
+    };
+
+    const publishListener = DeviceEventEmitter.addListener('ARTICLE_PUBLISHED', handlePublish);
+    const deleteListener = DeviceEventEmitter.addListener('ARTICLE_DELETED', handleDelete);
+    const draftedListener = DeviceEventEmitter.addListener('ARTICLE_DRAFTED', handleDrafted);
+
+    return () => {
+      publishListener.remove();
+      deleteListener.remove();
+      draftedListener.remove();
+    };
+  }, [fetchAuthorArticles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -179,20 +222,20 @@ export default function AuthorProfileScreen({ route, navigation }) {
       const { deleteArticle } = await import("../../api/services/articleService");
       await deleteArticle(menuArticle.id);
       
+      // Add to permanent deletion set
+      deletedIdsRef.current.add(String(menuArticle.id));
+      
       setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
       setShowDeleteModal(false);
       showAuditToast('success', 'Article deleted successfully');
 
-      // Register deletion in context — prevents API re-fetch from bringing it back
-      removeArticleLocally(menuArticle.id);
-      // Emit event — HomeScreen listener handles the delayed background refresh
+      // Emit event for other screens
       DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
     } catch (err) {
       if (err.response?.status === 404) {
         setArticles(prev => prev.filter(a => a.id !== menuArticle.id));
         setShowDeleteModal(false);
         showAuditToast('info', 'Article was already deleted');
-        removeArticleLocally(menuArticle.id);
         DeviceEventEmitter.emit('ARTICLE_DELETED', menuArticle.id);
       } else {
         console.error("Error deleting article:", err);
