@@ -318,19 +318,16 @@ export default function EditArticleScreen({ navigation, route }) {
       const res = await client.post(`/api/articles/${articleId}`, payload);
       console.log('Update response:', res.data);
 
-      // Refresh context so HomeScreen shows updated data on focus
-      try { 
-        await forceRefreshArticles(); 
-        console.log('Articles refreshed after edit');
-      } catch (err) { 
-        console.error('Failed to refresh articles:', err);
-      }
+      setShowModal(false);
 
       if (status === 'draft') {
         DeviceEventEmitter.emit('ARTICLE_DRAFTED', articleId);
       } else {
         DeviceEventEmitter.emit('ARTICLE_PUBLISHED');
       }
+
+      // Refresh context in the background so it doesn't block the UI
+      forceRefreshArticles().catch(err => console.error('Failed to refresh:', err));
 
       // Navigate first, then show toast after navigation completes
       navigation.navigate('MainApp', { screen: 'Home' });
