@@ -186,7 +186,7 @@ const ArticlesListContent = ({
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation }) {
-  const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles, removeArticleLocally, filterDeleted, unbanArticleLocally } = useArticles();
+  const { latestArticles = [], loading: articlesLoading, refreshArticles, forceRefreshArticles, removeArticleLocally, filterDeleted } = useArticles();
   const hasMountedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const [categories, setCategories] = useState([]);
@@ -294,7 +294,6 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const handlePublish = (publishedId) => {
       console.log('[HomeScreen] Article published - auto refreshing...', publishedId);
-      if (publishedId) unbanArticleLocally(publishedId);
       forceRefreshArticles();
       fetchRecentArticles(1, true);
     };

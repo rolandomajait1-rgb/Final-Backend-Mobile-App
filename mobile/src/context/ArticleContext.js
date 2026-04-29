@@ -186,16 +186,11 @@ export function ArticleProvider({ children }) {
       return newArticles;
     });
     
-    // Auto-clear from deletion set after 10 minutes (ensures backend cache has fully expired)
+    // Auto-clear from deletion set after 30s
     setTimeout(() => {
       deletedIdsRef.current.delete(idStr);
-    }, 600000);
+    }, 30000);
   }, [saveCache]);
-
-  // ─── Public: unban an article (if an admin re-publishes a drafted/deleted article)
-  const unbanArticleLocally = useCallback((articleId) => {
-    deletedIdsRef.current.delete(String(articleId));
-  }, []);
 
   // ─── Public: filter any article array through the permanent deletion set ────
   const filterDeleted = useCallback((articles) => {
@@ -238,7 +233,6 @@ export function ArticleProvider({ children }) {
     forceRefreshArticles,
     updateArticleLocally,
     removeArticleLocally,
-    unbanArticleLocally,
     filterDeleted,   // use this in any local fetch to strip deleted IDs from API results
   };
 
