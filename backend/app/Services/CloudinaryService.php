@@ -48,7 +48,7 @@ class CloudinaryService
         return $this->cloudinary;
     }
 
-    protected function getUploadApi(): UploadApi
+    public function getUploadApi(): UploadApi
     {
         if ($this->uploadApi === null) {
             $this->uploadApi = $this->getCloudinary()->uploadApi();

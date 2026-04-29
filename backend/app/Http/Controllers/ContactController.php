@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\CloudinaryService;
 
 class ContactController extends Controller
 {
@@ -173,23 +174,46 @@ class ContactController extends Controller
         $course = $request->courseYear ?? $request->course  ?? 'N/A';
         $gender = $request->gender ?? 'N/A';
 
-        $photoPath   = null;
-        $consentPath = null;
+        $photoUrl   = null;
+        $consentUrl = null;
 
+        // Upload photo to Cloudinary (persistent, survives server restarts)
         if ($request->hasFile('photo')) {
             $file = $request->file('photo');
             $imageInfo = getimagesize($file->getRealPath());
             if (! $imageInfo) {
                 return response()->json(['message' => 'Invalid photo file'], 422);
             }
-            $filename  = \Illuminate\Support\Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $photoPath = $file->storeAs('herald-applications/photos', $filename, 'public');
+            try {
+                $cloudinary = app(CloudinaryService::class);
+                $result = $cloudinary->getUploadApi()->upload($file->getRealPath(), [
+                    'folder'        => 'herald-applications/photos',
+                    'resource_type' => 'image',
+                    'quality'       => 'auto:good',
+                ]);
+                $photoUrl = $result['secure_url'] ?? null;
+                Log::info('Photo uploaded to Cloudinary', ['url' => $photoUrl]);
+            } catch (\Exception $e) {
+                Log::error('Photo upload to Cloudinary failed', ['error' => $e->getMessage()]);
+                // Continue even if photo upload fails
+            }
         }
 
+        // Upload consent form to Cloudinary
         if ($request->hasFile('consentForm')) {
-            $file        = $request->file('consentForm');
-            $filename    = \Illuminate\Support\Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $consentPath = $file->storeAs('herald-applications/consent', $filename, 'public');
+            $file = $request->file('consentForm');
+            try {
+                $cloudinary = app(CloudinaryService::class);
+                $result = $cloudinary->getUploadApi()->upload($file->getRealPath(), [
+                    'folder'        => 'herald-applications/consent',
+                    'resource_type' => 'auto',  // handles PDF and images
+                ]);
+                $consentUrl = $result['secure_url'] ?? null;
+                Log::info('Consent form uploaded to Cloudinary', ['url' => $consentUrl]);
+            } catch (\Exception $e) {
+                Log::error('Consent upload to Cloudinary failed', ['error' => $e->getMessage()]);
+                // Continue even if consent upload fails
+            }
         }
 
         $body  = "New Membership Application\n\n";
@@ -198,9 +222,9 @@ class ContactController extends Controller
         $body .= "Course & Year: {$course}\n";
         $body .= "Gender: {$gender}\n";
         $body .= "Email: " . ($request->email ?? 'N/A') . "\n\n";
-        $body .= "Attachments:\n";
-        $body .= "Photo: "       . ($photoPath   ? 'Uploaded — ' . asset('storage/' . $photoPath) : 'Not provided') . "\n";
-        $body .= "Consent Form: " . ($consentPath ? 'Uploaded — ' . asset('storage/' . $consentPath) : 'Not provided') . "\n";
+        $body .= "Attachments (click to view/download):\n";
+        $body .= "Photo: "       . ($photoUrl   ? $photoUrl   : 'Not provided') . "\n";
+        $body .= "Consent Form: " . ($consentUrl ? $consentUrl : 'Not provided') . "\n";
 
         if ($request->pubName)          $body .= "Publication Name: {$request->pubName}\n";
         if ($request->specificPosition) $body .= "Specific Position: {$request->specificPosition}\n";
@@ -216,14 +240,32 @@ class ContactController extends Controller
 
         $adminEmail = (string) config('mail.from.address', 'rolandomajait1@gmail.com');
 
-        // Note: Brevo API doesn't support file attachments via the free transactional endpoint,
-        // so attachments are referenced as URLs in the email body (already included above).
+        // HTML version for better email display
+        $htmlBody = $this->toHtml($body);
+        // Add clickable links for attachments
+        if ($photoUrl) {
+            $htmlBody = str_replace(
+                htmlspecialchars($photoUrl),
+                '<a href="' . $photoUrl . '" style="color:#e63946;">📷 View Photo</a>',
+                $htmlBody
+            );
+        }
+        if ($consentUrl) {
+            $htmlBody = str_replace(
+                htmlspecialchars($consentUrl),
+                '<a href="' . $consentUrl . '" style="color:#e63946;">📄 View Consent Form</a>',
+                $htmlBody
+            );
+        }
+
+        $adminEmail = (string) config('mail.from.address', 'rolandomajait1@gmail.com');
+
         try {
             $this->sendBrevoEmail(
                 $adminEmail,
                 'La Verdad Herald Admin',
                 'Membership Application - La Verdad Herald',
-                $this->toHtml($body),
+                $htmlBody,
                 $request->email ?: null
             );
             Log::info('Join Herald email sent successfully (Brevo API)', [
