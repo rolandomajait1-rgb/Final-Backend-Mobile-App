@@ -24,14 +24,21 @@ class ContactController extends Controller
             'payload' => $request->all(),
         ]);
 
+        // Send email notification
         try {
             Mail::raw($body, function ($message) use ($from) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
                         ->replyTo($from)
                         ->subject('New Feedback - La Verdad Herald');
             });
+            
+            \Illuminate\Support\Facades\Log::info('Feedback email sent successfully', ['from' => $from]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Mail send failed (feedback): ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Mail send failed (feedback): ' . $e->getMessage(), [
+                'from' => $from,
+                'exception' => $e
+            ]);
+            // Don't fail the request - submission is already saved
         }
 
         return response()->json(['message' => 'Feedback received successfully']);
@@ -72,6 +79,7 @@ class ContactController extends Controller
             'payload' => $request->all(),
         ]);
 
+        // Send email notification
         try {
             Mail::raw($body, function ($message) use ($request) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
@@ -81,8 +89,17 @@ class ContactController extends Controller
                     $message->replyTo($request->contactEmail);
                 }
             });
+            
+            \Illuminate\Support\Facades\Log::info('Coverage request email sent successfully', [
+                'event' => $request->eventName,
+                'email' => $request->contactEmail
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Mail send failed (coverage): ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Mail send failed (coverage): ' . $e->getMessage(), [
+                'event' => $request->eventName,
+                'exception' => $e
+            ]);
+            // Don't fail the request - submission is already saved
         }
 
         return response()->json(['message' => 'Coverage request received successfully']);
@@ -168,6 +185,7 @@ class ContactController extends Controller
             ),
         ]);
 
+        // Send email notification
         try {
             Mail::raw($body, function ($message) use ($request, $photoPath, $consentPath) {
                 $message->to(config('mail.from.address', 'admin@laverdadherald.com'))
@@ -184,8 +202,17 @@ class ContactController extends Controller
                     $message->attach(storage_path('app/public/' . $consentPath));
                 }
             });
+            
+            \Illuminate\Support\Facades\Log::info('Join Herald email sent successfully', [
+                'name' => $name,
+                'email' => $request->email
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Mail send failed (join): ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Mail send failed (join): ' . $e->getMessage(), [
+                'name' => $name,
+                'exception' => $e
+            ]);
+            // Don't fail the request - submission is already saved
         }
 
         return response()->json(['message' => 'Application submitted successfully']);
