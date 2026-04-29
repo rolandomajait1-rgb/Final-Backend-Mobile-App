@@ -1,74 +1,85 @@
-import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 
 const CLOUDINARY_CLOUD_NAME = 'da9wvkqcl';
 const CLOUDINARY_UPLOAD_PRESET = 'mobile_articles';
 
-/**
- * Upload image to Cloudinary using expo-file-system's uploadAsync.
- *
- * Why uploadAsync instead of fetch/axios:
- * - axios: throws "Network Error" on multipart/form-data in React Native (known bug)
- * - fetch + FormData: inconsistent file URI handling across Android versions
- * - FileSystem.uploadAsync: uses native HTTP multipart upload — the correct Expo approach
- *
- * @param {string} imageUri - Local image URI from ImagePicker / ImageManipulator
- * @param {Function} onProgress - Optional callback for progress (0-100) [simulated]
- * @returns {Promise<string>} - Cloudinary secure_url
- */
-export const uploadImageToCloudinary = async (imageUri, onProgress = null) => {
-  let progressInterval = null;
+export const uploadImageToCloudinary = (imageUri, onProgress = null) => {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('[Cloudinary] Starting upload:', imageUri);
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
-  try {
-    console.log('[Cloudinary] Starting upload:', imageUri);
-    console.log('[Cloudinary] Cloud:', CLOUDINARY_CLOUD_NAME, '| Preset:', CLOUDINARY_UPLOAD_PRESET);
+      const filename = imageUri.split('/').pop() || `upload-${Date.now()}.jpg`;
+      let type = 'image/jpeg';
+      if (filename.toLowerCase().endsWith('.png')) type = 'image/png';
+      else if (filename.toLowerCase().endsWith('.gif')) type = 'image/gif';
+      else if (filename.toLowerCase().endsWith('.webp')) type = 'image/webp';
 
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+      const cleanUri = Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri;
 
-    // Simulate progress (FileSystem.uploadAsync doesn't expose native progress)
-    if (onProgress) {
-      let current = 10;
-      onProgress(current);
-      progressInterval = setInterval(() => {
-        current = Math.min(current + 15, 85);
-        onProgress(current);
-      }, 500);
+      const formData = new FormData();
+      formData.append('file', { uri: cleanUri, type, name: filename });
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', 'presshub');
+
+      const xhr = new XMLHttpRequest();
+      
+      // FIX: React Native's fetch throws "Network request failed" exactly after 10 seconds
+      // because OkHttp times out. XHR lets us increase the timeout to 60 seconds.
+      xhr.timeout = 60000;
+
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded * 100) / event.total);
+            onProgress(Math.min(progress, 99)); // Cap at 99 until finished
+          }
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (onProgress) onProgress(100);
+            console.log('[Cloudinary] Upload success:', data.secure_url);
+            resolve(data.secure_url);
+          } catch (e) {
+            reject(new Error('Invalid response from Cloudinary'));
+          }
+        } else {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            console.error('[Cloudinary] Upload rejected:', JSON.stringify(data, null, 2));
+            reject(new Error(data.error?.message || `HTTP ${xhr.status}`));
+          } catch (e) {
+            reject(new Error(`HTTP Error ${xhr.status}`));
+          }
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        console.error('[Cloudinary] XHR Network Error');
+        reject(new Error('Network request failed. Please check your internet connection.'));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        console.error('[Cloudinary] XHR Timeout (took more than 60s)');
+        reject(new Error('Upload timed out. Please try again on a faster connection.'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload aborted'));
+      });
+
+      xhr.open('POST', uploadUrl, true);
+      // Let XHR automatically set Content-Type so boundary isn't lost
+      xhr.send(formData);
+
+    } catch (error) {
+      reject(error);
     }
-
-    const result = await FileSystem.uploadAsync(uploadUrl, imageUri, {
-      httpMethod: 'POST',
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName: 'file',
-      parameters: {
-        upload_preset: CLOUDINARY_UPLOAD_PRESET,
-        folder: 'presshub',
-      },
-      mimeType: 'image/jpeg',
-    });
-
-    console.log('[Cloudinary] HTTP status:', result.status);
-
-    const data = JSON.parse(result.body);
-
-    if (result.status < 200 || result.status >= 300) {
-      console.error('[Cloudinary] Upload rejected:', JSON.stringify(data, null, 2));
-      const msg = data?.error?.message || `HTTP ${result.status}`;
-      throw new Error(`Cloudinary rejected upload: ${msg}`);
-    }
-
-    if (!data.secure_url) {
-      throw new Error('Cloudinary returned no URL in response');
-    }
-
-    if (onProgress) onProgress(100);
-    console.log('[Cloudinary] Upload success:', data.secure_url);
-    return data.secure_url;
-
-  } catch (error) {
-    console.error('[Cloudinary] Upload failed:', error.message);
-    throw new Error(error.message || 'Image upload failed. Please check your internet connection.');
-  } finally {
-    if (progressInterval !== null) {
-      clearInterval(progressInterval);
-    }
-  }
+  });
 };
+
+

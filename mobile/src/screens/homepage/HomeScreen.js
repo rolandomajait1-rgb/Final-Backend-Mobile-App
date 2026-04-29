@@ -46,20 +46,23 @@ const ArticlesListContent = ({
   navigation,
   scrollViewRef,
 }) => {
-  // If latestArticles is empty (e.g. featured article was just deleted),
-  // promote the first article from recentArticles to fill the Latest slot.
-  const latestIds = new Set((latestArticles || []).map(a => a.id));
-  const promotedFromRecent =
-    latestArticles?.length === 0 && recentArticles?.length > 0
-      ? [recentArticles[0]]
-      : [];
-  const displayLatest = latestArticles?.length > 0 ? latestArticles : promotedFromRecent;
-  const displayLatestIds = new Set(displayLatest.slice(0, 1).map(a => a.id));
+  // Combine all articles, remove duplicates, and sort by date descending
+  // This GUARANTEES that a newly published article ALWAYS goes to the Latest slot
+  const allArticles = [...(latestArticles || []), ...(recentArticles || [])];
+  const uniqueArticles = Array.from(new Map(allArticles.map(a => [a.id, a])).values());
+  
+  uniqueArticles.sort((a, b) => {
+    const dateA = new Date(a.published_at || a.created_at || 0);
+    const dateB = new Date(b.published_at || b.created_at || 0);
+    return dateB - dateA;
+  });
 
-  // Recent section: hide articles already shown in Latest slot
-  const filteredRecent = (recentArticles || []).filter(
-    a => !displayLatestIds.has(a.id)
-  );
+  // The absolute newest article takes the top "Latest Article" slot
+  const displayLatest = uniqueArticles.slice(0, 1);
+  const displayLatestIds = new Set(displayLatest.map(a => a.id));
+
+  // Everything else falls into "Recent Articles"
+  const filteredRecent = uniqueArticles.filter(a => !displayLatestIds.has(a.id));
 
   return (
     <ScrollView
