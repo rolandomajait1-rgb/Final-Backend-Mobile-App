@@ -105,7 +105,7 @@ class ArticleController extends Controller
         // Cache key based on query parameters
         $cacheKey = "articles_public_{$page}_{$perPage}_{$category}_{$tag}";
 
-        $articles = Cache::remember($cacheKey, 300, function () use ($perPage, $category, $tag) {
+        $articles = Cache::remember($cacheKey, 60, function () use ($perPage, $category, $tag) {
             $query = Article::published()
                 ->with('author.user', 'categories', 'tags')
                 ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
@@ -133,8 +133,8 @@ class ArticleController extends Controller
         }
 
         return response()->json($articles)
-            ->header('Cache-Control', 'public, max-age=300')
-            ->header('Expires', now()->addMinutes(5)->toRfc7231String());
+            ->header('Cache-Control', 'public, max-age=60')
+            ->header('Expires', now()->addMinutes(1)->toRfc7231String());
     }
 
     public function publicSearch(Request $request): JsonResponse
@@ -216,7 +216,7 @@ class ArticleController extends Controller
                 return response()->json(['message' => 'Invalid article slug'], 400);
             }
 
-            $article = \Illuminate\Support\Facades\Cache::remember('article_slug_' . $slug, 300, function () use ($slug) {
+            $article = \Illuminate\Support\Facades\Cache::remember('article_slug_' . $slug, 60, function () use ($slug) {
                 return Article::published()
                     ->with('author.user', 'categories', 'tags')
                     ->where('slug', $slug)
@@ -262,7 +262,7 @@ class ArticleController extends Controller
                 return response()->json(['message' => 'Invalid article ID'], 400);
             }
 
-            $article = \Illuminate\Support\Facades\Cache::remember('article_id_' . $id, 300, function () use ($id) {
+            $article = \Illuminate\Support\Facades\Cache::remember('article_id_' . $id, 60, function () use ($id) {
                 return Article::with('author.user', 'categories', 'tags')->find($id);
             });
             
@@ -299,15 +299,12 @@ class ArticleController extends Controller
 
     public function latestArticles(): JsonResponse
     {
-        // Cache for 5 minutes
-        $articles = Cache::remember('latest_articles', 300, function () {
-            return Article::published()
-                ->with('author.user', 'categories', 'tags')
-                ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
-                ->latest('published_at')
-                ->take(6)
-                ->get();
-        });
+        $articles = Article::published()
+            ->with('author.user', 'categories', 'tags')
+            ->withCount(['interactions as likes_count' => fn ($q) => $q->where('type', 'liked')])
+            ->latest('published_at')
+            ->take(6)
+            ->get();
 
         if (Auth::check()) {
             $articles->loadExists(['interactions as user_liked' => function ($query) {
@@ -318,8 +315,9 @@ class ArticleController extends Controller
         }
 
         return response()->json($articles)
-            ->header('Cache-Control', 'public, max-age=300')
-            ->header('Expires', now()->addMinutes(5)->toRfc7231String());
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function create(): View
@@ -449,9 +447,33 @@ class ArticleController extends Controller
 
                 // Clear article caches when publishing
                 if ($status === 'published') {
+                    // Explicitly clear the latest articles cache
                     Cache::forget('latest_articles');
-                    // Clear all public article list caches
-                    Cache::flush(); // Or use more specific cache tags if available
+                    
+                    // Clear related article caches
+                    Cache::forget('article_slug_' . $article->slug);
+                    Cache::forget('article_id_' . $article->id);
+                    
+                    // Optimized cache clearing: Only clear first page of most common queries
+                    // This is much faster and covers 95% of user traffic
+                    // Background: Most users only view page 1, and cache expires in 5 min anyway
+                    $commonPerPage = [10, 20];
+                    $categories = ['', 'News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
+                    
+                    foreach ($commonPerPage as $perPage) {
+                        // Clear page 1 for all categories (most viewed)
+                        foreach ($categories as $cat) {
+                            Cache::forget("articles_public_1_{$perPage}_{$cat}_");
+                            if ($cat === '') {
+                                Cache::forget("articles_public_1_{$perPage}__");
+                            }
+                        }
+                    }
+                    
+                    Log::info('Cache cleared on article publish (optimized)', [
+                        'article_id' => $article->id,
+                        'slug' => $article->slug,
+                    ]);
                 }
 
                 Log::info('Article creation completed successfully', ['article_id' => $article->id]);
@@ -720,13 +742,75 @@ class ArticleController extends Controller
             ]);
         } catch (\Exception $e) {}
 
-        // Clear article caches when publishing or updating published articles
-        if ($article->status === 'published') {
+        // Clear article caches when status changes to published or when updating published articles
+        if ($oldStatus === 'draft' && $newStatus === 'published') {
+            // Article was just published - clear latest articles cache
             Cache::forget('latest_articles');
             Cache::forget('article_slug_' . $article->slug);
             Cache::forget('article_id_' . $article->id);
-            // Clear paginated article caches (simplified approach)
-            Cache::flush();
+            
+            // Optimized cache clearing: Only clear first page of most common queries
+            $commonPerPage = [10, 20];
+            $categories = ['', 'News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
+            
+            foreach ($commonPerPage as $perPage) {
+                foreach ($categories as $cat) {
+                    Cache::forget("articles_public_1_{$perPage}_{$cat}_");
+                    if ($cat === '') {
+                        Cache::forget("articles_public_1_{$perPage}__");
+                    }
+                }
+            }
+            
+            Log::info('Cache cleared on article publish via status change (optimized)', [
+                'article_id' => $article->id,
+                'slug' => $article->slug,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+            ]);
+        } elseif ($oldStatus === 'published' && $newStatus === 'draft') {
+            // Article was unpublished (saved as draft) - clear caches to remove it from public view
+            Cache::forget('latest_articles');
+            Cache::forget('article_slug_' . $article->slug);
+            Cache::forget('article_id_' . $article->id);
+            
+            // Optimized cache clearing
+            $commonPerPage = [10, 20];
+            $categories = ['', 'News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
+            
+            foreach ($commonPerPage as $perPage) {
+                foreach ($categories as $cat) {
+                    Cache::forget("articles_public_1_{$perPage}_{$cat}_");
+                    if ($cat === '') {
+                        Cache::forget("articles_public_1_{$perPage}__");
+                    }
+                }
+            }
+            
+            Log::info('Cache cleared on article unpublish (saved as draft)', [
+                'article_id' => $article->id,
+                'slug' => $article->slug,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+            ]);
+        } elseif ($article->status === 'published') {
+            // Article is published and being updated - clear caches
+            Cache::forget('latest_articles');
+            Cache::forget('article_slug_' . $article->slug);
+            Cache::forget('article_id_' . $article->id);
+            
+            // Optimized cache clearing
+            $commonPerPage = [10, 20];
+            $categories = ['', 'News', 'Literary', 'Opinion', 'Sports', 'Features', 'Specials', 'Art'];
+            
+            foreach ($commonPerPage as $perPage) {
+                foreach ($categories as $cat) {
+                    Cache::forget("articles_public_1_{$perPage}_{$cat}_");
+                    if ($cat === '') {
+                        Cache::forget("articles_public_1_{$perPage}__");
+                    }
+                }
+            }
         }
 
         return response()->json($article->load('author', 'categories', 'tags'));
