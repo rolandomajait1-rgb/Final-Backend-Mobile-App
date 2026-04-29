@@ -237,6 +237,38 @@ class ContactController extends Controller
         return response()->json(['message' => 'Application submitted successfully']);
     }
 
+    // ─── Debug: Test Email Sending (Live) ──────────────────────────────────────
+    public function testEmailLive(): JsonResponse
+    {
+        $adminEmail = (string) config('mail.from.address', 'rolandomajait1@gmail.com');
+        $apiKey     = (string) config('services.brevo.key');
+        
+        try {
+            $this->sendBrevoEmail(
+                $adminEmail,
+                'Debug Test',
+                'LIVE TEST - La Verdad Herald',
+                $this->toHtml("This is a live test to see if Brevo API is working.\nAdmin Email: {$adminEmail}\nAPI Key found: " . ($apiKey ? 'Yes' : 'No')),
+                null
+            );
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Test email sent successfully to ' . $adminEmail,
+                'config'  => [
+                    'admin_email' => $adminEmail,
+                    'api_key_set' => !empty($apiKey),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email failed: ' . $e->getMessage(),
+                'trace'   => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
     // ─── Subscribe ──────────────────────────────────────────────────────────────
     public function subscribe(Request $request): JsonResponse
     {

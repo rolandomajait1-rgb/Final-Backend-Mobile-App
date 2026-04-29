@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 // Health Check Endpoints (for uptime monitoring)
 Route::get('/health', [ApiHealthController::class, 'check']);
 Route::get('/ping', [ApiHealthController::class, 'ping']);
+Route::get('/test-feedback-live', [ContactController::class, 'testEmailLive']);
 
 // Team Members Routes
 Route::get('/team-members', [TeamMemberController::class, 'index']);
