@@ -6,13 +6,13 @@ import { BASE_URL } from '../constants/config';
 export const ArticleContext = createContext();
 
 const CACHE_KEY = 'cached_latest_articles';
-const MIN_REFETCH_INTERVAL_MS = 200;
-const RETRY_DELAY_MS = 200; // SUPER FAST: Reduced from 1000ms to 500ms
+const MIN_REFETCH_INTERVAL_MS = 500;
+const RETRY_DELAY_MS = 500; // SUPER FAST: Reduced from 1000ms to 500ms
 
 // SUPER FAST: Reduce backend wake-up timeout to 2 seconds
 const wakeUpBackend = () => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 200); // Reduced from 3s to 2s
+  const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 seconds for backend wake-up
 
   fetch(`${BASE_URL}/api/health`, {
     method: 'GET',
@@ -162,6 +162,14 @@ export function ArticleProvider({ children }) {
   // ─── Public: force refresh (after edit/create — bypasses cooldown) ────────
   const forceRefreshArticles = useCallback(async () => {
     lastFetchRef.current = 0;
+    
+    // Explicitly invalidate AsyncStorage cache to ensure fresh data
+    try {
+      await AsyncStorage.removeItem(CACHE_KEY);
+    } catch (_) {
+      // Silent fail if cache removal fails
+    }
+    
     await refreshArticles();
   }, [refreshArticles]);
 

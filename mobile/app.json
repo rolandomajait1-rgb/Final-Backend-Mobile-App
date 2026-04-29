@@ -55,6 +55,9 @@
         "backgroundColor": "#2C5F7F"
       }
     },
-    "owner": "ispm-g-4"
+    "owner": "ispm-g-4",
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }
