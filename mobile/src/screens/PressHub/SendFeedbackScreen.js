@@ -71,6 +71,7 @@ const SendFeedbackScreen = ({ navigation }) => {
           onSearch={() => {}}
           searchQuery=""
           isSearchScreen={true}
+          enableSearch={false}
           onGridPress={() => navigation.navigate("Management", { screen: "Admin" })}
         />
       </View>
