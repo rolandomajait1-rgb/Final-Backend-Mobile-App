@@ -535,21 +535,6 @@ export default function AdminScreen({ navigation }) {
 
         ) : (
           <>
-            {/* ── System Health ── */}
-            <View style={{ paddingHorizontal: 16, marginBottom: 6 }}>
-              <SectionHeader title="System Health" icon="pulse-outline" />
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                <QuickStat label="Website Uptime" value={stats?.uptime ?? "99.9%"} />
-                <QuickStat label={`Article Page Load\nSuccess Rate`} value={stats?.loadSuccessRate ?? "100%"} />
-              </View>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <QuickStat label={`Form Submission\nSuccess Rate`} value={stats?.formSuccessRate ?? "100%"} />
-                <QuickStat label={`Email Delivery\nSuccess Rate`} value={stats?.emailSuccessRate ?? "99.8%"} />
-              </View>
-            </View>
-
-            <Divider />
-
             {/* ── Article Metrics ── */}
             <StatGroup title="Article" color={BRAND_BLUE}>
               <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
@@ -587,12 +572,6 @@ export default function AdminScreen({ navigation }) {
                 label="Registered Users"
                 value={fmt(stats?.totalUsers)}
                 accent={BRAND_BLUE}
-              />
-              <InfoCard
-                icon="trending-up-outline"
-                label="Readership Growth (MoM)"
-                value={`${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(1)}%`}
-                accent={growthPct >= 0 ? SUCCESS_GREEN : DANGER_RED}
               />
             </View>
 
