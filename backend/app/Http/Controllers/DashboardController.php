@@ -49,6 +49,7 @@ class DashboardController extends Controller
             : 0;
 
         // Dynamic Chart Data Generation (Cumulative Readership)
+        // Start from March 2026 (when system was developed)
         $chart = [
             'monthly' => [
                 'labels' => [],
@@ -60,34 +61,53 @@ class DashboardController extends Controller
             ]
         ];
 
-        // Monthly cumulative data for current year (up to current month)
-        $usersBeforeThisYear = \App\Models\User::whereYear('created_at', '<', now()->year)->count();
+        // Monthly cumulative data starting from March 2026
+        $startMonth = 3; // March
+        $startYear = 2026;
+        $currentYear = now()->year;
+        $currentMonth = now()->month;
+        
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
-        // Single query with grouping instead of loop (database-agnostic)
+        // Get users before March 2026
+        $usersBeforeMarch2026 = \App\Models\User::where('created_at', '<', '2026-03-01')->count();
+        
+        // Database-agnostic month expression
         $driver = DB::connection()->getDriverName();
         $monthExpression = $driver === 'pgsql' 
             ? 'EXTRACT(MONTH FROM created_at)' 
             : 'MONTH(created_at)';
+        $yearExpression = $driver === 'pgsql'
+            ? 'EXTRACT(YEAR FROM created_at)'
+            : 'YEAR(created_at)';
         
-        $monthlyUsers = \App\Models\User::whereYear('created_at', now()->year)
-            ->selectRaw("{$monthExpression} as month, COUNT(*) as count")
-            ->groupBy('month')
-            ->pluck('count', 'month');
+        // Get monthly users from March 2026 onwards
+        $monthlyUsers = \App\Models\User::where('created_at', '>=', '2026-03-01')
+            ->selectRaw("{$yearExpression} as year, {$monthExpression} as month, COUNT(*) as count")
+            ->groupBy('year', 'month')
+            ->get()
+            ->keyBy(function($item) {
+                return $item->year . '-' . $item->month;
+            });
 
-        $cumulative = $usersBeforeThisYear;
-        for ($i = 1; $i <= now()->month; $i++) {
-            $cumulative += $monthlyUsers[$i] ?? 0;
-            $chart['monthly']['labels'][] = $months[$i - 1];
-            $chart['monthly']['data'][] = $cumulative;
+        $cumulative = $usersBeforeMarch2026;
+        
+        // Generate chart data from March 2026 to current month
+        for ($year = $startYear; $year <= $currentYear; $year++) {
+            $monthStart = ($year == $startYear) ? $startMonth : 1;
+            $monthEnd = ($year == $currentYear) ? $currentMonth : 12;
+            
+            for ($month = $monthStart; $month <= $monthEnd; $month++) {
+                $key = $year . '-' . $month;
+                $cumulative += $monthlyUsers->get($key)->count ?? 0;
+                $chart['monthly']['labels'][] = $months[$month - 1] . ' ' . $year;
+                $chart['monthly']['data'][] = $cumulative;
+            }
         }
 
-        // Yearly cumulative data (Last 4 years)
-        $currentYear = now()->year;
-        for ($y = $currentYear - 3; $y <= $currentYear; $y++) {
-            $chart['yearly']['labels'][] = (string) $y;
-            $chart['yearly']['data'][] = \App\Models\User::whereYear('created_at', '<=', $y)->count();
-        }
+        // Yearly cumulative data (2026 only for now)
+        $chart['yearly']['labels'][] = '2026';
+        $chart['yearly']['data'][] = \App\Models\User::whereYear('created_at', '<=', 2026)->count();
 
         return [
             // Engagement
