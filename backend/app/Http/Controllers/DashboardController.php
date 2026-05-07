@@ -38,15 +38,19 @@ class DashboardController extends Controller
         $totalLikes    = \App\Models\ArticleInteraction::where('type', 'liked')->count();
         $totalShares   = (int) \App\Models\Article::sum('shares_count');
 
-        // Simple reader growth: compare this month's vs last month's new users
-        $lastMonth       = now()->subMonth();
-        $currentReaders  = \App\Models\User::whereMonth('created_at', now()->month)
-                                           ->whereYear('created_at', now()->year)->count();
-        $previousReaders = \App\Models\User::whereMonth('created_at', $lastMonth->month)
-                                           ->whereYear('created_at', $lastMonth->year)->count();
+        // Reader growth: compare total cumulative users (end of this month vs end of last month)
+        $lastMonth = now()->subMonth();
+        
+        // Total users up to end of current month
+        $currentReaders = \App\Models\User::whereDate('created_at', '<=', now()->endOfMonth())->count();
+        
+        // Total users up to end of last month
+        $previousReaders = \App\Models\User::whereDate('created_at', '<=', $lastMonth->endOfMonth())->count();
+        
+        // Calculate growth percentage based on cumulative totals
         $growthPct = $previousReaders > 0
             ? round((($currentReaders - $previousReaders) / $previousReaders) * 100, 2)
-            : 0;
+            : ($currentReaders > 0 ? 100 : 0);
 
         // Dynamic Chart Data Generation (Cumulative Readership)
         // Start from March 2026 (when system was developed)
